@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Bloqueio padrão: todo acesso ao Firestore passa pela API (Admin SDK),
+    // nunca diretamente do client. Ver constitution.md §5.2.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
