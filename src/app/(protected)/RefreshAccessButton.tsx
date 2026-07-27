@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { auth } from "@/core/firebase/firebaseClient";
 
 /**
@@ -49,15 +50,10 @@ export function RefreshAccessButton(): React.ReactElement {
 
 	return (
 		<div className="mt-4">
-			<button
-				type="button"
-				onClick={handleClick}
-				disabled={carregando}
-				className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-			>
+			<Button type="button" onClick={handleClick} disabled={carregando}>
 				{carregando ? "Verificando..." : "Verificar acesso novamente"}
-			</button>
-			{erro !== null ? <p className="mt-2 text-sm text-red-600">{erro}</p> : null}
+			</Button>
+			{erro !== null ? <p className="mt-2 text-sm text-destructive">{erro}</p> : null}
 		</div>
 	);
 }
