@@ -10,11 +10,8 @@ export function CopilotoInput(): React.ReactElement {
 				type="text"
 				placeholder="Pergunte algo sobre a escola..."
 				disabled
-				className="rounded-full bg-card pl-9 pr-20"
+				className="rounded-full bg-card pl-9"
 			/>
-			<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/70">
-				em breve
-			</span>
 		</div>
 	);
 }

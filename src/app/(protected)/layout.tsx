@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SideNav } from "@/components/shell/SideNav";
+import { SidebarShell } from "@/components/shell/SidebarShell";
 import { getAuthenticatedUser } from "@/core/auth/getAuthenticatedUser";
 import { PENDING_ACCESS } from "@/core/auth/Role";
 
@@ -43,9 +43,8 @@ export default async function ProtectedLayout({
 	}
 
 	return (
-		<div className="flex min-h-screen bg-background">
-			<SideNav user={{ displayName: user.displayName, role: user.role }} />
-			<main className="flex-1 overflow-x-hidden p-6 sm:p-8">{children}</main>
-		</div>
+		<SidebarShell user={{ displayName: user.displayName, email: user.email, role: user.role }}>
+			<div className="overflow-x-hidden p-6 sm:p-8">{children}</div>
+		</SidebarShell>
 	);
 }
