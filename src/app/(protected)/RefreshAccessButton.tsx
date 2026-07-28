@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { auth } from "@/core/firebase/firebaseClient";
+import { getFirebaseAuth } from "@/core/firebase/firebaseClient";
 
 /**
  * Custom claims só chegam num ID token novo — o cookie de sessão guarda o token
@@ -22,7 +22,7 @@ export function RefreshAccessButton(): React.ReactElement {
 		setCarregando(true);
 
 		try {
-			const user = auth.currentUser;
+			const user = getFirebaseAuth().currentUser;
 			if (user === null) {
 				router.push("/login");
 				return;

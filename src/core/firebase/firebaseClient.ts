@@ -46,5 +46,11 @@ function getOrCreateFirebaseApp(): FirebaseApp {
 	return initializeApp(readFirebaseClientConfig());
 }
 
-export const firebaseApp: FirebaseApp = getOrCreateFirebaseApp();
-export const auth: Auth = getAuth(firebaseApp);
+// Lazy: `firebase/auth` valida a apiKey na inicialização e lança se ela for
+// inválida. Como as páginas "use client" também são pré-renderizadas no
+// servidor (SSG), inicializar no escopo do módulo derruba o build quando as
+// env vars NEXT_PUBLIC_FIREBASE_* não estão setadas no ambiente de build.
+// Adiando para dentro do handler garante que isso só rode no browser.
+export function getFirebaseAuth(): Auth {
+	return getAuth(getOrCreateFirebaseApp());
+}
