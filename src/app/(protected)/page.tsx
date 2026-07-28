@@ -1,16 +1,55 @@
-import { getServerSession } from "@/core/auth/getServerSession";
+import { AlertBanner } from "@/components/dashboard/AlertBanner";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
+import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
+import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { RitualChecklist } from "@/components/dashboard/RitualChecklist";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	mockAlertaCobranca,
+	mockFunnelStages,
+	mockKpisComunicacao,
+	mockKpisFinanceiro,
+	mockPendenciasComunicacao,
+	mockPendenciasFinanceiro,
+	mockRitualChecklist,
+} from "@/core/dashboard/mockData";
 
-export default async function HomePage(): Promise<React.ReactElement> {
-	const session = await getServerSession();
-
-	
+export default function HomePage(): React.ReactElement {
 	return (
-		<div>
-			<h1 className="text-lg font-semibold text-slate-900">Bem-vinda {session?.displayName}</h1>
-			<p className="mt-2 text-sm text-slate-500">
-				Sessão ativa como <span className="font-medium">{session?.role}</span>. Os módulos de
-				Financeiro e Comunicação entram aqui nas próximas etapas.
-			</p>
+		<div className="flex flex-col gap-6">
+			<DashboardHeader />
+
+			<Tabs defaultValue="comunicacao">
+				<TabsList className="bg-transparent p-0">
+					<TabsTrigger
+						value="comunicacao"
+						className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+					>
+						Comunicação
+					</TabsTrigger>
+					<TabsTrigger
+						value="financeiro"
+						className="ml-6 rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+					>
+						Financeiro
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
+					<AlertBanner mensagem={mockAlertaCobranca.mensagem} />
+					<KpiCardsGrid items={mockKpisComunicacao} />
+					<FunnelStageRow items={mockFunnelStages} />
+					<PendenciasList items={mockPendenciasComunicacao} />
+				</TabsContent>
+
+				<TabsContent value="financeiro" className="mt-6 flex flex-col gap-6">
+					<AlertBanner mensagem={mockAlertaCobranca.mensagem} />
+					<KpiCardsGrid items={mockKpisFinanceiro} />
+					<RitualChecklist items={mockRitualChecklist} />
+					<PendenciasList items={mockPendenciasFinanceiro} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }
