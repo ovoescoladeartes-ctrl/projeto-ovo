@@ -5,7 +5,7 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import Link from "next/link";
 import { useState } from "react";
 
-import { auth } from "@/core/firebase/firebaseClient";
+import { getFirebaseAuth } from "@/core/firebase/firebaseClient";
 
 function mensagemDeErro(error: unknown): string {
 	const code = (error as FirebaseError | undefined)?.code;
@@ -42,7 +42,7 @@ export default function CadastroPage(): React.ReactElement {
 		setCarregando(true);
 
 		try {
-			const credencial = await createUserWithEmailAndPassword(auth, email, senha);
+			const credencial = await createUserWithEmailAndPassword(getFirebaseAuth(), email, senha);
 			await updateProfile(credencial.user, { displayName: nome });
 			// Força atualização do token para incluir o nome recém-definido no profile.
 			const idToken = await credencial.user.getIdToken(true);

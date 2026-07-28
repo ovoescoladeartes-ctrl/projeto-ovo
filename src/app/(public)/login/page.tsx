@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { auth } from "@/core/firebase/firebaseClient";
+import { getFirebaseAuth } from "@/core/firebase/firebaseClient";
 
 function mensagemDeErro(error: unknown): string {
 	const code = (error as FirebaseError | undefined)?.code;
@@ -37,7 +37,7 @@ export default function LoginPage(): React.ReactElement {
 		setCarregando(true);
 
 		try {
-			const credencial = await signInWithEmailAndPassword(auth, email, senha);
+			const credencial = await signInWithEmailAndPassword(getFirebaseAuth(), email, senha);
 			const idToken = await credencial.user.getIdToken();
 
 			const response = await fetch("/api/auth/session", {
