@@ -1,4 +1,13 @@
 {
-	"indexes": [],
+	"indexes": [
+		{
+			"collectionGroup": "contatos",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "ativo", "order": "ASCENDING" },
+				{ "fieldPath": "estagioAtualizadoEm", "order": "ASCENDING" }
+			]
+		}
+	],
 	"fieldOverrides": []
 }

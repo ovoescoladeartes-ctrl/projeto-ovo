@@ -37,9 +37,9 @@ interface NavItem {
 /** Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752). */
 const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Vagões", icon: Workflow, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Pessoas", icon: Users, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Caixa", icon: Wallet, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
+	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
+	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
+	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
 	{ label: "Configurações", icon: Settings, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
 ];
 

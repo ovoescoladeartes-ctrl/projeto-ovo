@@ -36,7 +36,7 @@ arquivo real antes de confiar cegamente nos valores aqui.
 | Token | Valor estimado | Confiança | Uso |
 |---|---|---|---|
 | Família | Inter (via `next/font`) | **estimado, não confirmado** — nenhuma fonte de exibição identificável com confiança nas capturas | Padrão do app inteiro |
-| Título "Dashboard" | bold, ~28–32px | estimado | Título da página |
+| Título de página (h1) | `text-2xl font-bold text-foreground sm:text-3xl` | **implementado, não mais estimado** — ver regra MANDATÓRIA abaixo | Todo `<h1>` de página, em qualquer rota |
 | Número de KPI | bold, ~28–32px | estimado | Valor grande dos cards de KPI |
 | Label de card | uppercase, letter-spacing, ~11–12px, cinza | estimado | Rótulo acima do número (ex: "SALDO VIVO") |
 | Texto de corpo/meta | regular, ~13–14px, cinza | estimado | Subtítulos, meta info das pendências |
@@ -84,7 +84,7 @@ sidebar como um drawer.
 | Elemento visual | Primitivo shadcn | Wrapper customizado |
 |---|---|---|
 | Cards de KPI, pendências, ritual | `Card` | `KpiCard`, `PendenciaRow` (dentro de `PendenciasList`) |
-| Abas Comunicação/Financeiro | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | — |
+| Abas de seção de página (Comunicação/Financeiro, Recebimentos/Repasses) | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` — **variante sublinhada**, não a pill padrão do shadcn (ver regra MANDATÓRIA abaixo) | — |
 | Badge de contagem ("3"), badge "3/5 concluídos" | `Badge` | — |
 | Barra de busca do Copiloto | `Input` (`disabled`) | `CopilotoInput` |
 | Itens do checklist "Ritual de segunda" | `Checkbox` + `Label` (`checked`+`disabled`) | `RitualChecklistItem`, `RitualChecklist` |
@@ -130,6 +130,40 @@ desta conversa:
    (~90% do tempo). Antes de considerar qualquer UI pronta, teste em viewport mobile.
    Ver seção "Responsividade" nos tokens acima para o que já foi implementado (sidebar
    com drawer mobile via `Sidebar`/`Sheet` do shadcn).
+6. **Todo título de página (`<h1>`) usa exatamente as classes do `DashboardHeader`**:
+   `text-2xl font-bold text-foreground sm:text-3xl`. `DashboardHeader.tsx` é a referência
+   canônica — nunca `text-lg`/`font-semibold` (tamanho de subtítulo, usado por engano nas
+   primeiras telas do v1 e corrigido) nem cor hardcoded tipo `text-slate-900` (sempre o
+   token `text-foreground`, que já se adapta a dark mode). Vale para toda rota nova,
+   inclusive fora de `(protected)`, a menos que a tela seja explicitamente um contexto
+   visual diferente do shell do app (ex: a marca "OVO" na tela pública de login não é um
+   título de página no mesmo sentido).
+7. **Toda `Tabs` de seção de página (duas ou mais áreas de conteúdo dentro de uma mesma
+   rota, ex: Comunicação/Financeiro no Dashboard, Recebimentos/Repasses no Caixa) usa a
+   variante sublinhada do `DashboardHeader`/`HomePage` (`src/app/(protected)/page.tsx`),
+   nunca o estilo pill padrão do shadcn (`TabsList` com fundo `bg-muted` e trigger ativo
+   virando um "botão" preenchido) — esse estilo default só serve para tabs que são
+   controles isolados dentro de um componente menor (ex: categorias dentro do
+   `MensagemPickerSheet`), não para navegação entre seções de uma página inteira. Copie
+   exatamente:
+   ```tsx
+   <TabsList className="bg-transparent p-0">
+     <TabsTrigger
+       value="..."
+       className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+     >
+       ...
+     </TabsTrigger>
+     <TabsTrigger
+       value="..."
+       className="ml-6 rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+     >
+       ...
+     </TabsTrigger>
+   </TabsList>
+   ```
+   (o `ml-6` é só no segundo trigger em diante, para o espaçamento entre abas — o primeiro
+   não leva margem lateral).
 
 ---
 
