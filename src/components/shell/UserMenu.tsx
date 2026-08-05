@@ -12,7 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { auth } from "@/core/firebase/firebaseClient";
+import { getFirebaseAuth } from "@/core/firebase/firebaseClient";
 
 interface UserMenuProps {
 	displayName: string;
@@ -36,7 +36,7 @@ export function UserMenu({ displayName, email }: UserMenuProps): React.ReactElem
 	async function handleLogout(): Promise<void> {
 		setSaindo(true);
 		try {
-			await auth.signOut();
+			await getFirebaseAuth().signOut();
 			await fetch("/api/auth/session", { method: "DELETE" });
 		} finally {
 			router.push("/login");
