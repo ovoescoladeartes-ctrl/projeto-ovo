@@ -46,7 +46,7 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<h1 className="mb-1 text-lg font-semibold text-slate-900">Controle de acessos</h1>
+			<h1 className="mb-1 text-2xl font-bold text-foreground sm:text-3xl">Controle de acessos</h1>
 			<p className="mb-6 text-sm text-slate-500">
 				Defina o papel de cada pessoa cadastrada. Quem ainda não tem papel fica com acesso
 				pendente e não entra em nenhum módulo.

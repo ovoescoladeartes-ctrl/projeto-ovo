@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -11,10 +11,12 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { getFirebaseAuth } from "@/core/firebase/firebaseClient";
 
 interface UserMenuProps {
 	displayName: string;
+	email: string;
 }
 
 function getInitials(displayName: string): string {
@@ -27,7 +29,7 @@ function getInitials(displayName: string): string {
 	return (first + last).toUpperCase();
 }
 
-export function UserMenu({ displayName }: UserMenuProps): React.ReactElement {
+export function UserMenu({ displayName, email }: UserMenuProps): React.ReactElement {
 	const router = useRouter();
 	const [saindo, setSaindo] = useState(false);
 
@@ -42,27 +44,31 @@ export function UserMenu({ displayName }: UserMenuProps): React.ReactElement {
 	}
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<button
-					type="button"
-					className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-					aria-label="Menu do usuário"
-				>
-					<Avatar className="h-9 w-9">
-						<AvatarFallback className="bg-primary text-sm font-medium text-primary-foreground">
-							{getInitials(displayName)}
-						</AvatarFallback>
-					</Avatar>
-				</button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent side="right" align="end" className="w-48">
-				<div className="px-2 py-1.5 text-sm font-medium">{displayName || "Usuária"}</div>
-				<DropdownMenuItem onSelect={handleLogout} disabled={saindo}>
-					<LogOut className="h-4 w-4" />
-					{saindo ? "Saindo..." : "Sair"}
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+		<SidebarMenu>
+			<SidebarMenuItem>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<SidebarMenuButton size="lg" aria-label="Menu do usuário">
+							<Avatar className="h-8 w-8 rounded-full">
+								<AvatarFallback className="rounded-full bg-primary text-sm font-medium text-primary-foreground">
+									{getInitials(displayName)}
+								</AvatarFallback>
+							</Avatar>
+							<div className="grid flex-1 text-left text-sm leading-tight">
+								<span className="truncate font-medium">{displayName || "Usuária"}</span>
+								<span className="truncate text-xs text-muted-foreground">{email}</span>
+							</div>
+							<ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground" />
+						</SidebarMenuButton>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent side="right" align="end" className="w-56">
+						<DropdownMenuItem onSelect={handleLogout} disabled={saindo}>
+							<LogOut className="h-4 w-4" />
+							{saindo ? "Saindo..." : "Sair"}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</SidebarMenuItem>
+		</SidebarMenu>
 	);
 }
