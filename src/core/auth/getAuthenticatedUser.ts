@@ -9,6 +9,7 @@ import { getFirebaseAdminAuth } from "@/core/firebase/firebaseAdmin";
 export interface AuthenticatedUser {
 	uid: string;
 	displayName: string;
+	email: string;
 	/** `"pendente"` quando o token é válido mas ainda não recebeu custom claim de role (cadastro pendente de liberação). Nunca `null` — ver `AccessRole`. */
 	role: AccessRole;
 }
@@ -34,6 +35,7 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
 		return {
 			uid: decoded.uid,
 			displayName: decoded.name ?? "",
+			email: decoded.email ?? "",
 			role: isRole(claimRole) ? claimRole : PENDING_ACCESS,
 		};
 	} catch {
