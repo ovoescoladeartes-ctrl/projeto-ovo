@@ -37,14 +37,14 @@ export default function HomePage(): React.ReactElement {
 				</TabsList>
 
 				<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
-					<AlertBanner mensagem={mockAlertaCobranca.mensagem} />
+					<AlertBanner mensagem={mockAlertaCobranca.mensagem} variant="destructive" />
 					<KpiCardsGrid items={mockKpisComunicacao} />
 					<FunnelStageRow items={mockFunnelStages} />
 					<PendenciasList items={mockPendenciasComunicacao} />
 				</TabsContent>
 
 				<TabsContent value="financeiro" className="mt-6 flex flex-col gap-6">
-					<AlertBanner mensagem={mockAlertaCobranca.mensagem} />
+					<AlertBanner mensagem={mockAlertaCobranca.mensagem} variant="destructive" />
 					<KpiCardsGrid items={mockKpisFinanceiro} />
 					<RitualChecklist items={mockRitualChecklist} />
 					<PendenciasList items={mockPendenciasFinanceiro} />
