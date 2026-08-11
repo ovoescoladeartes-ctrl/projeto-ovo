@@ -44,7 +44,7 @@ export default async function ProtectedLayout({
 
 	return (
 		<SidebarShell user={{ displayName: user.displayName, email: user.email, role: user.role }}>
-			<div className="overflow-x-hidden p-6 sm:p-8">{children}</div>
+			<div className="flex min-h-0 flex-1 flex-col overflow-x-hidden p-6 sm:p-8">{children}</div>
 		</SidebarShell>
 	);
 }

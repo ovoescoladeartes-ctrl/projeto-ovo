@@ -1,19 +1,12 @@
 "use client";
 
 import { MessageSquareText, MoveRight } from "lucide-react";
+import Link from "next/link";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
-import { calcularUrgencia, type NivelUrgencia } from "@/core/comunicacao/urgencia";
-import { cn } from "@/lib/utils";
-
-const URGENCIA_CLASSES: Record<NivelUrgencia, string> = {
-	recente: "border-border",
-	atencao: "border-amber-400",
-	urgente: "border-red-500",
-};
 
 function iniciais(nome: string): string {
 	const partes = nome.trim().split(/\s+/);
@@ -36,56 +29,73 @@ interface ContatoCardProps {
 }
 
 export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: ContatoCardProps): React.ReactElement {
-	const urgencia = calcularUrgencia(contato.estagioAtualizadoEm);
 	const outrosBuckets = BUCKETS.filter((bucket) => bucket.key !== bucketKeyDe(contato));
+	const curso = contato.interesseInicial.slice(0, 24);
+	const dias = `${diasDesde(contato.estagioAtualizadoEm)}d`;
+	const subtitulo = curso === "" ? dias : `${curso} - ${dias}`;
 
-	return (
-		<div className={cn("rounded-lg border bg-card p-3 shadow-sm", URGENCIA_CLASSES[urgencia])}>
-			<div className="flex items-start justify-between gap-2">
-				<div className="flex min-w-0 items-center gap-2">
-					<Avatar className="h-7 w-7 shrink-0">
-						<AvatarFallback className="text-xs">{iniciais(contato.nome)}</AvatarFallback>
+	const conteudo = (
+		<div className="flex items-start justify-between gap-2">
+			<div className="flex min-w-0 flex-col gap-1">
+				<div className="flex min-w-0 items-center gap-3">
+					<Avatar className="shrink-0">
+						<AvatarFallback className="text-sm font-semibold">{iniciais(contato.nome)}</AvatarFallback>
 					</Avatar>
-					<div className="min-w-0">
-						<p className="truncate text-sm font-medium text-foreground">{contato.nome}</p>
-						<p className="truncate text-xs text-muted-foreground">
-							{contato.interesseInicial.slice(0, 24)} · {diasDesde(contato.estagioAtualizadoEm)}d
-						</p>
-					</div>
+					<p className="truncate text-sm font-semibold text-foreground">{contato.nome}</p>
 				</div>
+				<p className="truncate text-xs text-muted-foreground">{subtitulo}</p>
+			</div>
 
-				<div className="flex shrink-0 items-center gap-0.5">
-					<button
-						type="button"
-						aria-label="Biblioteca de mensagens"
-						onClick={onAbrirBiblioteca}
-						onPointerDown={(event) => event.stopPropagation()}
-						className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-					>
-						<MessageSquareText className="h-4 w-4" />
-					</button>
+			{/* Só existe no mobile: lá não tem drag, então esse é o único jeito de mover ou
+			    abrir a biblioteca. No desktop os ícones ficam de fora — drag cobre o "mover"
+			    e o hover do card (acima) já basta como feedback, sem gastar espaço da coluna.
+			    stopPropagation aqui evita que um clique nesses botões dispare a navegação do
+			    card pra página da pessoa. */}
+			<div className="flex shrink-0 items-center gap-0.5 md:hidden" onClick={(event) => event.stopPropagation()}>
+				<button
+					type="button"
+					aria-label="Biblioteca de mensagens"
+					onClick={onAbrirBiblioteca}
+					onPointerDown={(event) => event.stopPropagation()}
+					className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+				>
+					<MessageSquareText className="h-4 w-4" />
+				</button>
 
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<button
-								type="button"
-								aria-label="Mover para"
-								onPointerDown={(event) => event.stopPropagation()}
-								className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-							>
-								<MoveRight className="h-4 w-4" />
-							</button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							{outrosBuckets.map((bucket) => (
-								<DropdownMenuItem key={bucket.key} onSelect={() => onMoverPara(bucket)}>
-									{bucket.label}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							aria-label="Mover para"
+							onPointerDown={(event) => event.stopPropagation()}
+							className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+						>
+							<MoveRight className="h-4 w-4" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						{outrosBuckets.map((bucket) => (
+							<DropdownMenuItem key={bucket.key} onSelect={() => onMoverPara(bucket)}>
+								{bucket.label}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 		</div>
 	);
+
+	const classeCartao = "block rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-accent";
+
+	// Só vira link quando já existe uma Pessoa vinculada — contato ainda "solto" (lead sem
+	// conversão) não tem pra onde navegar.
+	if (contato.pessoaId !== null) {
+		return (
+			<Link href={`/pessoas/${contato.pessoaId}`} className={classeCartao}>
+				{conteudo}
+			</Link>
+		);
+	}
+
+	return <div className={classeCartao}>{conteudo}</div>;
 }
