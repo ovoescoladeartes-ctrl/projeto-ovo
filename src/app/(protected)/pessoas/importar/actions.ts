@@ -5,6 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 
 import { getServerSession } from "@/core/auth/getServerSession";
+import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { ALUNO_STATUS, COLABORADOR_STATUS, type PessoaTipo } from "@/core/pessoas/schema";
 
@@ -231,6 +232,17 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 			contadorNoBatch += 1;
 			importadas += 1;
 
+			// Mesma regra da criação manual (ver contatoInicialDeAluno): aluno importado
+			// também precisa aparecer em Vagões, senão o funil fica cego pra quem entrou via CSV.
+			if (linha.tipo === "aluno") {
+				const contatoRef = firestore.collection("contatos").doc();
+				batch.set(
+					contatoRef,
+					contatoInicialDeAluno({ id: pessoaRef.id, nome: linha.nome, status: linha.status, ativo: true }, linha.turmaNome),
+				);
+				contadorNoBatch += 1;
+			}
+
 			if (linha.turmaId !== null) {
 				const matriculaRef = firestore.collection("matriculas").doc();
 				batch.set(matriculaRef, {
@@ -260,5 +272,6 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 	}
 
 	revalidatePath("/pessoas");
+	revalidatePath("/vagoes");
 	return { status: "ok", importadas };
 }

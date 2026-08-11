@@ -53,6 +53,7 @@ const config: Config = {
     			border: 'var(--border)',
     			input: 'var(--input)',
     			ring: 'var(--ring)',
+    			column: 'var(--column)',
     			chart: {
     				'1': 'var(--chart-1)',
     				'2': 'var(--chart-2)',

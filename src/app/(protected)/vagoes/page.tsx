@@ -68,6 +68,43 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 		};
 	});
 
+	// Card mostra "o curso" — antes de convertido é o interesseInicial (o que a pessoa
+	// perguntou); a partir de convertido, o dado que importa é o curso em que ela está
+	// matriculada de verdade, então buscamos isso via matriculas/turmas e sobrescrevemos
+	// só pra exibição (o interesseInicial original continua intacto no Firestore).
+	const pessoaIdsConvertidos = contatos
+		.filter((contato) => contato.estagio === "convertido" && contato.pessoaId !== null)
+		.map((contato) => contato.pessoaId as string);
+
+	const cursoAtualPorPessoaId = new Map<string, string>();
+
+	if (pessoaIdsConvertidos.length > 0) {
+		const [matriculasSnapshot, turmasSnapshot] = await Promise.all([
+			firestore.collection("matriculas").where("status", "==", "ativa").get(),
+			firestore.collection("turmas").get(),
+		]);
+
+		const nomeTurmaPorId = new Map(
+			turmasSnapshot.docs.map((doc) => [doc.id, (doc.data() as { nome: string }).nome]),
+		);
+
+		matriculasSnapshot.docs.forEach((doc) => {
+			const data = doc.data() as { pessoaId: string; turmaId: string };
+			if (cursoAtualPorPessoaId.has(data.pessoaId)) {
+				return;
+			}
+			const nomeTurma = nomeTurmaPorId.get(data.turmaId);
+			if (nomeTurma !== undefined) {
+				cursoAtualPorPessoaId.set(data.pessoaId, nomeTurma);
+			}
+		});
+	}
+
+	const contatosComCurso: Contato[] = contatos.map((contato) => {
+		const cursoAtual = contato.pessoaId !== null ? cursoAtualPorPessoaId.get(contato.pessoaId) : undefined;
+		return cursoAtual !== undefined ? { ...contato, interesseInicial: cursoAtual } : contato;
+	});
+
 	const mensagens: Mensagem[] = mensagensSnapshot.docs.map((doc) => {
 		const data = doc.data() as MensagemDoc;
 		return {
@@ -80,10 +117,11 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 	});
 
 	return (
-		<div>
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+		<div className="flex h-full min-h-0 flex-col">
+			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
 				<CopilotoInput />
-				<div className="flex items-center gap-2">
+				<div className="flex shrink-0 items-center gap-2">
 					<select
 						disabled
 						className="rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-70"
@@ -112,7 +150,9 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 				</TabsList>
 			</Tabs>
 
-			<Board contatos={contatos} mensagens={mensagens} />
+			<div className="min-h-0 flex-1">
+				<Board contatos={contatosComCurso} mensagens={mensagens} />
+			</div>
 		</div>
 	);
 }
