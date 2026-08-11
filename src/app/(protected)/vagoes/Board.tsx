@@ -1,6 +1,16 @@
 "use client";
 
-import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+	DndContext,
+	DragOverlay,
+	PointerSensor,
+	useDraggable,
+	useDroppable,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+	type DragStartEvent,
+} from "@dnd-kit/core";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
@@ -27,27 +37,46 @@ function agrupar(contatos: Contato[]): Map<string, Contato[]> {
 	return grupos;
 }
 
-function DroppableColuna({ bucket, children }: { bucket: Bucket; children: React.ReactNode }): React.ReactElement {
+function DroppableColuna({
+	bucket,
+	vazio,
+	children,
+}: {
+	bucket: Bucket;
+	vazio: boolean;
+	children: React.ReactNode;
+}): React.ReactElement {
 	const { setNodeRef, isOver } = useDroppable({ id: bucket.key });
 	return (
-		<div
-			ref={setNodeRef}
-			className={cn(
-				"flex min-h-[200px] flex-col gap-2 rounded-lg border border-border bg-muted/30 p-2 transition-colors",
-				isOver && "bg-accent/40",
+		<div ref={setNodeRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-md">
+			{vazio && !isOver ? (
+				<p className="py-8 text-center text-xs text-muted-foreground">Nenhum contato nesse estágio.</p>
+			) : (
+				children
 			)}
-		>
-			{children}
+			{/* Slot de destino: aparece só enquanto um card está sendo arrastado por cima desta
+			    coluna, indicando onde ele vai pousar ao soltar. */}
+			{isOver ? <div className="min-h-16 shrink-0 rounded-xl border-2 border-dashed border-foreground/25 bg-accent/50" /> : null}
 		</div>
 	);
 }
 
+/**
+ * O card original fica invisível (mas ocupa o mesmo espaço) enquanto arrasta — em cinza
+ * claro tracejado, marcando "era aqui que ele estava". A cópia que segue o cursor é o
+ * <DragOverlay> lá embaixo no Board, não este elemento: por isso aqui não tem transform
+ * nenhum, só a troca de aparência.
+ */
 function DraggableCartao({ contato, children }: { contato: Contato; children: React.ReactNode }): React.ReactElement {
-	const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: contato.id });
-	const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+	const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: contato.id });
 	return (
-		<div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn(isDragging && "z-10 opacity-60")}>
-			{children}
+		<div ref={setNodeRef} className="relative">
+			<div {...listeners} {...attributes} className={cn(isDragging && "invisible")}>
+				{children}
+			</div>
+			{isDragging ? (
+				<div className="absolute inset-0 rounded-xl border-2 border-dashed border-border bg-muted/60" />
+			) : null}
 		</div>
 	);
 }
@@ -60,6 +89,7 @@ interface BoardProps {
 export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 	const [pickerAberto, setPickerAberto] = useState(false);
 	const [estagioMobile, setEstagioMobile] = useState<string>(BUCKETS[0]?.key ?? "novo");
+	const [activeId, setActiveId] = useState<string | null>(null);
 	const [, startTransition] = useTransition();
 
 	const [contatosOtimistas, moverOtimista] = useOptimistic(contatos, (estado: Contato[], acao: MoverAction) =>
@@ -76,6 +106,7 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 	);
 
 	const grupos = useMemo(() => agrupar(contatosOtimistas), [contatosOtimistas]);
+	const activeContato = activeId !== null ? (contatosOtimistas.find((contato) => contato.id === activeId) ?? null) : null;
 
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -86,7 +117,12 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 		});
 	}
 
+	function handleDragStart(event: DragStartEvent): void {
+		setActiveId(String(event.active.id));
+	}
+
 	function handleDragEnd(event: DragEndEvent): void {
+		setActiveId(null);
 		const { active, over } = event;
 		if (over === null) {
 			return;
@@ -99,24 +135,31 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 	}
 
 	return (
-		<div>
+		<div className="flex h-full min-h-0 flex-col">
 			<MensagemPickerSheet open={pickerAberto} onOpenChange={setPickerAberto} mensagens={mensagens} />
 
-			{/* Desktop: 6 colunas lado a lado (Figma node 34:2756), com drag and drop. */}
-			<div className="hidden md:block">
-				<DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-					<div className="grid grid-cols-6 gap-3">
+			{/* Desktop: 6 colunas lado a lado (Figma node 34:2756), com drag and drop. Cada coluna
+			    preenche a altura toda disponível e rola por conta própria (padrão kanban), em vez
+			    de esticar a página inteira quando uma coluna tem muitos cards. */}
+			<div className="hidden min-h-0 flex-1 md:block">
+				<DndContext
+					sensors={sensors}
+					onDragStart={handleDragStart}
+					onDragEnd={handleDragEnd}
+					onDragCancel={() => setActiveId(null)}
+				>
+					<div className="grid h-full grid-cols-6 gap-6">
 						{BUCKETS.map((bucket) => {
 							const cards = grupos.get(bucket.key) ?? [];
 							return (
-								<div key={bucket.key} className="min-w-0">
-									<div className="mb-2 flex items-center justify-between px-1">
-										<p className="truncate text-sm font-medium text-foreground">{bucket.label}</p>
-										<span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium text-background">
+								<div key={bucket.key} className="flex min-w-0 flex-col rounded-lg bg-column p-3">
+									<div className="mb-3 flex items-center gap-2 px-1">
+										<p className="truncate text-base font-semibold text-foreground">{bucket.label}</p>
+										<span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium text-background">
 											{cards.length}
 										</span>
 									</div>
-									<DroppableColuna bucket={bucket}>
+									<DroppableColuna bucket={bucket} vazio={cards.length === 0}>
 										{cards.map((contato) => (
 											<DraggableCartao key={contato.id} contato={contato}>
 												<ContatoCard
@@ -131,6 +174,17 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 							);
 						})}
 					</div>
+
+					{/* Cópia flutuante que segue o cursor — some do fluxo normal (por isso z-index e
+					    coluna nunca mais competem), com uma leve rotação/sombra pra dar a sensação de
+					    "pegou o card", e anima suavemente até o slot de destino ao soltar. */}
+					<DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
+						{activeContato ? (
+							<div className="rotate-2 shadow-xl">
+								<ContatoCard contato={activeContato} onMoverPara={() => {}} onAbrirBiblioteca={() => {}} />
+							</div>
+						) : null}
+					</DragOverlay>
 				</DndContext>
 			</div>
 

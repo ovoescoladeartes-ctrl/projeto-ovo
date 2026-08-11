@@ -78,8 +78,26 @@ async function converterContatoEmPessoa(contatoId: string): Promise<ActionResult
 
 			const contatoData = contatoDoc.data() as { estagio: string; pessoaId: string | null; nome: string };
 
-			// Idempotência: clique duplo no drag/botão não cria uma segunda Pessoa.
-			if (contatoData.estagio === "convertido" || contatoData.pessoaId !== null) {
+			// Idempotência: clique duplo no drag/botão não cria uma segunda Pessoa nem reescreve
+			// um contato que já está convertido.
+			if (contatoData.estagio === "convertido") {
+				return;
+			}
+
+			// `pessoaId` já pode vir preenchido sem o contato estar "convertido" — todo aluno
+			// nasce com um contato vinculado (ver contatoInicialDeAluno), então a Pessoa já
+			// existe de antemão pra quem entrou via cadastro manual/CSV. Nesse caso só
+			// sincroniza o estágio do contato, sem criar uma segunda Pessoa por engano.
+			if (contatoData.pessoaId !== null) {
+				tx.set(
+					contatoRef,
+					{
+						estagio: "convertido",
+						arquivadoMotivo: null,
+						estagioAtualizadoEm: FieldValue.serverTimestamp(),
+					},
+					{ merge: true },
+				);
 				return;
 			}
 
