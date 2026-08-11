@@ -5,7 +5,7 @@ import type { ArquivadoMotivo, Canal, Estagio } from "./schema";
 interface AlunoOrigem {
 	id: string;
 	nome: string;
-	status: string;
+	statusAluno: string;
 	ativo: boolean;
 }
 
@@ -34,7 +34,7 @@ interface ContatoDeAlunoDoc {
  * valor aqui só importa mesmo enquanto o contato ainda não virou "Matriculado".
  */
 export function contatoInicialDeAluno(aluno: AlunoOrigem, curso: string | null = null): ContatoDeAlunoDoc {
-	const estagio: Estagio = aluno.status === "matriculado" ? "convertido" : "novo";
+	const estagio: Estagio = aluno.statusAluno === "matriculado" ? "convertido" : "novo";
 
 	return {
 		nome: aluno.nome,

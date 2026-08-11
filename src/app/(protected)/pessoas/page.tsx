@@ -27,14 +27,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 interface PessoaDoc {
-	tipo: string;
 	nome: string;
-	status: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
+	statusAluno: string | null;
+	statusProfessor: string | null;
 	ativo: boolean;
 	criadoViaContatoId: string | null;
 	criadoEm?: Timestamp;
 	interesses?: string[];
-	numeroMatricula?: string | null;
+	numeroMatriculaAluno?: string | null;
+	numeroMatriculaProfessor?: string | null;
 }
 
 interface TurmaResumoDoc {
@@ -49,7 +52,14 @@ interface MatriculaResumoDoc {
 }
 
 interface PessoasPageProps {
-	searchParams: Promise<{ tipo?: string; status?: string; interesse?: string; turma?: string; arquivados?: string }>;
+	searchParams: Promise<{
+		aluno?: string;
+		professor?: string;
+		status?: string;
+		interesse?: string;
+		turma?: string;
+		arquivados?: string;
+	}>;
 }
 
 const MAX_TURMAS_VISIVEIS = 2;
@@ -99,34 +109,43 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		const data = doc.data() as PessoaDoc;
 		return {
 			id: doc.id,
-			tipo: data.tipo as Pessoa["tipo"],
 			nome: data.nome,
-			status: data.status,
+			ehAluno: data.ehAluno,
+			ehProfessor: data.ehProfessor,
+			statusAluno: data.statusAluno as Pessoa["statusAluno"],
+			statusProfessor: data.statusProfessor as Pessoa["statusProfessor"],
 			ativo: data.ativo,
 			criadoViaContatoId: data.criadoViaContatoId ?? null,
 			criadoEm: toIso(data.criadoEm ?? null),
 			interesses: data.interesses ?? [],
-			numeroMatricula: data.numeroMatricula ?? null,
+			numeroMatriculaAluno: data.numeroMatriculaAluno ?? null,
+			numeroMatriculaProfessor: data.numeroMatriculaProfessor ?? null,
 		};
 	});
 
 	pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
-	if (filtros.tipo) {
-		pessoas = pessoas.filter((pessoa) => pessoa.tipo === filtros.tipo);
+	const marcouAluno = filtros.aluno === "1";
+	const marcouProfessor = filtros.professor === "1";
+	if (marcouAluno || marcouProfessor) {
+		pessoas = pessoas.filter((pessoa) => (marcouAluno && pessoa.ehAluno) || (marcouProfessor && pessoa.ehProfessor));
 	}
-	if (filtros.status === "lead") {
-		pessoas = pessoas.filter(
-			(pessoa) =>
-				(pessoa.tipo === "aluno" && pessoa.status === "lead") ||
-				(pessoa.tipo === "colaborador" && pessoa.status === "banco_talentos"),
-		);
-	} else if (filtros.status === "matriculado") {
-		pessoas = pessoas.filter(
-			(pessoa) =>
-				(pessoa.tipo === "aluno" && pessoa.status === "matriculado") ||
-				(pessoa.tipo === "colaborador" && pessoa.status === "ativo"),
-		);
+	if (filtros.status === "lead" || filtros.status === "matriculado") {
+		// Papéis considerados pro cruzamento com Status: só os marcados no filtro de Tipo — ou,
+		// se nenhum/os dois estiverem marcados, todos os papéis que a pessoa de fato tem.
+		pessoas = pessoas.filter((pessoa) => {
+			const consideraAluno = marcouAluno !== marcouProfessor ? marcouAluno : pessoa.ehAluno;
+			const consideraProfessor = marcouAluno !== marcouProfessor ? marcouProfessor : pessoa.ehProfessor;
+			const bateAluno =
+				consideraAluno &&
+				pessoa.ehAluno &&
+				(filtros.status === "lead" ? pessoa.statusAluno === "lead" : pessoa.statusAluno === "matriculado");
+			const bateProfessor =
+				consideraProfessor &&
+				pessoa.ehProfessor &&
+				(filtros.status === "lead" ? pessoa.statusProfessor === "banco_talentos" : pessoa.statusProfessor === "ativo");
+			return bateAluno || bateProfessor;
+		});
 	}
 	if (filtros.interesse) {
 		pessoas = pessoas.filter((pessoa) => pessoa.interesses.includes(filtros.interesse as string));
@@ -189,11 +208,24 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 											{pessoa.nome}
 										</Link>
 									</td>
-									<td className="px-4 py-3 capitalize text-muted-foreground">{pessoa.tipo}</td>
+									<td className="px-4 py-3 text-muted-foreground">
+										{[pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ")}
+									</td>
 									<td className="px-4 py-3">
-										<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-											{STATUS_LABELS[pessoa.status] ?? pessoa.status}
-										</span>
+										<div className="flex flex-wrap gap-1">
+											{pessoa.ehAluno && pessoa.statusAluno !== null ? (
+												<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+													{pessoa.ehProfessor ? "Aluno: " : ""}
+													{STATUS_LABELS[pessoa.statusAluno]}
+												</span>
+											) : null}
+											{pessoa.ehProfessor && pessoa.statusProfessor !== null ? (
+												<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+													{pessoa.ehAluno ? "Professor: " : ""}
+													{STATUS_LABELS[pessoa.statusProfessor]}
+												</span>
+											) : null}
+										</div>
 									</td>
 									<td className="max-w-[16rem] truncate px-4 py-3 text-muted-foreground" title={turmasDaPessoa.join(", ")}>
 										{turmasDaPessoa.length === 0 ? "—" : `${turmasVisiveis}${restante > 0 ? ` +${restante}` : ""}`}

@@ -194,7 +194,7 @@ export function NovaTurmaDialog(): React.ReactElement {
 						<PessoaCombobox
 							value={educadorPessoaId}
 							onChange={(pessoa: PessoaBusca | null) => setEducadorPessoaId(pessoa?.id ?? null)}
-							tipo="colaborador"
+							papel="professor"
 							disabled={isPending}
 						/>
 					</div>

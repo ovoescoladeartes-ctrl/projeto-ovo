@@ -41,20 +41,32 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 		const pessoaRef = firestore.collection("pessoas").doc();
 		const batch = firestore.batch();
 
+		// Marcar um papel só abre a possibilidade — deixa a pessoa em "lead"/"banco_talentos",
+		// sem número nenhum. O número nasce num evento concreto depois (matricular / se tornar
+		// educador de turma ativa), nunca aqui.
 		batch.set(pessoaRef, {
-			...parsed.data,
+			nome: parsed.data.nome,
+			ehAluno: parsed.data.ehAluno,
+			ehProfessor: parsed.data.ehProfessor,
+			statusAluno: parsed.data.ehAluno ? "lead" : null,
+			statusProfessor: parsed.data.ehProfessor ? "banco_talentos" : null,
+			numeroMatriculaAluno: null,
+			numeroMatriculaProfessor: null,
+			interesses: parsed.data.interesses,
 			ativo: true,
 			criadoViaContatoId: null,
 			criadoEm: FieldValue.serverTimestamp(),
-			numeroMatricula: null,
 		});
 
-		// Aluno entra no funil de Vagões desde já; colaborador ainda não tem funil (ver
+		// Aluno entra no funil de Vagões desde já; professor ainda não tem funil (ver
 		// contatoInicialDeAluno) — quando o funil financeiro existir, entra aqui como um
 		// caminho separado, sem mexer neste.
-		if (parsed.data.tipo === "aluno") {
+		if (parsed.data.ehAluno) {
 			const contatoRef = firestore.collection("contatos").doc();
-			batch.set(contatoRef, contatoInicialDeAluno({ id: pessoaRef.id, nome: parsed.data.nome, status: parsed.data.status, ativo: true }));
+			batch.set(
+				contatoRef,
+				contatoInicialDeAluno({ id: pessoaRef.id, nome: parsed.data.nome, statusAluno: "lead", ativo: true }),
+			);
 		}
 
 		await batch.commit();
@@ -73,27 +85,38 @@ interface MatriculaAtivaDoc {
 	turmaId: string;
 }
 
+interface TurmaAtivaDoc {
+	nome: string;
+}
+
 /**
- * Arquivar um aluno com matrícula ativa não faz sentido — o vínculo com a turma continua valendo.
- * Encerrar a matrícula (já existe na tabela de Matrículas da tela de detalhe) é o pré-requisito.
+ * Arquivar fica bloqueado enquanto houver engajamento ativo em qualquer papel: matrícula ativa
+ * (aluno) ou ser educador de turma ativa (professor). Sem checagem condicionada a
+ * `ehAluno`/`ehProfessor` — uma query vazia simplesmente não bloqueia nada.
  */
 async function motivoBloqueioArquivarPessoa(pessoaId: string): Promise<string | null> {
 	const firestore = getFirebaseAdminFirestore();
-	const matriculasAtivas = await firestore
-		.collection("matriculas")
-		.where("pessoaId", "==", pessoaId)
-		.where("status", "==", "ativa")
-		.get();
 
-	if (matriculasAtivas.empty) {
-		return null;
+	const [matriculasAtivas, turmasComoEducador] = await Promise.all([
+		firestore.collection("matriculas").where("pessoaId", "==", pessoaId).where("status", "==", "ativa").get(),
+		firestore.collection("turmas").where("educadorPessoaId", "==", pessoaId).where("ativo", "==", true).get(),
+	]);
+
+	const motivos: string[] = [];
+
+	if (!matriculasAtivas.empty) {
+		const turmaIds = matriculasAtivas.docs.map((doc) => (doc.data() as MatriculaAtivaDoc).turmaId);
+		const turmaDocs = await Promise.all(turmaIds.map((turmaId) => firestore.collection("turmas").doc(turmaId).get()));
+		const nomesTurmas = turmaDocs.map((doc) => (doc.data() as { nome?: string } | undefined)?.nome ?? "(turma removida)");
+		motivos.push(`Essa pessoa tem matrícula ativa em ${nomesTurmas.join(", ")}. Encerre a matrícula antes de arquivar.`);
 	}
 
-	const turmaIds = matriculasAtivas.docs.map((doc) => (doc.data() as MatriculaAtivaDoc).turmaId);
-	const turmaDocs = await Promise.all(turmaIds.map((turmaId) => firestore.collection("turmas").doc(turmaId).get()));
-	const nomesTurmas = turmaDocs.map((doc) => (doc.data() as { nome?: string } | undefined)?.nome ?? "(turma removida)");
+	if (!turmasComoEducador.empty) {
+		const nomesTurmas = turmasComoEducador.docs.map((doc) => (doc.data() as TurmaAtivaDoc).nome);
+		motivos.push(`Essa pessoa é educadora de ${nomesTurmas.join(", ")}. Troque o educador antes de arquivar.`);
+	}
 
-	return `Essa pessoa tem matrícula ativa em ${nomesTurmas.join(", ")}. Encerre a matrícula antes de arquivar.`;
+	return motivos.length > 0 ? motivos.join(" ") : null;
 }
 
 export async function inativarPessoa(id: unknown): Promise<ActionResult> {
@@ -126,11 +149,27 @@ export async function inativarPessoa(id: unknown): Promise<ActionResult> {
 	return { status: "ok" };
 }
 
-const pessoaUpdateInputSchema = z.object({
-	id: z.string().min(1),
-	nome: z.string().trim().min(1, "Nome é obrigatório."),
-	interesses: z.array(z.string()).optional(),
-});
+const pessoaUpdateInputSchema = z
+	.object({
+		id: z.string().min(1),
+		nome: z.string().trim().min(1, "Nome é obrigatório."),
+		ehAluno: z.boolean(),
+		ehProfessor: z.boolean(),
+		interesses: z.array(z.string()).optional(),
+	})
+	.refine((dados) => dados.ehAluno || dados.ehProfessor, {
+		message: "Marque pelo menos um papel (Aluno ou Professor).",
+		path: ["ehAluno"],
+	});
+
+interface PessoaAtualDoc {
+	nome: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
+	statusAluno: string | null;
+	statusProfessor: string | null;
+	ativo: boolean;
+}
 
 export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 	const session = await getServerSession();
@@ -140,10 +179,11 @@ export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 
 	const parsed = pessoaUpdateInputSchema.safeParse(input);
 	if (!parsed.success) {
-		return { status: "error", message: "Dados inválidos." };
+		return { status: "error", message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
 	}
 
-	const ref = getFirebaseAdminFirestore().collection("pessoas").doc(parsed.data.id);
+	const firestore = getFirebaseAdminFirestore();
+	const ref = firestore.collection("pessoas").doc(parsed.data.id);
 
 	try {
 		const doc = await ref.get();
@@ -151,24 +191,57 @@ export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 			return { status: "error", message: "Pessoa não encontrada." };
 		}
 
-		const updatePayload: Record<string, unknown> = { nome: parsed.data.nome };
+		const atual = doc.data() as PessoaAtualDoc;
+		const ganhouAluno = parsed.data.ehAluno && !atual.ehAluno;
+		const ganhouProfessor = parsed.data.ehProfessor && !atual.ehProfessor;
+
+		const updatePayload: Record<string, unknown> = {
+			nome: parsed.data.nome,
+			ehAluno: parsed.data.ehAluno,
+			ehProfessor: parsed.data.ehProfessor,
+		};
 		if (parsed.data.interesses !== undefined) {
 			updatePayload.interesses = parsed.data.interesses;
 		}
+		if (ganhouAluno && atual.statusAluno === null) {
+			updatePayload.statusAluno = "lead";
+		}
+		if (ganhouProfessor && atual.statusProfessor === null) {
+			updatePayload.statusProfessor = "banco_talentos";
+		}
 
 		await ref.set(updatePayload, { merge: true });
+
+		// Ganhar o papel Aluno depois da criação também precisa criar o Contato em Vagões — mas
+		// só se a pessoa ainda não tiver um (evita duplicar se o papel for removido e adicionado
+		// de novo depois).
+		if (ganhouAluno) {
+			const contatoExistente = await firestore.collection("contatos").where("pessoaId", "==", parsed.data.id).limit(1).get();
+			if (contatoExistente.empty) {
+				await firestore.collection("contatos").add(
+					contatoInicialDeAluno({
+						id: parsed.data.id,
+						nome: parsed.data.nome,
+						statusAluno: atual.statusAluno ?? "lead",
+						ativo: atual.ativo,
+					}),
+				);
+			}
+		}
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
 	revalidatePath("/pessoas");
 	revalidatePath(`/pessoas/${parsed.data.id}`);
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }
 
 /**
  * Qualquer vínculo (Matrícula ou Recebimento, de qualquer status/histórico) bloqueia a exclusão
- * permanente — só o soft-delete (arquivar) fica disponível enquanto isso existir.
+ * permanente — só o soft-delete (arquivar) fica disponível enquanto isso existir. Diferente do
+ * bloqueio de arquivar (item 4), aqui não se checa educador de Turma — decisão do próprio pedido.
  */
 async function motivoBloqueioExclusaoPessoa(pessoaId: string): Promise<string | null> {
 	const firestore = getFirebaseAdminFirestore();

@@ -34,8 +34,8 @@ interface TurmaDoc {
 
 interface PessoaResumoDoc {
 	nome: string;
-	tipo: string;
-	status: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
 }
 
 interface MatriculaResumoDoc {
@@ -86,8 +86,8 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 	pessoasSnapshot.docs.forEach((doc) => {
 		const data = doc.data() as PessoaResumoDoc;
 		pessoasNomes.set(doc.id, data.nome);
-		if (data.tipo === "colaborador") {
-			colaboradoresPorId.set(doc.id, { id: doc.id, nome: data.nome, tipo: "colaborador", status: data.status });
+		if (data.ehProfessor) {
+			colaboradoresPorId.set(doc.id, { id: doc.id, nome: data.nome, ehAluno: data.ehAluno, ehProfessor: true });
 		}
 	});
 

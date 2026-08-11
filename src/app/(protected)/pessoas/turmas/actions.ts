@@ -7,7 +7,7 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { upsertInteresse } from "@/core/interesses/actions";
-import { recalcularStatusColaborador } from "@/core/pessoas/recalcularStatusColaborador";
+import { recalcularStatusProfessor } from "@/core/pessoas/recalcularStatusProfessor";
 import { turmaInputSchema, turmaUpdateInputSchema, type TurmaInput } from "@/core/turmas/schema";
 
 export interface ActionResult {
@@ -65,7 +65,7 @@ export async function criarTurma(input: unknown): Promise<ActionResult> {
 	try {
 		await firestore.collection("turmas").add({ ...turmaDocPayload(parsed.data), ativo: true });
 		if (parsed.data.educadorPessoaId !== null) {
-			await recalcularStatusColaborador(firestore, parsed.data.educadorPessoaId);
+			await recalcularStatusProfessor(firestore, parsed.data.educadorPessoaId);
 		}
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
@@ -109,10 +109,10 @@ export async function atualizarTurma(input: unknown): Promise<ActionResult> {
 
 		const educadorNovo = parsed.data.educadorPessoaId;
 		if (educadorAnterior !== null && educadorAnterior !== educadorNovo) {
-			await recalcularStatusColaborador(firestore, educadorAnterior);
+			await recalcularStatusProfessor(firestore, educadorAnterior);
 		}
 		if (educadorNovo !== null) {
-			await recalcularStatusColaborador(firestore, educadorNovo);
+			await recalcularStatusProfessor(firestore, educadorNovo);
 		}
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
@@ -169,7 +169,7 @@ export async function inativarTurma(id: unknown): Promise<ActionResult> {
 		}
 
 		if (educadorPessoaId !== null) {
-			await recalcularStatusColaborador(firestore, educadorPessoaId);
+			await recalcularStatusProfessor(firestore, educadorPessoaId);
 		}
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };

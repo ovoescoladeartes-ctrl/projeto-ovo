@@ -13,27 +13,28 @@ import type { Pessoa } from "@/core/pessoas/schema";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
-import { MatriculaEditDialog } from "./MatriculaEditDialog";
-import { MatricularDialog } from "./MatricularDialog";
-import { MatriculaEncerrarButton } from "./MatriculaEncerrarButton";
-import { PessoaCabecalho } from "./PessoaCabecalho";
+import { PessoaDetalheEditor } from "./PessoaDetalheEditor";
 
 const PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 
 interface PessoaDoc {
-	tipo: string;
 	nome: string;
-	status: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
+	statusAluno: string | null;
+	statusProfessor: string | null;
 	ativo: boolean;
 	criadoViaContatoId: string | null;
 	criadoEm?: Timestamp;
 	interesses?: string[];
-	numeroMatricula?: string | null;
+	numeroMatriculaAluno?: string | null;
+	numeroMatriculaProfessor?: string | null;
 }
 
 interface TurmaResumoDoc {
 	nome: string;
 	mensalidadeCentavos: number;
+	educadorPessoaId: string | null;
 	ativo: boolean;
 }
 
@@ -58,11 +59,6 @@ interface RecebimentoDoc {
 	dataRecebimento?: Timestamp;
 	ativo: boolean;
 }
-
-const MATRICULA_STATUS_LABELS: Record<string, string> = {
-	ativa: "Ativa",
-	encerrada: "Encerrada",
-};
 
 const RECEBIMENTO_STATUS_LABELS: Record<string, string> = {
 	confirmado: "Confirmado",
@@ -90,9 +86,10 @@ function formatarData(iso: string | null): string {
 
 interface PessoaDetalhePageProps {
 	params: Promise<{ id: string }>;
+	searchParams: Promise<{ papelParaAdicionar?: string }>;
 }
 
-export default async function PessoaDetalhePage({ params }: PessoaDetalhePageProps): Promise<React.ReactElement> {
+export default async function PessoaDetalhePage({ params, searchParams }: PessoaDetalhePageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
 
 	if (session === null || !PESSOAS_ROLES.includes(session.role)) {
@@ -100,6 +97,9 @@ export default async function PessoaDetalhePage({ params }: PessoaDetalhePagePro
 	}
 
 	const { id } = await params;
+	const filtros = await searchParams;
+	const papelParaAdicionarInicial =
+		filtros.papelParaAdicionar === "aluno" || filtros.papelParaAdicionar === "professor" ? filtros.papelParaAdicionar : null;
 
 	const firestore = getFirebaseAdminFirestore();
 
@@ -118,26 +118,34 @@ export default async function PessoaDetalhePage({ params }: PessoaDetalhePagePro
 	const data = pessoaDoc.data() as PessoaDoc;
 	const pessoa: Pessoa = {
 		id: pessoaDoc.id,
-		tipo: data.tipo as Pessoa["tipo"],
 		nome: data.nome,
-		status: data.status,
+		ehAluno: data.ehAluno,
+		ehProfessor: data.ehProfessor,
+		statusAluno: data.statusAluno as Pessoa["statusAluno"],
+		statusProfessor: data.statusProfessor as Pessoa["statusProfessor"],
 		ativo: data.ativo,
 		criadoViaContatoId: data.criadoViaContatoId ?? null,
 		criadoEm: toIso(data.criadoEm ?? null),
 		interesses: data.interesses ?? [],
-		numeroMatricula: data.numeroMatricula ?? null,
+		numeroMatriculaAluno: data.numeroMatriculaAluno ?? null,
+		numeroMatriculaProfessor: data.numeroMatriculaProfessor ?? null,
 	};
 
 	const turmasNomes = new Map<string, string>();
 	const turmasAtivas: { id: string; nome: string; mensalidadeCentavos: number }[] = [];
+	const turmasLecionadas: { id: string; nome: string; ativo: boolean }[] = [];
 	turmasSnapshot.docs.forEach((turmaDoc) => {
 		const turmaData = turmaDoc.data() as TurmaResumoDoc;
 		turmasNomes.set(turmaDoc.id, turmaData.nome);
 		if (turmaData.ativo) {
 			turmasAtivas.push({ id: turmaDoc.id, nome: turmaData.nome, mensalidadeCentavos: turmaData.mensalidadeCentavos });
 		}
+		if (turmaData.educadorPessoaId === id) {
+			turmasLecionadas.push({ id: turmaDoc.id, nome: turmaData.nome, ativo: turmaData.ativo });
+		}
 	});
 	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+	turmasLecionadas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	const matriculas: Matricula[] = matriculasSnapshot.docs.map((matriculaDoc) => {
 		const matriculaData = matriculaDoc.data() as MatriculaDoc;
@@ -153,6 +161,10 @@ export default async function PessoaDetalhePage({ params }: PessoaDetalhePagePro
 		};
 	});
 	matriculas.sort((a, b) => (b.dataMatricula ?? "").localeCompare(a.dataMatricula ?? ""));
+	const matriculasComTurma = matriculas.map((matricula) => ({
+		matricula,
+		turmaNome: turmasNomes.get(matricula.turmaId) ?? "(turma removida)",
+	}));
 
 	const recebimentos: Recebimento[] = recebimentosSnapshot.docs.map((recebimentoDoc) => {
 		const recebimentoData = recebimentoDoc.data() as RecebimentoDoc;
@@ -177,61 +189,14 @@ export default async function PessoaDetalhePage({ params }: PessoaDetalhePagePro
 				← Voltar para Pessoas
 			</Link>
 
-			<PessoaCabecalho pessoa={pessoa} opcoesInteresse={opcoesInteresse} />
-
-			{pessoa.tipo === "aluno" ? (
-				<div className="mt-10">
-					<div className="mb-3 flex items-center justify-between">
-						<h2 className="text-sm font-semibold text-foreground">Matrículas</h2>
-						<MatricularDialog pessoaId={pessoa.id} turmas={turmasAtivas} />
-					</div>
-
-					<div className="overflow-x-auto rounded-lg border border-border bg-card">
-						<table className="w-full text-left text-sm">
-							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-								<tr>
-									<th className="px-4 py-3 font-medium">Turma</th>
-									<th className="px-4 py-3 font-medium">Status</th>
-									<th className="px-4 py-3 font-medium">Mensalidade combinada</th>
-									<th className="px-4 py-3 font-medium" />
-								</tr>
-							</thead>
-							<tbody>
-								{matriculas.map((matricula) => (
-									<tr key={matricula.id} className="border-b border-border last:border-0">
-										<td className="px-4 py-3 text-foreground">
-											{turmasNomes.get(matricula.turmaId) ?? "(turma removida)"}
-										</td>
-										<td className="px-4 py-3">
-											<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-												{MATRICULA_STATUS_LABELS[matricula.status] ?? matricula.status}
-											</span>
-										</td>
-										<td className="px-4 py-3 text-muted-foreground">
-											{formatCentavos(matricula.mensalidadeCombinadaCentavos)}
-										</td>
-										<td className="px-4 py-3 text-right">
-											<div className="flex justify-end gap-1">
-												<MatriculaEditDialog matricula={matricula} />
-												{matricula.status === "ativa" ? (
-													<MatriculaEncerrarButton id={matricula.id} pessoaId={pessoa.id} />
-												) : null}
-											</div>
-										</td>
-									</tr>
-								))}
-								{matriculas.length === 0 ? (
-									<tr>
-										<td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-											Nenhuma matrícula ainda.
-										</td>
-									</tr>
-								) : null}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			) : null}
+			<PessoaDetalheEditor
+				pessoa={pessoa}
+				opcoesInteresse={opcoesInteresse}
+				matriculas={matriculasComTurma}
+				turmasAtivas={turmasAtivas}
+				turmasLecionadas={turmasLecionadas}
+				papelParaAdicionarInicial={papelParaAdicionarInicial}
+			/>
 
 			<div className="mt-10">
 				<h2 className="mb-3 text-sm font-semibold text-foreground">Recebimentos</h2>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -13,58 +15,68 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
-import { ALUNO_STATUS, COLABORADOR_STATUS, type PessoaTipo } from "@/core/pessoas/schema";
+import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
 
 import { criarPessoa } from "./actions";
-
-const STATUS_LABELS: Record<string, string> = {
-	lead: "Lead",
-	matriculado: "Matriculado",
-};
-
-/**
- * Status inicial ao criar. Aluno ainda escolhe entre Lead/Matriculado na hora do cadastro;
- * colaborador não tem escolha — sempre começa em "banco_talentos" (equivalente a lead), já que
- * só fica "ativo" quando `recalcularStatusColaborador` o associar a uma Turma ativa como educador.
- */
-const STATUS_INICIAL_COLABORADOR: (typeof COLABORADOR_STATUS)[number] = "banco_talentos";
 
 interface NovaPessoaDialogProps {
 	opcoesInteresse: string[];
 }
 
+function papeisDe(pessoa: PessoaBusca): string {
+	return [pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ");
+}
+
 export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
-	const [tipo, setTipo] = useState<PessoaTipo>("aluno");
 	const [nome, setNome] = useState("");
-	const [status, setStatus] = useState<string>(ALUNO_STATUS[0]);
+	const [ehAluno, setEhAluno] = useState(true);
+	const [ehProfessor, setEhProfessor] = useState(false);
 	const [interesses, setInteresses] = useState<string[]>([]);
+	const [duplicatas, setDuplicatas] = useState<PessoaBusca[]>([]);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
+	const [, startBusca] = useTransition();
 
-	function handleTipoChange(novoTipo: PessoaTipo): void {
-		setTipo(novoTipo);
-		setStatus(novoTipo === "aluno" ? ALUNO_STATUS[0] : STATUS_INICIAL_COLABORADOR);
-	}
+	// Busca de duplicata por nome parecido enquanto digita — mesmo padrão de debounce que o
+	// PessoaCombobox já usa, aviso não-bloqueante, nunca impede o cadastro de continuar.
+	useEffect(() => {
+		const termo = nome.trim();
+		if (termo.length < 2) {
+			setDuplicatas([]);
+			return;
+		}
+		const timer = setTimeout(() => {
+			startBusca(async () => {
+				const encontradas = await buscarPessoas(termo);
+				setDuplicatas(encontradas);
+			});
+		}, 200);
+		return () => clearTimeout(timer);
+	}, [nome]);
 
 	function handleSalvar(): void {
 		setErro(null);
 		startTransition(async () => {
-			const statusFinal = tipo === "aluno" ? status : STATUS_INICIAL_COLABORADOR;
-			const result = await criarPessoa({ tipo, nome, status: statusFinal, interesses });
+			const result = await criarPessoa({ nome, ehAluno, ehProfessor, interesses });
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
 			}
 			setOpen(false);
 			setNome("");
-			setTipo("aluno");
-			setStatus(ALUNO_STATUS[0]);
+			setEhAluno(true);
+			setEhProfessor(false);
 			setInteresses([]);
+			setDuplicatas([]);
 		});
 	}
+
+	const papeisSelecionados: Array<"aluno" | "professor"> = [
+		...(ehAluno ? (["aluno"] as const) : []),
+		...(ehProfessor ? (["professor"] as const) : []),
+	];
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -85,38 +97,55 @@ export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): Re
 							onChange={(event) => setNome(event.target.value)}
 							disabled={isPending}
 						/>
+						{duplicatas.map((match) => {
+							const papelSugerido = papeisSelecionados.find((papel) =>
+								papel === "aluno" ? !match.ehAluno : !match.ehProfessor,
+							);
+							return (
+								<p key={match.id} className="text-xs text-amber-600">
+									Já existe {match.nome} ({papeisDe(match)}).
+									{papelSugerido !== undefined ? (
+										<>
+											{" "}
+											Quer adicionar {papelSugerido === "aluno" ? "Aluno" : "Professor"} a essa pessoa em vez de
+											criar um cadastro novo?{" "}
+											<Link href={`/pessoas/${match.id}?papelParaAdicionar=${papelSugerido}`} className="underline">
+												Ver pessoa
+											</Link>
+										</>
+									) : null}
+								</p>
+							);
+						})}
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="pessoa-tipo">Tipo</Label>
-						<Select value={tipo} onValueChange={(value) => handleTipoChange(value as PessoaTipo)} disabled={isPending}>
-							<SelectTrigger id="pessoa-tipo">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="aluno">Aluno</SelectItem>
-								<SelectItem value="colaborador">Colaborador</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-
-					{tipo === "aluno" ? (
-						<div className="space-y-1.5">
-							<Label htmlFor="pessoa-status">Status</Label>
-							<Select value={status} onValueChange={setStatus} disabled={isPending}>
-								<SelectTrigger id="pessoa-status">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{ALUNO_STATUS.map((opcao) => (
-										<SelectItem key={opcao} value={opcao}>
-											{STATUS_LABELS[opcao]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+						<Label>Papel</Label>
+						<div className="flex flex-wrap gap-4">
+							<div className="flex items-center gap-2">
+								<Checkbox
+									id="pessoa-eh-aluno"
+									checked={ehAluno}
+									onCheckedChange={(checked) => setEhAluno(checked === true)}
+									disabled={isPending}
+								/>
+								<Label htmlFor="pessoa-eh-aluno" className="font-normal">
+									Aluno
+								</Label>
+							</div>
+							<div className="flex items-center gap-2">
+								<Checkbox
+									id="pessoa-eh-professor"
+									checked={ehProfessor}
+									onCheckedChange={(checked) => setEhProfessor(checked === true)}
+									disabled={isPending}
+								/>
+								<Label htmlFor="pessoa-eh-professor" className="font-normal">
+									Professor
+								</Label>
+							</div>
 						</div>
-					) : null}
+					</div>
 
 					<div className="space-y-1.5">
 						<Label>Interesses</Label>
@@ -127,7 +156,11 @@ export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): Re
 				</div>
 
 				<DialogFooter>
-					<Button type="button" onClick={handleSalvar} disabled={isPending || nome.trim() === ""}>
+					<Button
+						type="button"
+						onClick={handleSalvar}
+						disabled={isPending || nome.trim() === "" || (!ehAluno && !ehProfessor)}
+					>
 						{isPending ? "Salvando..." : "Salvar"}
 					</Button>
 				</DialogFooter>

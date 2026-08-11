@@ -235,7 +235,7 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 						<PessoaCombobox
 							value={educadorPessoaId}
 							onChange={(pessoa: PessoaBusca | null) => setEducadorPessoaId(pessoa?.id ?? null)}
-							tipo="colaborador"
+							papel="professor"
 							valorInicial={educadorInicial}
 							disabled={isPending}
 						/>

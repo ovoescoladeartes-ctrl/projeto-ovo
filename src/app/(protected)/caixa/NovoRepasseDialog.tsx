@@ -131,7 +131,7 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 							<PessoaCombobox
 								value={destinoPessoaId}
 								onChange={(pessoa) => setDestinoPessoaId(pessoa?.id ?? null)}
-								tipo="colaborador"
+								papel="professor"
 								disabled={isPending}
 							/>
 						</div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -52,14 +53,21 @@ export async function matricular(input: unknown): Promise<ActionResult> {
 				throw new Error("Pessoa não encontrada.");
 			}
 
-			const pessoaData = pessoaDoc.data() as { numeroMatricula?: string | null; status: string; tipo: string };
+			const pessoaData = pessoaDoc.data() as { numeroMatriculaAluno?: string | null; statusAluno: string | null };
+
+			// Contato vinculado (se existir) — a conversão que parte de Vagões (converterContatoEmPessoa)
+			// já marca o Contato como "convertido"; esta é a mesma sincronização, disparada do lado de
+			// Pessoas, pro caso de a pessoa ser matriculada direto por aqui em vez de arrastada no board.
+			const contatoSnapshot = await tx.get(
+				firestore.collection("contatos").where("pessoaId", "==", parsed.data.pessoaId).limit(1),
+			);
 
 			// Toda leitura (inclusive a do contador, dentro de gerarProximoNumeroMatricula) precisa
 			// acontecer antes de qualquer escrita — regra de transação do Firestore.
-			let numeroMatricula: string | null = null;
-			if (pessoaData.numeroMatricula === null || pessoaData.numeroMatricula === undefined) {
+			let numeroMatriculaAluno: string | null = null;
+			if (pessoaData.numeroMatriculaAluno === null || pessoaData.numeroMatriculaAluno === undefined) {
 				const ano = new Date(parsed.data.dataMatricula).getFullYear();
-				numeroMatricula = await gerarProximoNumeroMatricula(tx, contadorRef, ano, "aluno");
+				numeroMatriculaAluno = await gerarProximoNumeroMatricula(tx, contadorRef, ano, "aluno");
 			}
 
 			tx.set(matriculaRef, {
@@ -73,14 +81,26 @@ export async function matricular(input: unknown): Promise<ActionResult> {
 			});
 
 			const pessoaUpdate: Record<string, unknown> = {};
-			if (numeroMatricula !== null) {
-				pessoaUpdate.numeroMatricula = numeroMatricula;
+			if (numeroMatriculaAluno !== null) {
+				pessoaUpdate.numeroMatriculaAluno = numeroMatriculaAluno;
 			}
-			if (pessoaData.tipo === "aluno" && pessoaData.status === "lead") {
-				pessoaUpdate.status = "matriculado";
+			if (pessoaData.statusAluno === "lead") {
+				pessoaUpdate.statusAluno = "matriculado";
 			}
 			if (Object.keys(pessoaUpdate).length > 0) {
 				tx.set(pessoaRef, pessoaUpdate, { merge: true });
+			}
+
+			const [contatoDoc] = contatoSnapshot.docs;
+			if (contatoDoc !== undefined) {
+				const contatoData = contatoDoc.data() as { estagio: string };
+				if (contatoData.estagio !== "convertido") {
+					tx.set(
+						contatoDoc.ref,
+						{ estagio: "convertido", arquivadoMotivo: null, estagioAtualizadoEm: FieldValue.serverTimestamp() },
+						{ merge: true },
+					);
+				}
 			}
 		});
 	} catch (error) {
@@ -92,6 +112,7 @@ export async function matricular(input: unknown): Promise<ActionResult> {
 	}
 
 	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }
 
