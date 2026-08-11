@@ -6,14 +6,13 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
-import type { PessoaTipo } from "@/core/pessoas/schema";
+import { buscarPessoas, type PapelPessoa, type PessoaBusca } from "@/core/pessoas/actions";
 import { cn } from "@/lib/utils";
 
 interface PessoaComboboxProps {
 	value: string | null;
 	onChange: (pessoa: PessoaBusca | null) => void;
-	tipo?: PessoaTipo;
+	papel?: PapelPessoa;
 	valorInicial?: PessoaBusca | null;
 	placeholder?: string;
 	disabled?: boolean;
@@ -22,7 +21,7 @@ interface PessoaComboboxProps {
 export function PessoaCombobox({
 	value,
 	onChange,
-	tipo,
+	papel,
 	valorInicial = null,
 	placeholder = "Buscar pessoa...",
 	disabled = false,
@@ -43,12 +42,12 @@ export function PessoaCombobox({
 		}
 		const timer = setTimeout(() => {
 			startTransition(async () => {
-				const pessoas = await buscarPessoas(termo, tipo);
+				const pessoas = await buscarPessoas(termo, papel);
 				setResultados(pessoas);
 			});
 		}, 200);
 		return () => clearTimeout(timer);
-	}, [termo, tipo, open]);
+	}, [termo, papel, open]);
 
 	function handleSelect(pessoa: PessoaBusca): void {
 		setSelecionada(pessoa);

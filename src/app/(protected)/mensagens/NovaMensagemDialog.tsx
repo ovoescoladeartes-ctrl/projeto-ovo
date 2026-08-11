@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MENSAGEM_CATEGORIAS, type MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
 
@@ -59,19 +60,22 @@ export function NovaMensagemDialog(): React.ReactElement {
 				<div className="space-y-4">
 					<div className="space-y-1.5">
 						<Label htmlFor="mensagem-categoria">Categoria</Label>
-						<select
-							id="mensagem-categoria"
+						<Select
 							value={form.categoria}
-							onChange={(event) => setForm({ ...form, categoria: event.target.value as MensagemCategoria })}
+							onValueChange={(value) => setForm({ ...form, categoria: value as MensagemCategoria })}
 							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 						>
-							{MENSAGEM_CATEGORIAS.map((categoria) => (
-								<option key={categoria} value={categoria}>
-									{CATEGORIA_LABELS[categoria]}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="mensagem-categoria">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{MENSAGEM_CATEGORIAS.map((categoria) => (
+									<SelectItem key={categoria} value={categoria}>
+										{CATEGORIA_LABELS[categoria]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="space-y-1.5">

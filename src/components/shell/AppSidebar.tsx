@@ -38,7 +38,7 @@ interface NavItem {
 const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
 	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
-	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
+	{ label: "Cadastro", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
 	{ label: "Configurações", icon: Settings, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
 ];
@@ -79,7 +79,9 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 			<SidebarContent className="gap-1 px-4 py-2">
 				<SidebarMenu className="gap-1.5">
 					{NAV_ITEMS.filter((item) => item.roles.includes(user.role)).map((item) => {
-						const isActive = item.href !== null && pathname === item.href;
+						const isActive =
+							item.href !== null &&
+							(pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)));
 
 						return (
 							<SidebarMenuItem key={item.label}>

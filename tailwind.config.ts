@@ -50,6 +50,10 @@ const config: Config = {
     				DEFAULT: 'var(--destructive)',
     				foreground: 'var(--destructive-foreground)'
     			},
+    			danger: {
+    				DEFAULT: 'var(--danger)',
+    				foreground: 'var(--danger-foreground)'
+    			},
     			border: 'var(--border)',
     			input: 'var(--input)',
     			ring: 'var(--ring)',

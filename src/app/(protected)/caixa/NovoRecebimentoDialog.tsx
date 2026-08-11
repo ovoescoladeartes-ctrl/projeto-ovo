@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FORMAS_PAGAMENTO, RECEBIMENTO_STATUS, type FormaPagamento, type RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { criarRecebimento } from "./actions";
+
+const NENHUMA_TURMA = "__nenhuma__";
 
 const FORMA_LABELS: Record<FormaPagamento, string> = {
 	pix: "Pix",
@@ -119,20 +122,23 @@ export function NovoRecebimentoDialog({ turmas }: NovoRecebimentoDialogProps): R
 
 					<div className="space-y-1.5">
 						<Label htmlFor="recebimento-turma">Turma (opcional)</Label>
-						<select
-							id="recebimento-turma"
-							value={turmaId}
-							onChange={(event) => setTurmaId(event.target.value)}
+						<Select
+							value={turmaId === "" ? NENHUMA_TURMA : turmaId}
+							onValueChange={(value) => setTurmaId(value === NENHUMA_TURMA ? "" : value)}
 							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 						>
-							<option value="">Nenhuma</option>
-							{turmas.map((turma) => (
-								<option key={turma.id} value={turma.id}>
-									{turma.nome}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="recebimento-turma">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={NENHUMA_TURMA}>Nenhuma</SelectItem>
+								{turmas.map((turma) => (
+									<SelectItem key={turma.id} value={turma.id}>
+										{turma.nome}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="grid grid-cols-2 gap-3">
@@ -162,35 +168,33 @@ export function NovoRecebimentoDialog({ turmas }: NovoRecebimentoDialogProps): R
 					<div className="grid grid-cols-2 gap-3">
 						<div className="space-y-1.5">
 							<Label htmlFor="recebimento-forma">Forma de pagamento</Label>
-							<select
-								id="recebimento-forma"
-								value={formaPagamento}
-								onChange={(event) => setFormaPagamento(event.target.value as FormaPagamento)}
-								disabled={isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-							>
-								{FORMAS_PAGAMENTO.map((forma) => (
-									<option key={forma} value={forma}>
-										{FORMA_LABELS[forma]}
-									</option>
-								))}
-							</select>
+							<Select value={formaPagamento} onValueChange={(value) => setFormaPagamento(value as FormaPagamento)} disabled={isPending}>
+								<SelectTrigger id="recebimento-forma">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{FORMAS_PAGAMENTO.map((forma) => (
+										<SelectItem key={forma} value={forma}>
+											{FORMA_LABELS[forma]}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 						<div className="space-y-1.5">
 							<Label htmlFor="recebimento-status">Status</Label>
-							<select
-								id="recebimento-status"
-								value={status}
-								onChange={(event) => setStatus(event.target.value as RecebimentoStatus)}
-								disabled={isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-							>
-								{RECEBIMENTO_STATUS.map((opcao) => (
-									<option key={opcao} value={opcao}>
-										{STATUS_LABELS[opcao]}
-									</option>
-								))}
-							</select>
+							<Select value={status} onValueChange={(value) => setStatus(value as RecebimentoStatus)} disabled={isPending}>
+								<SelectTrigger id="recebimento-status">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{RECEBIMENTO_STATUS.map((opcao) => (
+										<SelectItem key={opcao} value={opcao}>
+											{STATUS_LABELS[opcao]}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 

@@ -30,6 +30,8 @@ arquivo real antes de confiar cegamente nos valores aqui.
 | Superfície escura (banner de alerta, badge de contagem) | quase-preto/navy (neutral-900) | estimado | `--primary` | Banner de alerta, badge de contagem, botões invertidos |
 | Texto sobre superfície escura | branco | estimado | `--primary-foreground` | Texto do banner, badge |
 | Botão outline ("Ver") | fundo branco, borda preta 1px, texto preto | estimado | `Button variant="outline"` (padrão shadcn, sem token novo) | Botões "Ver" nas pendências |
+| Fundo de botão de perigo/destrutivo | `#9C0000` | implementado | `--danger` / `Button variant="destructive"` | Confirmação de ação destrutiva (ex.: excluir permanentemente) |
+| Texto sobre botão de perigo | `#F9FAFB` | implementado | `--danger-foreground` | Idem |
 
 ### Tipografia
 
@@ -96,6 +98,7 @@ sidebar como um drawer.
 | Banner de alerta escuro | — | `AlertBanner` (composição de `Card`-like + `Button`) |
 | Cards de estágio do funil | — | `FunnelStageCard`, `FunnelStageRow` |
 | Cabeçalho da página (título + busca + data) | — | `DashboardHeader` |
+| Dropdowns de seleção única (filtros, formulários) | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` — nunca `<select>` nativo (ver regra MANDATÓRIA abaixo) | — |
 
 Biblioteca de ícones: **lucide-react** (estilo de traço fino consistente com os ícones do
 Figma).
@@ -164,6 +167,28 @@ desta conversa:
    ```
    (o `ml-6` é só no segundo trigger em diante, para o espaçamento entre abas — o primeiro
    não leva margem lateral).
+8. **Todo dropdown de seleção única usa o `Select` do shadcn (`src/components/ui/select.tsx`),
+   nunca um `<select>` HTML cru estilizado na mão** — era o padrão em todas as telas do v1
+   (Pessoas, Turmas, Matricular, filtro de Vagões, Caixa, Mensagens), e por isso o
+   espaçamento entre o texto selecionado e o ícone de chevron ficou apertado em todas ao
+   mesmo tempo (o browser controla esse espaço num `<select>` nativo, sem token nenhum).
+   `SelectTrigger` já tem `gap-2` embutido entre o valor e o chevron — não remova essa
+   classe nem sobreponha com `justify-between` sem `gap`. Copie exatamente:
+   ```tsx
+   <Select value={valor} onValueChange={setValor} disabled={isPending}>
+     <SelectTrigger>
+       <SelectValue placeholder="..." />
+     </SelectTrigger>
+     <SelectContent>
+       <SelectItem value="...">...</SelectItem>
+     </SelectContent>
+   </Select>
+   ```
+9. **Toda ação destrutiva confirmada (excluir permanentemente, e qualquer outra que vier depois)
+   usa `Button variant="destructive"`**, que aponta pro token `--danger`/`--danger-foreground`
+   (fundo `#9C0000`, texto `#F9FAFB` — ver tabela de Cor acima). Não crie um estilo de botão de
+   perigo paralelo nem sobrescreva a cor via `style`/classe arbitrária num botão específico — o
+   token é reusável em qualquer confirmação destrutiva futura.
 
 ---
 

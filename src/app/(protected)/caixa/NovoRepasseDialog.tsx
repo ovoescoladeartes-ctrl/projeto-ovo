@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DESTINO_TIPOS, type DestinoTipo } from "@/core/financeiro/repasses/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { criarRepasse } from "./actions";
+
+const NENHUMA_TURMA = "__nenhuma__";
 
 const DESTINO_LABELS: Record<DestinoTipo, string> = {
 	educador: "Educador",
@@ -101,22 +104,25 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 				<div className="space-y-4">
 					<div className="space-y-1.5">
 						<Label htmlFor="repasse-destino-tipo">Destino</Label>
-						<select
-							id="repasse-destino-tipo"
+						<Select
 							value={destinoTipo}
-							onChange={(event) => {
-								setDestinoTipo(event.target.value as DestinoTipo);
+							onValueChange={(value) => {
+								setDestinoTipo(value as DestinoTipo);
 								setDestinoPessoaId(null);
 							}}
 							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 						>
-							{DESTINO_TIPOS.map((opcao) => (
-								<option key={opcao} value={opcao}>
-									{DESTINO_LABELS[opcao]}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="repasse-destino-tipo">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{DESTINO_TIPOS.map((opcao) => (
+									<SelectItem key={opcao} value={opcao}>
+										{DESTINO_LABELS[opcao]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{destinoTipo === "educador" ? (
@@ -125,7 +131,7 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 							<PessoaCombobox
 								value={destinoPessoaId}
 								onChange={(pessoa) => setDestinoPessoaId(pessoa?.id ?? null)}
-								tipo="colaborador"
+								papel="professor"
 								disabled={isPending}
 							/>
 						</div>
@@ -133,20 +139,23 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 
 					<div className="space-y-1.5">
 						<Label htmlFor="repasse-turma">Turma / papel (opcional)</Label>
-						<select
-							id="repasse-turma"
-							value={turmaId}
-							onChange={(event) => setTurmaId(event.target.value)}
+						<Select
+							value={turmaId === "" ? NENHUMA_TURMA : turmaId}
+							onValueChange={(value) => setTurmaId(value === NENHUMA_TURMA ? "" : value)}
 							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 						>
-							<option value="">Nenhuma</option>
-							{turmas.map((turma) => (
-								<option key={turma.id} value={turma.id}>
-									{turma.nome}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="repasse-turma">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={NENHUMA_TURMA}>Nenhuma</SelectItem>
+								{turmas.map((turma) => (
+									<SelectItem key={turma.id} value={turma.id}>
+										{turma.nome}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="grid grid-cols-2 gap-3">

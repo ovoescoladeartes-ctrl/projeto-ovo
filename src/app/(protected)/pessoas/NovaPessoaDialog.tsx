@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -13,49 +15,68 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ALUNO_STATUS, COLABORADOR_STATUS, type PessoaTipo } from "@/core/pessoas/schema";
+import { InteresseTagsInput } from "@/components/InteresseTagsInput";
+import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
 
 import { criarPessoa } from "./actions";
 
-const STATUS_LABELS: Record<string, string> = {
-	lead: "Lead",
-	matriculado: "Matriculado",
-	ativo: "Ativo",
-	banco_talentos: "Banco de talentos",
-};
+interface NovaPessoaDialogProps {
+	opcoesInteresse: string[];
+}
 
-const STATUS_POR_TIPO: Record<PessoaTipo, readonly string[]> = {
-	aluno: ALUNO_STATUS,
-	colaborador: COLABORADOR_STATUS,
-};
+function papeisDe(pessoa: PessoaBusca): string {
+	return [pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ");
+}
 
-export function NovaPessoaDialog(): React.ReactElement {
+export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
-	const [tipo, setTipo] = useState<PessoaTipo>("aluno");
 	const [nome, setNome] = useState("");
-	const [status, setStatus] = useState<string>(ALUNO_STATUS[0]);
+	const [ehAluno, setEhAluno] = useState(true);
+	const [ehProfessor, setEhProfessor] = useState(false);
+	const [interesses, setInteresses] = useState<string[]>([]);
+	const [duplicatas, setDuplicatas] = useState<PessoaBusca[]>([]);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
+	const [, startBusca] = useTransition();
 
-	function handleTipoChange(novoTipo: PessoaTipo): void {
-		setTipo(novoTipo);
-		setStatus(STATUS_POR_TIPO[novoTipo][0] ?? "");
-	}
+	// Busca de duplicata por nome parecido enquanto digita — mesmo padrão de debounce que o
+	// PessoaCombobox já usa, aviso não-bloqueante, nunca impede o cadastro de continuar.
+	useEffect(() => {
+		const termo = nome.trim();
+		if (termo.length < 2) {
+			setDuplicatas([]);
+			return;
+		}
+		const timer = setTimeout(() => {
+			startBusca(async () => {
+				const encontradas = await buscarPessoas(termo);
+				setDuplicatas(encontradas);
+			});
+		}, 200);
+		return () => clearTimeout(timer);
+	}, [nome]);
 
 	function handleSalvar(): void {
 		setErro(null);
 		startTransition(async () => {
-			const result = await criarPessoa({ tipo, nome, status });
+			const result = await criarPessoa({ nome, ehAluno, ehProfessor, interesses });
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
 			}
 			setOpen(false);
 			setNome("");
-			setTipo("aluno");
-			setStatus(ALUNO_STATUS[0]);
+			setEhAluno(true);
+			setEhProfessor(false);
+			setInteresses([]);
+			setDuplicatas([]);
 		});
 	}
+
+	const papeisSelecionados: Array<"aluno" | "professor"> = [
+		...(ehAluno ? (["aluno"] as const) : []),
+		...(ehProfessor ? (["professor"] as const) : []),
+	];
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -76,44 +97,70 @@ export function NovaPessoaDialog(): React.ReactElement {
 							onChange={(event) => setNome(event.target.value)}
 							disabled={isPending}
 						/>
+						{duplicatas.map((match) => {
+							const papelSugerido = papeisSelecionados.find((papel) =>
+								papel === "aluno" ? !match.ehAluno : !match.ehProfessor,
+							);
+							return (
+								<p key={match.id} className="text-xs text-amber-600">
+									Já existe {match.nome} ({papeisDe(match)}).
+									{papelSugerido !== undefined ? (
+										<>
+											{" "}
+											Quer adicionar {papelSugerido === "aluno" ? "Aluno" : "Professor"} a essa pessoa em vez de
+											criar um cadastro novo?{" "}
+											<Link href={`/pessoas/${match.id}?papelParaAdicionar=${papelSugerido}`} className="underline">
+												Ver pessoa
+											</Link>
+										</>
+									) : null}
+								</p>
+							);
+						})}
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="pessoa-tipo">Tipo</Label>
-						<select
-							id="pessoa-tipo"
-							value={tipo}
-							onChange={(event) => handleTipoChange(event.target.value as PessoaTipo)}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							<option value="aluno">Aluno</option>
-							<option value="colaborador">Colaborador</option>
-						</select>
+						<Label>Papel</Label>
+						<div className="flex flex-wrap gap-4">
+							<div className="flex items-center gap-2">
+								<Checkbox
+									id="pessoa-eh-aluno"
+									checked={ehAluno}
+									onCheckedChange={(checked) => setEhAluno(checked === true)}
+									disabled={isPending}
+								/>
+								<Label htmlFor="pessoa-eh-aluno" className="font-normal">
+									Aluno
+								</Label>
+							</div>
+							<div className="flex items-center gap-2">
+								<Checkbox
+									id="pessoa-eh-professor"
+									checked={ehProfessor}
+									onCheckedChange={(checked) => setEhProfessor(checked === true)}
+									disabled={isPending}
+								/>
+								<Label htmlFor="pessoa-eh-professor" className="font-normal">
+									Professor
+								</Label>
+							</div>
+						</div>
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="pessoa-status">Status</Label>
-						<select
-							id="pessoa-status"
-							value={status}
-							onChange={(event) => setStatus(event.target.value)}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							{STATUS_POR_TIPO[tipo].map((opcao) => (
-								<option key={opcao} value={opcao}>
-									{STATUS_LABELS[opcao]}
-								</option>
-							))}
-						</select>
+						<Label>Interesses</Label>
+						<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
 				</div>
 
 				<DialogFooter>
-					<Button type="button" onClick={handleSalvar} disabled={isPending || nome.trim() === ""}>
+					<Button
+						type="button"
+						onClick={handleSalvar}
+						disabled={isPending || nome.trim() === "" || (!ehAluno && !ehProfessor)}
+					>
 						{isPending ? "Salvando..." : "Salvar"}
 					</Button>
 				</DialogFooter>

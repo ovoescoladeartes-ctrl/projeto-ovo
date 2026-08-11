@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { InteresseTagsInput } from "@/components/InteresseTagsInput";
 import { CANAIS, type Canal } from "@/core/comunicacao/contatos/schema";
 
 import { criarContato } from "./actions";
@@ -28,22 +30,28 @@ const CANAL_LABELS: Record<Canal, string> = {
 
 const ESTADO_INICIAL = { nome: "", canal: "whatsapp" as Canal, interesseInicial: "" };
 
-export function NovoContatoDialog(): React.ReactElement {
+interface NovoContatoDialogProps {
+	opcoesInteresse: string[];
+}
+
+export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [form, setForm] = useState(ESTADO_INICIAL);
+	const [interesses, setInteresses] = useState<string[]>([]);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
 	function handleSalvar(): void {
 		setErro(null);
 		startTransition(async () => {
-			const result = await criarContato(form);
+			const result = await criarContato({ ...form, interesses });
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
 			}
 			setOpen(false);
 			setForm(ESTADO_INICIAL);
+			setInteresses([]);
 		});
 	}
 
@@ -70,19 +78,18 @@ export function NovoContatoDialog(): React.ReactElement {
 
 					<div className="space-y-1.5">
 						<Label htmlFor="contato-canal">Canal</Label>
-						<select
-							id="contato-canal"
-							value={form.canal}
-							onChange={(event) => setForm({ ...form, canal: event.target.value as Canal })}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							{CANAIS.map((canal) => (
-								<option key={canal} value={canal}>
-									{CANAL_LABELS[canal]}
-								</option>
-							))}
-						</select>
+						<Select value={form.canal} onValueChange={(value) => setForm({ ...form, canal: value as Canal })} disabled={isPending}>
+							<SelectTrigger id="contato-canal">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{CANAIS.map((canal) => (
+									<SelectItem key={canal} value={canal}>
+										{CANAL_LABELS[canal]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="space-y-1.5">
@@ -94,6 +101,11 @@ export function NovoContatoDialog(): React.ReactElement {
 							disabled={isPending}
 							rows={3}
 						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label>Interesses</Label>
+						<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}

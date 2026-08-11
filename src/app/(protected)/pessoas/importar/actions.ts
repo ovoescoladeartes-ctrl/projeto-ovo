@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
-import { ALUNO_STATUS, COLABORADOR_STATUS, type PessoaTipo } from "@/core/pessoas/schema";
+import { ALUNO_STATUS, PROFESSOR_STATUS } from "@/core/pessoas/schema";
 
 export interface LinhaPreview {
 	linha: number;
@@ -39,10 +39,12 @@ interface LinhaCsv {
 	status?: string;
 }
 
+type PapelCsv = "aluno" | "professor";
+
 interface LinhaValidada {
 	linha: number;
 	nome: string;
-	tipo: PessoaTipo;
+	papel: PapelCsv;
 	status: string;
 	turmaId: string | null;
 	turmaNome: string | null;
@@ -51,6 +53,21 @@ interface LinhaValidada {
 
 function parseCsv(texto: string): LinhaCsv[] {
 	return parse<LinhaCsv>(texto, { columns: true, skip_empty_lines: true, trim: true });
+}
+
+/**
+ * O CSV continua com uma coluna de valor único (uma pessoa, um papel por linha — sem suporte a
+ * papel duplo na importação em lote; quem precisar do segundo papel completa depois editando a
+ * pessoa). `"colaborador"` é o valor histórico da coluna; `"professor"` é aceito como sinônimo.
+ */
+function papelDeTipoCsv(tipoRaw: string): PapelCsv | null {
+	if (tipoRaw === "aluno") {
+		return "aluno";
+	}
+	if (tipoRaw === "colaborador" || tipoRaw === "professor") {
+		return "professor";
+	}
+	return null;
 }
 
 function validarLinhas(linhasCsv: LinhaCsv[], turmasPorNome: Map<string, string>): LinhaValidada[] {
@@ -62,14 +79,15 @@ function validarLinhas(linhasCsv: LinhaCsv[], turmasPorNome: Map<string, string>
 		const turmaRaw = (linha.turma ?? "").trim();
 
 		if (nome === "") {
-			return { linha: numeroLinha, nome, tipo: "aluno", status: statusRaw, turmaId: null, turmaNome: turmaRaw || null, erro: "Nome vazio." };
+			return { linha: numeroLinha, nome, papel: "aluno" as const, status: statusRaw, turmaId: null, turmaNome: turmaRaw || null, erro: "Nome vazio." };
 		}
 
-		if (tipoRaw !== "aluno" && tipoRaw !== "colaborador") {
+		const papel = papelDeTipoCsv(tipoRaw);
+		if (papel === null) {
 			return {
 				linha: numeroLinha,
 				nome,
-				tipo: "aluno",
+				papel: "aluno" as const,
 				status: statusRaw,
 				turmaId: null,
 				turmaNome: turmaRaw || null,
@@ -77,27 +95,27 @@ function validarLinhas(linhasCsv: LinhaCsv[], turmasPorNome: Map<string, string>
 			};
 		}
 
-		const statusValidos: readonly string[] = tipoRaw === "aluno" ? ALUNO_STATUS : COLABORADOR_STATUS;
+		const statusValidos: readonly string[] = papel === "aluno" ? ALUNO_STATUS : PROFESSOR_STATUS;
 		if (!statusValidos.includes(statusRaw)) {
 			return {
 				linha: numeroLinha,
 				nome,
-				tipo: tipoRaw as PessoaTipo,
+				papel,
 				status: statusRaw,
 				turmaId: null,
 				turmaNome: turmaRaw || null,
-				erro: `Status inválido para ${tipoRaw}: "${linha.status ?? ""}".`,
+				erro: `Status inválido para ${papel}: "${linha.status ?? ""}".`,
 			};
 		}
 
 		let turmaId: string | null = null;
-		if (tipoRaw === "aluno" && turmaRaw !== "") {
+		if (papel === "aluno" && turmaRaw !== "") {
 			const encontrada = turmasPorNome.get(turmaRaw.toLowerCase());
 			if (encontrada === undefined) {
 				return {
 					linha: numeroLinha,
 					nome,
-					tipo: tipoRaw as PessoaTipo,
+					papel,
 					status: statusRaw,
 					turmaId: null,
 					turmaNome: turmaRaw,
@@ -107,7 +125,7 @@ function validarLinhas(linhasCsv: LinhaCsv[], turmasPorNome: Map<string, string>
 			turmaId = encontrada;
 		}
 
-		return { linha: numeroLinha, nome, tipo: tipoRaw as PessoaTipo, status: statusRaw, turmaId, turmaNome: turmaRaw || null, erro: null };
+		return { linha: numeroLinha, nome, papel, status: statusRaw, turmaId, turmaNome: turmaRaw || null, erro: null };
 	});
 }
 
@@ -180,7 +198,7 @@ export async function previewImportacaoCsv(csvTexto: string): Promise<PreviewRes
 	const linhas: LinhaPreview[] = validadas.map((linha) => ({
 		linha: linha.linha,
 		nome: linha.nome,
-		tipo: linha.tipo,
+		tipo: linha.papel,
 		turma: linha.turmaNome ?? "",
 		status: linha.status,
 		erro: linha.erro,
@@ -222,9 +240,13 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 		for (const linha of validas) {
 			const pessoaRef = firestore.collection("pessoas").doc();
 			batch.set(pessoaRef, {
-				tipo: linha.tipo,
 				nome: linha.nome,
-				status: linha.status,
+				ehAluno: linha.papel === "aluno",
+				ehProfessor: linha.papel === "professor",
+				statusAluno: linha.papel === "aluno" ? linha.status : null,
+				statusProfessor: linha.papel === "professor" ? linha.status : null,
+				numeroMatriculaAluno: null,
+				numeroMatriculaProfessor: null,
 				ativo: true,
 				criadoViaContatoId: null,
 				criadoEm: FieldValue.serverTimestamp(),
@@ -234,11 +256,11 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 
 			// Mesma regra da criação manual (ver contatoInicialDeAluno): aluno importado
 			// também precisa aparecer em Vagões, senão o funil fica cego pra quem entrou via CSV.
-			if (linha.tipo === "aluno") {
+			if (linha.papel === "aluno") {
 				const contatoRef = firestore.collection("contatos").doc();
 				batch.set(
 					contatoRef,
-					contatoInicialDeAluno({ id: pessoaRef.id, nome: linha.nome, status: linha.status, ativo: true }, linha.turmaNome),
+					contatoInicialDeAluno({ id: pessoaRef.id, nome: linha.nome, statusAluno: linha.status, ativo: true }, linha.turmaNome),
 				);
 				contadorNoBatch += 1;
 			}

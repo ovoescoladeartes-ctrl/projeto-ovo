@@ -13,6 +13,7 @@ export const novoContatoInputSchema = z.object({
 	nome: z.string().trim().min(1, "Nome é obrigatório."),
 	canal: z.enum(CANAIS),
 	interesseInicial: z.string().trim().min(1, "Conte o que a pessoa perguntou."),
+	interesses: z.array(z.string()).default([]),
 });
 
 export type NovoContatoInput = z.infer<typeof novoContatoInputSchema>;
@@ -29,4 +30,6 @@ export interface Contato {
 	estagioAtualizadoEm: string | null;
 	criadoEm: string | null;
 	ativo: boolean;
+	/** Assuntos de interesse estruturados (nascem dos `assunto` de Turma) — `interesseInicial` continua como texto livre. */
+	interesses: string[];
 }
