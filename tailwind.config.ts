@@ -47,6 +47,10 @@ const config: Config = {
     				foreground: 'var(--accent-foreground)'
     			},
     			destructive: 'var(--destructive)',
+    			danger: {
+    				DEFAULT: 'var(--danger)',
+    				foreground: 'var(--danger-foreground)'
+    			},
     			border: 'var(--border)',
     			input: 'var(--input)',
     			ring: 'var(--ring)',

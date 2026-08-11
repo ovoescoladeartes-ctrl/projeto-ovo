@@ -3,6 +3,7 @@
 import { MessageSquareText, MoveRight } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
@@ -86,6 +87,16 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 					</DropdownMenu>
 				</div>
 			</div>
+
+			{contato.interesses.length > 0 ? (
+				<div className="mt-2 flex flex-wrap gap-1">
+					{contato.interesses.map((interesse) => (
+						<Badge key={interesse} variant="secondary" className="text-[10px]">
+							{interesse}
+						</Badge>
+					))}
+				</div>
+			) : null}
 		</div>
 	);
 }

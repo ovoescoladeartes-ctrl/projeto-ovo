@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InteresseTagsInput } from "@/components/InteresseTagsInput";
 import { ALUNO_STATUS, COLABORADOR_STATUS, type PessoaTipo } from "@/core/pessoas/schema";
 
 import { criarPessoa } from "./actions";
@@ -20,32 +22,38 @@ import { criarPessoa } from "./actions";
 const STATUS_LABELS: Record<string, string> = {
 	lead: "Lead",
 	matriculado: "Matriculado",
-	ativo: "Ativo",
-	banco_talentos: "Banco de talentos",
 };
 
-const STATUS_POR_TIPO: Record<PessoaTipo, readonly string[]> = {
-	aluno: ALUNO_STATUS,
-	colaborador: COLABORADOR_STATUS,
-};
+/**
+ * Status inicial ao criar. Aluno ainda escolhe entre Lead/Matriculado na hora do cadastro;
+ * colaborador não tem escolha — sempre começa em "banco_talentos" (equivalente a lead), já que
+ * só fica "ativo" quando `recalcularStatusColaborador` o associar a uma Turma ativa como educador.
+ */
+const STATUS_INICIAL_COLABORADOR: (typeof COLABORADOR_STATUS)[number] = "banco_talentos";
 
-export function NovaPessoaDialog(): React.ReactElement {
+interface NovaPessoaDialogProps {
+	opcoesInteresse: string[];
+}
+
+export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [tipo, setTipo] = useState<PessoaTipo>("aluno");
 	const [nome, setNome] = useState("");
 	const [status, setStatus] = useState<string>(ALUNO_STATUS[0]);
+	const [interesses, setInteresses] = useState<string[]>([]);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
 	function handleTipoChange(novoTipo: PessoaTipo): void {
 		setTipo(novoTipo);
-		setStatus(STATUS_POR_TIPO[novoTipo][0] ?? "");
+		setStatus(novoTipo === "aluno" ? ALUNO_STATUS[0] : STATUS_INICIAL_COLABORADOR);
 	}
 
 	function handleSalvar(): void {
 		setErro(null);
 		startTransition(async () => {
-			const result = await criarPessoa({ tipo, nome, status });
+			const statusFinal = tipo === "aluno" ? status : STATUS_INICIAL_COLABORADOR;
+			const result = await criarPessoa({ tipo, nome, status: statusFinal, interesses });
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
@@ -54,6 +62,7 @@ export function NovaPessoaDialog(): React.ReactElement {
 			setNome("");
 			setTipo("aluno");
 			setStatus(ALUNO_STATUS[0]);
+			setInteresses([]);
 		});
 	}
 
@@ -80,33 +89,38 @@ export function NovaPessoaDialog(): React.ReactElement {
 
 					<div className="space-y-1.5">
 						<Label htmlFor="pessoa-tipo">Tipo</Label>
-						<select
-							id="pessoa-tipo"
-							value={tipo}
-							onChange={(event) => handleTipoChange(event.target.value as PessoaTipo)}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							<option value="aluno">Aluno</option>
-							<option value="colaborador">Colaborador</option>
-						</select>
+						<Select value={tipo} onValueChange={(value) => handleTipoChange(value as PessoaTipo)} disabled={isPending}>
+							<SelectTrigger id="pessoa-tipo">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="aluno">Aluno</SelectItem>
+								<SelectItem value="colaborador">Colaborador</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
+					{tipo === "aluno" ? (
+						<div className="space-y-1.5">
+							<Label htmlFor="pessoa-status">Status</Label>
+							<Select value={status} onValueChange={setStatus} disabled={isPending}>
+								<SelectTrigger id="pessoa-status">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{ALUNO_STATUS.map((opcao) => (
+										<SelectItem key={opcao} value={opcao}>
+											{STATUS_LABELS[opcao]}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					) : null}
+
 					<div className="space-y-1.5">
-						<Label htmlFor="pessoa-status">Status</Label>
-						<select
-							id="pessoa-status"
-							value={status}
-							onChange={(event) => setStatus(event.target.value)}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							{STATUS_POR_TIPO[tipo].map((opcao) => (
-								<option key={opcao} value={opcao}>
-									{STATUS_LABELS[opcao]}
-								</option>
-							))}
-						</select>
+						<Label>Interesses</Label>
+						<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
