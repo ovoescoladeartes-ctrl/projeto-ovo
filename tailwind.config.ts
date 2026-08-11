@@ -46,7 +46,10 @@ const config: Config = {
     				DEFAULT: 'var(--accent)',
     				foreground: 'var(--accent-foreground)'
     			},
-    			destructive: 'var(--destructive)',
+    			destructive: {
+    				DEFAULT: 'var(--destructive)',
+    				foreground: 'var(--destructive-foreground)'
+    			},
     			danger: {
     				DEFAULT: 'var(--danger)',
     				foreground: 'var(--danger-foreground)'
@@ -54,6 +57,7 @@ const config: Config = {
     			border: 'var(--border)',
     			input: 'var(--input)',
     			ring: 'var(--ring)',
+    			column: 'var(--column)',
     			chart: {
     				'1': 'var(--chart-1)',
     				'2': 'var(--chart-2)',

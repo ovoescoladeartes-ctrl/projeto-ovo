@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { pessoaInputSchema } from "@/core/pessoas/schema";
 
@@ -36,20 +37,33 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 	}
 
 	try {
-		await getFirebaseAdminFirestore()
-			.collection("pessoas")
-			.add({
-				...parsed.data,
-				ativo: true,
-				criadoViaContatoId: null,
-				criadoEm: FieldValue.serverTimestamp(),
-				numeroMatricula: null,
-			});
+		const firestore = getFirebaseAdminFirestore();
+		const pessoaRef = firestore.collection("pessoas").doc();
+		const batch = firestore.batch();
+
+		batch.set(pessoaRef, {
+			...parsed.data,
+			ativo: true,
+			criadoViaContatoId: null,
+			criadoEm: FieldValue.serverTimestamp(),
+			numeroMatricula: null,
+		});
+
+		// Aluno entra no funil de Vagões desde já; colaborador ainda não tem funil (ver
+		// contatoInicialDeAluno) — quando o funil financeiro existir, entra aqui como um
+		// caminho separado, sem mexer neste.
+		if (parsed.data.tipo === "aluno") {
+			const contatoRef = firestore.collection("contatos").doc();
+			batch.set(contatoRef, contatoInicialDeAluno({ id: pessoaRef.id, nome: parsed.data.nome, status: parsed.data.status, ativo: true }));
+		}
+
+		await batch.commit();
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
 	revalidatePath("/pessoas");
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }
 
