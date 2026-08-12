@@ -216,9 +216,14 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 			ref,
 			merge: false,
 			data: {
-				tipo: "aluno",
 				nome: item.nome,
-				status: "lead",
+				ehAluno: true,
+				ehProfessor: false,
+				statusAluno: "lead",
+				statusProfessor: null,
+				numeroMatriculaAluno: null,
+				numeroMatriculaProfessor: null,
+				interesses: [],
 				ativo: true,
 				criadoViaContatoId: null,
 				criadoEm: FieldValue.serverTimestamp(),
@@ -233,7 +238,7 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		operacoes.push({
 			ref: firestore.collection("contatos").doc(),
 			merge: false,
-			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, status: "lead", ativo: true }),
+			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, statusAluno: "lead", ativo: true }),
 		});
 	});
 
@@ -251,12 +256,14 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 			merge: false,
 			data: {
 				nome: item.nome,
+				assunto: item.nome,
 				mensalidadeCentavos: item.mensalidadeCentavos,
 				repasseTipo: "percentual",
 				repasseValor: 0,
 				dataInicio: null,
 				dataFim: null,
 				educadorPessoaId: null,
+				capacidadeMaxima: null,
 				ativo: true,
 				wixProductId: item.wixProductId,
 				origem: "wix",

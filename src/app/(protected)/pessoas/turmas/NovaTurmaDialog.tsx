@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -13,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { RepasseTipo } from "@/core/turmas/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
@@ -20,16 +23,19 @@ import { criarTurma } from "./actions";
 
 const ESTADO_INICIAL = {
 	nome: "",
+	assunto: "",
 	mensalidade: "",
 	repasseTipo: "percentual" as RepasseTipo,
 	repasseValor: "",
 	dataInicio: "",
 	dataFim: "",
+	capacidadeMaxima: "",
 };
 
 export function NovaTurmaDialog(): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [form, setForm] = useState(ESTADO_INICIAL);
+	const [educadorPessoaId, setEducadorPessoaId] = useState<string | null>(null);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
@@ -54,15 +60,23 @@ export function NovaTurmaDialog(): React.ReactElement {
 			return;
 		}
 
+		const capacidadeMaxima = form.capacidadeMaxima.trim() === "" ? null : Number(form.capacidadeMaxima);
+		if (capacidadeMaxima !== null && (!Number.isInteger(capacidadeMaxima) || capacidadeMaxima <= 0)) {
+			setErro("Capacidade máxima inválida.");
+			return;
+		}
+
 		startTransition(async () => {
 			const result = await criarTurma({
 				nome: form.nome,
+				assunto: form.assunto,
 				mensalidadeCentavos,
 				repasseTipo: form.repasseTipo,
 				repasseValor,
 				dataInicio: form.dataInicio,
 				dataFim: form.dataFim === "" ? null : form.dataFim,
-				educadorPessoaId: null,
+				educadorPessoaId,
+				capacidadeMaxima,
 			});
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
@@ -70,6 +84,7 @@ export function NovaTurmaDialog(): React.ReactElement {
 			}
 			setOpen(false);
 			setForm(ESTADO_INICIAL);
+			setEducadorPessoaId(null);
 		});
 	}
 
@@ -88,8 +103,20 @@ export function NovaTurmaDialog(): React.ReactElement {
 						<Label htmlFor="turma-nome">Nome</Label>
 						<Input
 							id="turma-nome"
+							placeholder='Ex.: "Aquarela — Seg/Qua"'
 							value={form.nome}
 							onChange={(event) => setForm({ ...form, nome: event.target.value })}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-assunto">Assunto</Label>
+						<Input
+							id="turma-assunto"
+							placeholder='Ex.: "Aquarela" — igual em turmas do mesmo curso em outro dia/horário'
+							value={form.assunto}
+							onChange={(event) => setForm({ ...form, assunto: event.target.value })}
 							disabled={isPending}
 						/>
 					</div>
@@ -109,18 +136,19 @@ export function NovaTurmaDialog(): React.ReactElement {
 					<div className="grid grid-cols-2 gap-3">
 						<div className="space-y-1.5">
 							<Label htmlFor="turma-repasse-tipo">Tipo de repasse</Label>
-							<select
-								id="turma-repasse-tipo"
+							<Select
 								value={form.repasseTipo}
-								onChange={(event) =>
-									setForm({ ...form, repasseTipo: event.target.value as RepasseTipo, repasseValor: "" })
-								}
+								onValueChange={(value) => setForm({ ...form, repasseTipo: value as RepasseTipo, repasseValor: "" })}
 								disabled={isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 							>
-								<option value="percentual">Percentual</option>
-								<option value="fixo">Fixo</option>
-							</select>
+								<SelectTrigger id="turma-repasse-tipo">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="percentual">Percentual</SelectItem>
+									<SelectItem value="fixo">Fixo</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						<div className="space-y-1.5">
@@ -161,6 +189,28 @@ export function NovaTurmaDialog(): React.ReactElement {
 						</div>
 					</div>
 
+					<div className="space-y-1.5">
+						<Label>Educador (opcional)</Label>
+						<PessoaCombobox
+							value={educadorPessoaId}
+							onChange={(pessoa: PessoaBusca | null) => setEducadorPessoaId(pessoa?.id ?? null)}
+							papel="professor"
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-capacidade">Capacidade máxima (opcional)</Label>
+						<Input
+							id="turma-capacidade"
+							inputMode="numeric"
+							placeholder="Sem limite"
+							value={form.capacidadeMaxima}
+							onChange={(event) => setForm({ ...form, capacidadeMaxima: event.target.value })}
+							disabled={isPending}
+						/>
+					</div>
+
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
 				</div>
 
@@ -168,7 +218,7 @@ export function NovaTurmaDialog(): React.ReactElement {
 					<Button
 						type="button"
 						onClick={handleSalvar}
-						disabled={isPending || form.nome.trim() === "" || form.dataInicio === ""}
+						disabled={isPending || form.nome.trim() === "" || form.assunto.trim() === "" || form.dataInicio === ""}
 					>
 						{isPending ? "Salvando..." : "Salvar"}
 					</Button>

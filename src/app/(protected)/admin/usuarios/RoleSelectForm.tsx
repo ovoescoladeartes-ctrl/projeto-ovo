@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PENDING_ACCESS, ROLES } from "@/core/auth/Role";
 
 import { updateUserRole } from "./actions";
@@ -28,28 +30,23 @@ export function RoleSelectForm({ uid, currentRole }: RoleSelectFormProps): React
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<select
-				value={role}
-				onChange={(event) => setRole(event.target.value)}
-				disabled={isPending}
-				className="rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-slate-500"
-			>
-				<option value={PENDING_ACCESS}>Pendente (sem acesso)</option>
-				{ROLES.map((roleOption) => (
-					<option key={roleOption} value={roleOption}>
-						{roleOption}
-					</option>
-				))}
-			</select>
-			<button
-				type="button"
-				onClick={handleSalvar}
-				disabled={isPending || role === currentRole}
-				className="rounded-md bg-slate-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
-			>
+			<Select value={role} onValueChange={setRole} disabled={isPending}>
+				<SelectTrigger className="w-auto min-w-[10rem]">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value={PENDING_ACCESS}>Pendente (sem acesso)</SelectItem>
+					{ROLES.map((roleOption) => (
+						<SelectItem key={roleOption} value={roleOption}>
+							{roleOption}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+			<Button type="button" size="sm" onClick={handleSalvar} disabled={isPending || role === currentRole}>
 				{isPending ? "Salvando..." : "Salvar"}
-			</button>
-			{erro !== null ? <p className="w-full text-xs text-red-600">{erro}</p> : null}
+			</Button>
+			{erro !== null ? <p className="w-full text-xs text-destructive">{erro}</p> : null}
 		</div>
 	);
 }

@@ -2,6 +2,17 @@
 
 import { useState, useTransition } from "react";
 
+import { PessoaCombobox } from "@/components/PessoaCombobox";
+import {
+	AlertDialog,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -13,10 +24,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { RepasseTipo, Turma } from "@/core/turmas/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
-import { atualizarTurma } from "./actions";
+import { atualizarTurma, inativarTurma } from "./actions";
 
 function centavosParaInput(centavos: number): string {
 	return (centavos / 100).toFixed(2).replace(".", ",");
@@ -28,11 +41,14 @@ function dataIsoParaInput(iso: string | null): string {
 
 interface TurmaEditDialogProps {
 	turma: Turma;
+	educadorInicial: PessoaBusca | null;
+	matriculasAtivasCount: number;
 }
 
-export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactElement {
+export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount }: TurmaEditDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [nome, setNome] = useState(turma.nome);
+	const [assunto, setAssunto] = useState(turma.assunto);
 	const [mensalidade, setMensalidade] = useState(centavosParaInput(turma.mensalidadeCentavos));
 	const [repasseTipo, setRepasseTipo] = useState<RepasseTipo>(turma.repasseTipo);
 	const [repasseValor, setRepasseValor] = useState(
@@ -40,8 +56,29 @@ export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactEle
 	);
 	const [dataInicio, setDataInicio] = useState(dataIsoParaInput(turma.dataInicio));
 	const [dataFim, setDataFim] = useState(dataIsoParaInput(turma.dataFim));
+	const [educadorPessoaId, setEducadorPessoaId] = useState<string | null>(turma.educadorPessoaId);
+	const [capacidadeMaxima, setCapacidadeMaxima] = useState(
+		turma.capacidadeMaxima !== null ? String(turma.capacidadeMaxima) : "",
+	);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
+
+	const [arquivarOpen, setArquivarOpen] = useState(false);
+	const [arquivarErro, setArquivarErro] = useState<string | null>(null);
+	const [isArquivando, startArquivarTransition] = useTransition();
+
+	function handleArquivar(): void {
+		setArquivarErro(null);
+		startArquivarTransition(async () => {
+			const result = await inativarTurma(turma.id);
+			if (result.status === "error") {
+				setArquivarErro(result.message ?? "Não foi possível arquivar.");
+				return;
+			}
+			setArquivarOpen(false);
+			setOpen(false);
+		});
+	}
 
 	function handleSalvar(): void {
 		setErro(null);
@@ -64,16 +101,24 @@ export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactEle
 			return;
 		}
 
+		const capacidadeMaximaFinal = capacidadeMaxima.trim() === "" ? null : Number(capacidadeMaxima);
+		if (capacidadeMaximaFinal !== null && (!Number.isInteger(capacidadeMaximaFinal) || capacidadeMaximaFinal <= 0)) {
+			setErro("Capacidade máxima inválida.");
+			return;
+		}
+
 		startTransition(async () => {
 			const result = await atualizarTurma({
 				id: turma.id,
 				nome,
+				assunto,
 				mensalidadeCentavos,
 				repasseTipo,
 				repasseValor: repasseValorFinal,
 				dataInicio,
 				dataFim: dataFim === "" ? null : dataFim,
-				educadorPessoaId: turma.educadorPessoaId,
+				educadorPessoaId,
+				capacidadeMaxima: capacidadeMaximaFinal,
 			});
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
@@ -107,6 +152,16 @@ export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactEle
 					</div>
 
 					<div className="space-y-1.5">
+						<Label htmlFor={`turma-assunto-${turma.id}`}>Assunto</Label>
+						<Input
+							id={`turma-assunto-${turma.id}`}
+							value={assunto}
+							onChange={(event) => setAssunto(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
 						<Label htmlFor={`turma-mensalidade-${turma.id}`}>Mensalidade (R$)</Label>
 						<Input
 							id={`turma-mensalidade-${turma.id}`}
@@ -120,19 +175,22 @@ export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactEle
 					<div className="grid grid-cols-2 gap-3">
 						<div className="space-y-1.5">
 							<Label htmlFor={`turma-repasse-tipo-${turma.id}`}>Tipo de repasse</Label>
-							<select
-								id={`turma-repasse-tipo-${turma.id}`}
+							<Select
 								value={repasseTipo}
-								onChange={(event) => {
-									setRepasseTipo(event.target.value as RepasseTipo);
+								onValueChange={(value) => {
+									setRepasseTipo(value as RepasseTipo);
 									setRepasseValor("");
 								}}
 								disabled={isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
 							>
-								<option value="percentual">Percentual</option>
-								<option value="fixo">Fixo</option>
-							</select>
+								<SelectTrigger id={`turma-repasse-tipo-${turma.id}`}>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="percentual">Percentual</SelectItem>
+									<SelectItem value="fixo">Fixo</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						<div className="space-y-1.5">
@@ -172,11 +230,66 @@ export function TurmaEditDialog({ turma }: TurmaEditDialogProps): React.ReactEle
 						</div>
 					</div>
 
+					<div className="space-y-1.5">
+						<Label>Educador (opcional)</Label>
+						<PessoaCombobox
+							value={educadorPessoaId}
+							onChange={(pessoa: PessoaBusca | null) => setEducadorPessoaId(pessoa?.id ?? null)}
+							papel="professor"
+							valorInicial={educadorInicial}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-capacidade-${turma.id}`}>Capacidade máxima (opcional)</Label>
+						<Input
+							id={`turma-capacidade-${turma.id}`}
+							inputMode="numeric"
+							placeholder="Sem limite"
+							value={capacidadeMaxima}
+							onChange={(event) => setCapacidadeMaxima(event.target.value)}
+							disabled={isPending}
+						/>
+						<p className="text-xs text-muted-foreground">
+							{matriculasAtivasCount} matriculado{matriculasAtivasCount === 1 ? "" : "s"}
+							{turma.capacidadeMaxima !== null ? ` / ${turma.capacidadeMaxima}` : ""} — só informativo, não bloqueia matrícula.
+						</p>
+					</div>
+
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
 				</div>
 
 				<DialogFooter>
-					<Button type="button" onClick={handleSalvar} disabled={isPending || nome.trim() === "" || dataInicio === ""}>
+					{turma.ativo ? (
+						<AlertDialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
+							<AlertDialogTrigger asChild>
+								<Button type="button" variant="ghost" className="mr-auto text-muted-foreground">
+									Arquivar
+								</Button>
+							</AlertDialogTrigger>
+							<AlertDialogContent>
+								<AlertDialogHeader>
+									<AlertDialogTitle>Arquivar {turma.nome}?</AlertDialogTitle>
+									<AlertDialogDescription>
+										As matrículas ativas dessa turma serão encerradas junto.
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+								{arquivarErro !== null ? <p className="text-xs text-destructive">{arquivarErro}</p> : null}
+								<AlertDialogFooter>
+									<AlertDialogCancel disabled={isArquivando}>Cancelar</AlertDialogCancel>
+									<Button type="button" variant="destructive" onClick={handleArquivar} disabled={isArquivando}>
+										{isArquivando ? "Arquivando..." : "Arquivar"}
+									</Button>
+								</AlertDialogFooter>
+							</AlertDialogContent>
+						</AlertDialog>
+					) : null}
+					<Button
+						type="button"
+						onClick={handleSalvar}
+						disabled={isPending || nome.trim() === "" || assunto.trim() === "" || dataInicio === ""}
+					>
 						{isPending ? "Salvando..." : "Salvar"}
 					</Button>
 				</DialogFooter>

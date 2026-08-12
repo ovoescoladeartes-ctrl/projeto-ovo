@@ -203,9 +203,14 @@ async function main(): Promise<void> {
 			ref,
 			merge: false,
 			data: {
-				tipo: "aluno",
 				nome: item.nome,
-				status: "lead",
+				ehAluno: true,
+				ehProfessor: false,
+				statusAluno: "lead",
+				statusProfessor: null,
+				numeroMatriculaAluno: null,
+				numeroMatriculaProfessor: null,
+				interesses: [],
 				ativo: true,
 				criadoViaContatoId: null,
 				criadoEm: FieldValue.serverTimestamp(),
@@ -218,7 +223,7 @@ async function main(): Promise<void> {
 		operacoes.push({
 			ref: firestore.collection("contatos").doc(),
 			merge: false,
-			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, status: "lead", ativo: true }) as unknown as DocumentData,
+			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, statusAluno: "lead", ativo: true }) as unknown as DocumentData,
 		});
 	});
 
@@ -236,12 +241,14 @@ async function main(): Promise<void> {
 			merge: false,
 			data: {
 				nome: item.nome,
+				assunto: item.nome,
 				mensalidadeCentavos: item.mensalidadeCentavos,
 				repasseTipo: "percentual",
 				repasseValor: 0,
 				dataInicio: null,
 				dataFim: null,
 				educadorPessoaId: null,
+				capacidadeMaxima: null,
 				ativo: true,
 				wixProductId: item.wixProductId,
 				origem: "wix",

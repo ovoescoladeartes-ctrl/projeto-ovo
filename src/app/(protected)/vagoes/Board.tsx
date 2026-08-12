@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
 import type { ArquivadoMotivo, Contato, Estagio } from "@/core/comunicacao/contatos/schema";
 import type { Mensagem } from "@/core/comunicacao/mensagens/schema";
@@ -191,17 +192,18 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 			{/* Mobile: uma coluna por vez via seletor de estágio — botão "mover para" é o caminho
 			    primário aqui, drag fica só como capability desktop (requisito do PRD, não opcional). */}
 			<div className="md:hidden">
-				<select
-					value={estagioMobile}
-					onChange={(event) => setEstagioMobile(event.target.value)}
-					className="mb-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-				>
-					{BUCKETS.map((bucket) => (
-						<option key={bucket.key} value={bucket.key}>
-							{bucket.label} ({(grupos.get(bucket.key) ?? []).length})
-						</option>
-					))}
-				</select>
+				<Select value={estagioMobile} onValueChange={setEstagioMobile}>
+					<SelectTrigger className="mb-3 w-full">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{BUCKETS.map((bucket) => (
+							<SelectItem key={bucket.key} value={bucket.key}>
+								{bucket.label} ({(grupos.get(bucket.key) ?? []).length})
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 
 				<div className="flex flex-col gap-2">
 					{(grupos.get(estagioMobile) ?? []).map((contato) => (

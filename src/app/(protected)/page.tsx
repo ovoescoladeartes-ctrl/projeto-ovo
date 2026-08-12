@@ -44,9 +44,9 @@ interface RepasseDoc {
 }
 
 interface PessoaDoc {
-	tipo: string;
+	ehAluno: boolean;
 	nome: string;
-	status: string;
+	statusAluno: string | null;
 	ativo: boolean;
 }
 
@@ -123,11 +123,11 @@ async function montarKpisEPendenciasFinanceiro(
 	]);
 
 	const pessoasNomes: Record<string, string> = {};
-	const pessoas: Pick<Pessoa, "tipo" | "status" | "ativo">[] = [];
+	const pessoas: Pick<Pessoa, "ehAluno" | "statusAluno" | "ativo">[] = [];
 	pessoasSnapshot.docs.forEach((doc) => {
 		const data = doc.data() as PessoaDoc;
 		pessoasNomes[doc.id] = data.nome;
-		pessoas.push({ tipo: data.tipo as Pessoa["tipo"], status: data.status, ativo: data.ativo });
+		pessoas.push({ ehAluno: data.ehAluno, statusAluno: data.statusAluno as Pessoa["statusAluno"], ativo: data.ativo });
 	});
 
 	const recebimentos: RecebimentoResumo[] = recebimentosSnapshot.docs.map((doc) => {
@@ -197,9 +197,9 @@ async function montarKpisEPendenciasComunicacao(
 		firestore.collection("pessoas").get(),
 	]);
 
-	const pessoas: Pick<Pessoa, "tipo" | "status" | "ativo">[] = pessoasSnapshot.docs.map((doc) => {
+	const pessoas: Pick<Pessoa, "ehAluno" | "statusAluno" | "ativo">[] = pessoasSnapshot.docs.map((doc) => {
 		const data = doc.data() as PessoaDoc;
-		return { tipo: data.tipo as Pessoa["tipo"], status: data.status, ativo: data.ativo };
+		return { ehAluno: data.ehAluno, statusAluno: data.statusAluno as Pessoa["statusAluno"], ativo: data.ativo };
 	});
 
 	const contatos: ContatoResumo[] = contatosSnapshot.docs.map((doc) => {
