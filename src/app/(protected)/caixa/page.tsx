@@ -26,6 +26,8 @@ interface RecebimentoDoc {
 	status: string;
 	dataRecebimento?: Timestamp;
 	ativo: boolean;
+	wixOrderId?: string | null;
+	wixLineItemId?: string | null;
 }
 
 interface RepasseDoc {
@@ -85,6 +87,8 @@ export default async function CaixaPage(): Promise<React.ReactElement> {
 			status: data.status as Recebimento["status"],
 			dataRecebimento: toIso(data.dataRecebimento ?? null),
 			ativo: data.ativo,
+			wixOrderId: data.wixOrderId ?? null,
+			wixLineItemId: data.wixLineItemId ?? null,
 		};
 	});
 	recebimentos.sort((a, b) => (b.dataRecebimento ?? "").localeCompare(a.dataRecebimento ?? ""));

@@ -32,4 +32,7 @@ export interface Recebimento {
 	status: RecebimentoStatus;
 	dataRecebimento: string | null;
 	ativo: boolean;
+	/** Chave composta de idempotência do sync Wix — um order com múltiplos itens vira múltiplos Recebimentos. */
+	wixOrderId: string | null;
+	wixLineItemId: string | null;
 }

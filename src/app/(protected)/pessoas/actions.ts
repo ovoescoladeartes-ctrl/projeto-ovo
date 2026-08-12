@@ -80,6 +80,8 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 			ativo: true,
 			criadoViaContatoId: null,
 			criadoEm: FieldValue.serverTimestamp(),
+			wixContactId: null,
+			origem: "manual",
 		});
 
 		// Aluno entra no funil de Vagões desde já; professor ainda não tem funil (ver

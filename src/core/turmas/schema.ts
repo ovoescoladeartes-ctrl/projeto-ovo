@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Origem } from "@/core/shared/origem";
+
 export const REPASSE_TIPOS = ["percentual", "fixo"] as const;
 export type RepasseTipo = (typeof REPASSE_TIPOS)[number];
 
@@ -47,4 +49,7 @@ export interface Turma {
 	educadorPessoaId: string | null;
 	capacidadeMaxima: number | null;
 	ativo: boolean;
+	/** Nulo em Turmas cadastradas antes da integração Wix existir. */
+	wixProductId: string | null;
+	origem: Origem;
 }

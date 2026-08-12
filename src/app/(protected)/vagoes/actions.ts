@@ -102,12 +102,21 @@ async function converterContatoEmPessoa(contatoId: string): Promise<ActionResult
 			}
 
 			tx.set(pessoaRef, {
-				tipo: "aluno",
 				nome: contatoData.nome,
-				status: "matriculado",
+				ehAluno: true,
+				ehProfessor: false,
+				statusAluno: "matriculado",
+				statusProfessor: null,
+				numeroMatriculaAluno: null,
+				numeroMatriculaProfessor: null,
+				interesses: [],
+				email: null,
+				telefone: null,
 				ativo: true,
 				criadoViaContatoId: contatoId,
 				criadoEm: FieldValue.serverTimestamp(),
+				wixContactId: null,
+				origem: "manual",
 			});
 
 			tx.set(
