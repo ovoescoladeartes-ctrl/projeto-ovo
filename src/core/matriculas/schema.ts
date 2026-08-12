@@ -27,6 +27,8 @@ export interface Matricula {
 	pessoaId: string;
 	turmaId: string;
 	dataMatricula: string | null;
+	/** `null` enquanto a matrícula está ativa — preenchido automaticamente ao encerrar. */
+	dataEncerramento: string | null;
 	/** Snapshot do valor no momento da matrícula — reajuste de mensalidade da turma não altera matrículas antigas. */
 	mensalidadeCombinadaCentavos: number;
 	status: MatriculaStatus;

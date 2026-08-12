@@ -1,30 +1,23 @@
 import type { Timestamp } from "firebase-admin/firestore";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
-import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
-import type { Pessoa } from "@/core/pessoas/schema";
+import { normalizar } from "@/core/pessoas/normalizar";
 import { toIso } from "@/core/shared/serialize";
 
-import { CadastroTabs } from "./CadastroTabs";
-import { NovaPessoaDialog } from "./NovaPessoaDialog";
-import { PessoaExcluirButton } from "./PessoaExcluirButton";
-import { PessoasFiltroBar } from "./PessoasFiltroBar";
+import { PessoasListagem, type PessoaListagemRow } from "./PessoasListagem";
+
+// Sem isso, trocar só o searchParam `arquivados`/`ordenar`/etc. na mesma rota pode servir uma
+// resposta em cache do Router do Next em vez de buscar dados frescos no servidor — foi a causa
+// raiz das abas Ativos/Arquivados parecendo travadas no mesmo conteúdo (round 3).
+export const dynamic = "force-dynamic";
 
 const PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
-
-const STATUS_LABELS: Record<string, string> = {
-	lead: "Lead",
-	matriculado: "Matriculado",
-	ativo: "Ativo",
-	banco_talentos: "Banco de talentos",
-};
+const ITENS_POR_PAGINA = 25;
 
 interface PessoaDoc {
 	nome: string;
@@ -38,10 +31,13 @@ interface PessoaDoc {
 	interesses?: string[];
 	numeroMatriculaAluno?: string | null;
 	numeroMatriculaProfessor?: string | null;
+	email?: string | null;
+	telefone?: string | null;
 }
 
 interface TurmaResumoDoc {
 	nome: string;
+	mensalidadeCentavos: number;
 	ativo: boolean;
 }
 
@@ -59,10 +55,13 @@ interface PessoasPageProps {
 		interesse?: string;
 		turma?: string;
 		arquivados?: string;
+		busca?: string;
+		ordenar?: string;
+		pagina?: string;
 	}>;
 }
 
-const MAX_TURMAS_VISIVEIS = 2;
+type PessoaFiltravel = PessoaListagemRow & { interesses: string[] };
 
 export default async function PessoasPage({ searchParams }: PessoasPageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
@@ -76,9 +75,8 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	const mostrarArquivados = filtros.arquivados === "1";
 
 	const firestore = getFirebaseAdminFirestore();
-	const pessoasQuery = mostrarArquivados
-		? firestore.collection("pessoas")
-		: firestore.collection("pessoas").where("ativo", "==", true);
+	// Arquivados mostra só ativo===false, nunca "todo mundo" — bug real do round 3, não era cache.
+	const pessoasQuery = firestore.collection("pessoas").where("ativo", "==", !mostrarArquivados);
 	const [pessoasSnapshot, turmasSnapshot, matriculasAtivasSnapshot, opcoesInteresse] = await Promise.all([
 		pessoasQuery.get(),
 		firestore.collection("turmas").where("ativo", "==", true).get(),
@@ -87,11 +85,14 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	]);
 
 	const turmasNomes = new Map<string, string>();
+	const turmasAtivas: { id: string; nome: string; mensalidadeCentavos: number }[] = [];
 	turmasSnapshot.docs.forEach((doc) => {
 		const data = doc.data() as TurmaResumoDoc;
 		turmasNomes.set(doc.id, data.nome);
+		turmasAtivas.push({ id: doc.id, nome: data.nome, mensalidadeCentavos: data.mensalidadeCentavos });
 	});
 	const opcoesTurma = Array.from(turmasNomes.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	const turmasPorPessoa = new Map<string, string[]>();
 	matriculasAtivasSnapshot.docs.forEach((doc) => {
@@ -105,25 +106,23 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		turmasPorPessoa.set(data.pessoaId, lista);
 	});
 
-	let pessoas: Pessoa[] = pessoasSnapshot.docs.map((doc) => {
+	let pessoas: PessoaFiltravel[] = pessoasSnapshot.docs.map((doc) => {
 		const data = doc.data() as PessoaDoc;
 		return {
 			id: doc.id,
 			nome: data.nome,
-			ehAluno: data.ehAluno,
-			ehProfessor: data.ehProfessor,
-			statusAluno: data.statusAluno as Pessoa["statusAluno"],
-			statusProfessor: data.statusProfessor as Pessoa["statusProfessor"],
+			// `?? false`/`?? null` defensivos — documento legado de antes do papel duplo não teria
+			// esses campos gravados; sem isso a linha renderiza Tipo/Status vazios silenciosamente.
+			ehAluno: data.ehAluno ?? false,
+			ehProfessor: data.ehProfessor ?? false,
+			statusAluno: data.statusAluno ?? null,
+			statusProfessor: data.statusProfessor ?? null,
 			ativo: data.ativo,
-			criadoViaContatoId: data.criadoViaContatoId ?? null,
 			criadoEm: toIso(data.criadoEm ?? null),
+			turmas: turmasPorPessoa.get(doc.id) ?? [],
 			interesses: data.interesses ?? [],
-			numeroMatriculaAluno: data.numeroMatriculaAluno ?? null,
-			numeroMatriculaProfessor: data.numeroMatriculaProfessor ?? null,
 		};
 	});
-
-	pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	const marcouAluno = filtros.aluno === "1";
 	const marcouProfessor = filtros.professor === "1";
@@ -151,108 +150,52 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		pessoas = pessoas.filter((pessoa) => pessoa.interesses.includes(filtros.interesse as string));
 	}
 	if (filtros.turma) {
-		pessoas = pessoas.filter((pessoa) => (turmasPorPessoa.get(pessoa.id) ?? []).includes(filtros.turma as string));
+		pessoas = pessoas.filter((pessoa) => pessoa.turmas.includes(filtros.turma as string));
+	}
+	if (filtros.busca) {
+		const termoNormalizado = normalizar(filtros.busca);
+		pessoas = pessoas.filter((pessoa) => normalizar(pessoa.nome).startsWith(termoNormalizado));
 	}
 
+	const [campoOrdenar, direcaoOrdenar] = (filtros.ordenar ?? "nome_asc").split("_");
+	pessoas.sort((a, b) => {
+		const comparacao =
+			campoOrdenar === "criadoEm" ? (a.criadoEm ?? "").localeCompare(b.criadoEm ?? "") : a.nome.localeCompare(b.nome, "pt-BR");
+		return direcaoOrdenar === "desc" ? -comparacao : comparacao;
+	});
+
+	const totalItens = pessoas.length;
+	const totalPaginas = Math.max(1, Math.ceil(totalItens / ITENS_POR_PAGINA));
+	const paginaSolicitada = Number.parseInt(filtros.pagina ?? "1", 10);
+	const paginaAtual = Number.isFinite(paginaSolicitada) ? Math.min(Math.max(paginaSolicitada, 1), totalPaginas) : 1;
+
+	const pessoasPagina: PessoaListagemRow[] = pessoas
+		.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA)
+		.map((pessoa) => ({
+			id: pessoa.id,
+			nome: pessoa.nome,
+			ehAluno: pessoa.ehAluno,
+			ehProfessor: pessoa.ehProfessor,
+			statusAluno: pessoa.statusAluno,
+			statusProfessor: pessoa.statusProfessor,
+			ativo: pessoa.ativo,
+			criadoEm: pessoa.criadoEm,
+			turmas: pessoa.turmas,
+		}));
+
 	return (
-		<div>
-			<CadastroTabs />
-
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
-					<p className="text-sm text-muted-foreground">Alunos e colaboradores cadastrados na escola.</p>
-				</div>
-				<div className="flex items-center gap-2">
-					{session.role === "admin" ? (
-						<Link
-							href="/pessoas/importar"
-							className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-						>
-							Importar CSV
-						</Link>
-					) : null}
-					<NovaPessoaDialog opcoesInteresse={opcoesInteresse} />
-				</div>
-			</div>
-
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<Suspense fallback={null}>
-					<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
-				</Suspense>
-				<Suspense fallback={null}>
-					<AbaAtivosArquivados />
-				</Suspense>
-			</div>
-
-			<div className="overflow-x-auto rounded-lg border border-border bg-card">
-				<table className="w-full text-left text-sm">
-					<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-						<tr>
-							<th className="px-4 py-3 font-medium">Nome</th>
-							<th className="px-4 py-3 font-medium">Tipo</th>
-							<th className="px-4 py-3 font-medium">Status</th>
-							<th className="px-4 py-3 font-medium">Turma(s)</th>
-							<th className="px-4 py-3 font-medium" />
-						</tr>
-					</thead>
-					<tbody>
-						{pessoas.map((pessoa) => {
-							const turmasDaPessoa = turmasPorPessoa.get(pessoa.id) ?? [];
-							const turmasVisiveis = turmasDaPessoa.slice(0, MAX_TURMAS_VISIVEIS).join(", ");
-							const restante = turmasDaPessoa.length - MAX_TURMAS_VISIVEIS;
-							return (
-								<tr key={pessoa.id} className="border-b border-border last:border-0">
-									<td className="px-4 py-3">
-										<Link href={`/pessoas/${pessoa.id}`} className="text-foreground hover:underline">
-											{pessoa.nome}
-										</Link>
-									</td>
-									<td className="px-4 py-3 text-muted-foreground">
-										{[pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ")}
-									</td>
-									<td className="px-4 py-3">
-										<div className="flex flex-wrap gap-1">
-											{pessoa.ehAluno && pessoa.statusAluno !== null ? (
-												<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-													{pessoa.ehProfessor ? "Aluno: " : ""}
-													{STATUS_LABELS[pessoa.statusAluno]}
-												</span>
-											) : null}
-											{pessoa.ehProfessor && pessoa.statusProfessor !== null ? (
-												<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-													{pessoa.ehAluno ? "Professor: " : ""}
-													{STATUS_LABELS[pessoa.statusProfessor]}
-												</span>
-											) : null}
-										</div>
-									</td>
-									<td className="max-w-[16rem] truncate px-4 py-3 text-muted-foreground" title={turmasDaPessoa.join(", ")}>
-										{turmasDaPessoa.length === 0 ? "—" : `${turmasVisiveis}${restante > 0 ? ` +${restante}` : ""}`}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<div className="flex justify-end gap-1">
-											<Button type="button" variant="outline" size="sm" asChild>
-												<Link href={`/pessoas/${pessoa.id}`}>Editar</Link>
-											</Button>
-											{mostrarArquivados && !pessoa.ativo && session.role === "admin" ? (
-												<PessoaExcluirButton id={pessoa.id} nome={pessoa.nome} />
-											) : null}
-										</div>
-									</td>
-								</tr>
-							);
-						})}
-						{pessoas.length === 0 ? (
-							<tr>
-								<td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-									Nenhuma pessoa encontrada.
-								</td>
-							</tr>
-						) : null}
-					</tbody>
-				</table>
-			</div>
-		</div>
+		<Suspense fallback={null}>
+			<PessoasListagem
+				pessoas={pessoasPagina}
+				totalItens={totalItens}
+				paginaAtual={paginaAtual}
+				totalPaginas={totalPaginas}
+				itensPorPagina={ITENS_POR_PAGINA}
+				opcoesInteresse={opcoesInteresse}
+				opcoesTurma={opcoesTurma}
+				turmasAtivas={turmasAtivas}
+				podeImportar={session.role === "admin"}
+			/>
+		</Suspense>
 	);
 }

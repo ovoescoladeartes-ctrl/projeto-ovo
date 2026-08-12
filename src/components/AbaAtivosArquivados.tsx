@@ -2,11 +2,16 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+
+const OPCOES = [
+	{ value: "ativos", label: "Ativos" },
+	{ value: "arquivados", label: "Arquivados" },
+] as const;
 
 /**
- * Abas Ativos/Arquivados controladas pelo searchParam `arquivados` (mesma rota, querystring
- * diferente) — variante sublinhada, regra MANDATÓRIA nº 7 de docs/design.md.
+ * Segmented control Ativos/Arquivados, controlado pelo searchParam `arquivados` (mesma rota,
+ * querystring diferente) — pill preenchida no estado ativo, conforme wireframe de Cadastro.
  */
 export function AbaAtivosArquivados(): React.ReactElement {
 	const router = useRouter();
@@ -27,21 +32,23 @@ export function AbaAtivosArquivados(): React.ReactElement {
 	}
 
 	return (
-		<Tabs value={aba} onValueChange={mudarAba}>
-			<TabsList className="bg-transparent p-0">
-				<TabsTrigger
-					value="ativos"
-					className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+		<div className="inline-flex h-[30px] items-center gap-0.5 rounded-lg border-[1.5px] border-border-strong bg-track p-0.5">
+			{OPCOES.map((opcao) => (
+				<button
+					key={opcao.value}
+					type="button"
+					onClick={() => mudarAba(opcao.value)}
+					aria-pressed={aba === opcao.value}
+					className={cn(
+						"cursor-pointer rounded-[6px] px-3 py-1 text-[13.5px] transition-colors",
+						aba === opcao.value
+							? "bg-foreground font-semibold text-background hover:bg-foreground/80"
+							: "font-normal text-muted-foreground hover:bg-subtle hover:text-foreground",
+					)}
 				>
-					Ativos
-				</TabsTrigger>
-				<TabsTrigger
-					value="arquivados"
-					className="ml-6 rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-				>
-					Arquivados
-				</TabsTrigger>
-			</TabsList>
-		</Tabs>
+					{opcao.label}
+				</button>
+			))}
+		</div>
 	);
 }

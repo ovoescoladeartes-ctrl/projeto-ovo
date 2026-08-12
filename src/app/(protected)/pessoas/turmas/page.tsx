@@ -11,7 +11,6 @@ import type { Turma } from "@/core/turmas/schema";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
-import { CadastroTabs } from "../CadastroTabs";
 import { NovaTurmaDialog } from "./NovaTurmaDialog";
 import { TurmaEditDialog } from "./TurmaEditDialog";
 import { TurmaExcluirButton } from "./TurmaExcluirButton";
@@ -128,8 +127,6 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	return (
 		<div>
-			<CadastroTabs />
-
 			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>

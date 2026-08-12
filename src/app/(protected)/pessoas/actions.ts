@@ -1,6 +1,6 @@
 "use server";
 
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Timestamp } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -8,12 +8,21 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { matriculaInputSchema } from "@/core/matriculas/schema";
 import { pessoaInputSchema } from "@/core/pessoas/schema";
+
+import { matricular } from "./[id]/actions";
 
 export interface ActionResult {
 	status: "ok" | "error";
 	message?: string;
 }
+
+/**
+ * Opcional: só é enviado quando "Nova pessoa" já nasce com Turma marcada (papel Aluno). Reaproveita
+ * o mesmo formato de `matriculaInputSchema`, sem `pessoaId` — que só existe depois do `batch.commit()`.
+ */
+const matriculaNaCriacaoSchema = matriculaInputSchema.omit({ pessoaId: true });
 
 const PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 
@@ -36,9 +45,22 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Dados inválidos." };
 	}
 
+	// Turma é opcional mesmo com papel Aluno — só valida se veio preenchida.
+	const inputComoObjeto = input as { matricula?: unknown };
+	let matriculaParsed: z.infer<typeof matriculaNaCriacaoSchema> | null = null;
+	if (parsed.data.ehAluno && inputComoObjeto.matricula !== undefined && inputComoObjeto.matricula !== null) {
+		const parsedMatricula = matriculaNaCriacaoSchema.safeParse(inputComoObjeto.matricula);
+		if (!parsedMatricula.success) {
+			return { status: "error", message: parsedMatricula.error.issues[0]?.message ?? "Dados da matrícula inválidos." };
+		}
+		matriculaParsed = parsedMatricula.data;
+	}
+
+	let pessoaId: string;
 	try {
 		const firestore = getFirebaseAdminFirestore();
 		const pessoaRef = firestore.collection("pessoas").doc();
+		pessoaId = pessoaRef.id;
 		const batch = firestore.batch();
 
 		// Marcar um papel só abre a possibilidade — deixa a pessoa em "lead"/"banco_talentos",
@@ -53,6 +75,8 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 			numeroMatriculaAluno: null,
 			numeroMatriculaProfessor: null,
 			interesses: parsed.data.interesses,
+			email: parsed.data.email ?? null,
+			telefone: parsed.data.telefone ?? null,
 			ativo: true,
 			criadoViaContatoId: null,
 			criadoEm: FieldValue.serverTimestamp(),
@@ -72,6 +96,15 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 		await batch.commit();
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
+	}
+
+	// Turma escolhida já na criação: reaproveita a mesma action de matrícula usada na tela de
+	// detalhe (número de matrícula + sincronização do Contato pra "convertido"), sem duplicar lógica.
+	if (matriculaParsed !== null) {
+		const resultadoMatricula = await matricular({ ...matriculaParsed, pessoaId });
+		if (resultadoMatricula.status === "error") {
+			return resultadoMatricula;
+		}
 	}
 
 	revalidatePath("/pessoas");
@@ -149,6 +182,41 @@ export async function inativarPessoa(id: unknown): Promise<ActionResult> {
 	return { status: "ok" };
 }
 
+/** Reversível na hora — sem checagem de bloqueio, diferente de arquivar (que tem efeito colateral em Vagões/Turmas). */
+export async function reativarPessoa(id: unknown): Promise<ActionResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarPessoas(session.role)) {
+		return { status: "error", message: "Sem permissão para alterar pessoas." };
+	}
+
+	const parsed = idSchema.safeParse(id);
+	if (!parsed.success) {
+		return { status: "error", message: "Dados inválidos." };
+	}
+
+	try {
+		await getFirebaseAdminFirestore().collection("pessoas").doc(parsed.data).set({ ativo: true }, { merge: true });
+	} catch {
+		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
+	}
+
+	revalidatePath("/pessoas");
+	revalidatePath(`/pessoas/${parsed.data}`);
+	return { status: "ok" };
+}
+
+const campoOpcional = z
+	.string()
+	.trim()
+	.transform((valor) => (valor === "" ? null : valor))
+	.nullable()
+	.optional();
+
+const campoEmailOpcional = z.preprocess(
+	(valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+	z.string().trim().email("Email inválido.").nullable().optional(),
+);
+
 const pessoaUpdateInputSchema = z
 	.object({
 		id: z.string().min(1),
@@ -156,6 +224,8 @@ const pessoaUpdateInputSchema = z
 		ehAluno: z.boolean(),
 		ehProfessor: z.boolean(),
 		interesses: z.array(z.string()).optional(),
+		email: campoEmailOpcional,
+		telefone: campoOpcional,
 	})
 	.refine((dados) => dados.ehAluno || dados.ehProfessor, {
 		message: "Marque pelo menos um papel (Aluno ou Professor).",
@@ -202,6 +272,12 @@ export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 		};
 		if (parsed.data.interesses !== undefined) {
 			updatePayload.interesses = parsed.data.interesses;
+		}
+		if (parsed.data.email !== undefined) {
+			updatePayload.email = parsed.data.email;
+		}
+		if (parsed.data.telefone !== undefined) {
+			updatePayload.telefone = parsed.data.telefone;
 		}
 		if (ganhouAluno && atual.statusAluno === null) {
 			updatePayload.statusAluno = "lead";
@@ -308,4 +384,96 @@ export async function excluirPessoaPermanentemente(id: unknown): Promise<ActionR
 
 	revalidatePath("/pessoas");
 	return { status: "ok" };
+}
+
+const EXPORT_STATUS_LABELS: Record<string, string> = {
+	lead: "Lead",
+	matriculado: "Matriculado",
+	ativo: "Ativo",
+	banco_talentos: "Banco de talentos",
+};
+
+const buscarContatosParaExportarInputSchema = z.array(z.string().min(1)).min(1, "Selecione ao menos uma pessoa.");
+
+export interface ContatoParaExportar {
+	id: string;
+	nome: string;
+	email: string | null;
+	telefone: string | null;
+	tipo: string;
+	status: string;
+	turmas: string;
+	criadoEm: string;
+}
+
+/**
+ * Uma busca só, usada pelas 5 ações do dropdown "Exportar" (planilha, copiar email/telefone,
+ * WhatsApp, vCard) — cada ação formata este mesmo retorno do jeito que precisa, no client.
+ */
+export async function buscarContatosParaExportar(input: unknown): Promise<ContatoParaExportar[]> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarPessoas(session.role)) {
+		return [];
+	}
+
+	const parsed = buscarContatosParaExportarInputSchema.safeParse(input);
+	if (!parsed.success) {
+		return [];
+	}
+
+	const firestore = getFirebaseAdminFirestore();
+
+	const [pessoaDocs, turmasSnapshot, matriculasSnapshot] = await Promise.all([
+		Promise.all(parsed.data.map((id) => firestore.collection("pessoas").doc(id).get())),
+		firestore.collection("turmas").get(),
+		firestore.collection("matriculas").where("status", "==", "ativa").get(),
+	]);
+
+	const turmasNomes = new Map<string, string>();
+	turmasSnapshot.docs.forEach((doc) => {
+		turmasNomes.set(doc.id, (doc.data() as { nome: string }).nome);
+	});
+	const turmasPorPessoa = new Map<string, string[]>();
+	matriculasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as { pessoaId: string; turmaId: string };
+		const nome = turmasNomes.get(data.turmaId);
+		if (nome === undefined) {
+			return;
+		}
+		const lista = turmasPorPessoa.get(data.pessoaId) ?? [];
+		lista.push(nome);
+		turmasPorPessoa.set(data.pessoaId, lista);
+	});
+
+	return pessoaDocs
+		.filter((doc) => doc.exists)
+		.map((doc) => {
+			const data = doc.data() as {
+				nome: string;
+				ehAluno: boolean;
+				ehProfessor: boolean;
+				statusAluno: string | null;
+				statusProfessor: string | null;
+				email?: string | null;
+				telefone?: string | null;
+				criadoEm?: Timestamp;
+			};
+			const tipo = [data.ehAluno ? "Aluno" : null, data.ehProfessor ? "Professor" : null].filter(Boolean).join(", ");
+			const status = [
+				data.ehAluno && data.statusAluno !== null ? EXPORT_STATUS_LABELS[data.statusAluno] : null,
+				data.ehProfessor && data.statusProfessor !== null ? EXPORT_STATUS_LABELS[data.statusProfessor] : null,
+			]
+				.filter((valor): valor is string => valor !== null)
+				.join(" / ");
+			return {
+				id: doc.id,
+				nome: data.nome,
+				email: data.email ?? null,
+				telefone: data.telefone ?? null,
+				tipo,
+				status,
+				turmas: (turmasPorPessoa.get(doc.id) ?? []).join(", "),
+				criadoEm: data.criadoEm ? data.criadoEm.toDate().toLocaleDateString("pt-BR") : "",
+			};
+		});
 }

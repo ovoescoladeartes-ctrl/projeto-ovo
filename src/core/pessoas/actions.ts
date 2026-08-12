@@ -3,6 +3,7 @@
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { normalizar } from "@/core/pessoas/normalizar";
 
 export type PapelPessoa = "aluno" | "professor";
 
@@ -14,14 +15,6 @@ export interface PessoaBusca {
 }
 
 const BUSCA_PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
-
-function normalizar(valor: string): string {
-	return valor
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.toLowerCase()
-		.trim();
-}
 
 /**
  * Busca de Pessoa: traz todas as ativas (teto defensivo 1000, escala de escola pequena)
