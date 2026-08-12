@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MENSAGEM_CATEGORIAS, type Mensagem, type MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
 
@@ -64,19 +65,18 @@ export function MensagemEditDialog({ mensagem }: MensagemEditDialogProps): React
 				<div className="space-y-4">
 					<div className="space-y-1.5">
 						<Label htmlFor={`mensagem-categoria-${mensagem.id}`}>Categoria</Label>
-						<select
-							id={`mensagem-categoria-${mensagem.id}`}
-							value={categoria}
-							onChange={(event) => setCategoria(event.target.value as MensagemCategoria)}
-							disabled={isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-						>
-							{MENSAGEM_CATEGORIAS.map((opcao) => (
-								<option key={opcao} value={opcao}>
-									{CATEGORIA_LABELS[opcao]}
-								</option>
-							))}
-						</select>
+						<Select value={categoria} onValueChange={(value) => setCategoria(value as MensagemCategoria)} disabled={isPending}>
+							<SelectTrigger id={`mensagem-categoria-${mensagem.id}`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{MENSAGEM_CATEGORIAS.map((opcao) => (
+									<SelectItem key={opcao} value={opcao}>
+										{CATEGORIA_LABELS[opcao]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="space-y-1.5">

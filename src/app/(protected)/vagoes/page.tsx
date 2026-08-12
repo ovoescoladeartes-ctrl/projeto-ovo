@@ -1,5 +1,6 @@
 import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,10 +9,12 @@ import type { Role } from "@/core/auth/Role";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
 import type { Mensagem } from "@/core/comunicacao/mensagens/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { listarInteressesAtivos } from "@/core/interesses/actions";
 import { toIso } from "@/core/shared/serialize";
 
 import { Board } from "./Board";
 import { NovoContatoDialog } from "./NovoContatoDialog";
+import { VagoesFiltroBar } from "./VagoesFiltroBar";
 
 const VAGOES_ROLES: readonly Role[] = ["admin", "comunicacao"];
 
@@ -25,6 +28,7 @@ interface ContatoDoc {
 	estagioAtualizadoEm?: Timestamp;
 	criadoEm?: Timestamp;
 	ativo: boolean;
+	interesses?: string[];
 }
 
 interface MensagemDoc {
@@ -34,7 +38,11 @@ interface MensagemDoc {
 	ativo: boolean;
 }
 
-export default async function VagoesPage(): Promise<React.ReactElement> {
+interface VagoesPageProps {
+	searchParams: Promise<{ interesse?: string }>;
+}
+
+export default async function VagoesPage({ searchParams }: VagoesPageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
 
 	// Autorização checada de novo aqui (não só na sidebar) — cada rota protege a si mesma.
@@ -42,17 +50,19 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 		redirect("/");
 	}
 
+	const filtros = await searchParams;
 	const firestore = getFirebaseAdminFirestore();
 
 	// Uma única query, agrupada em memória nos 6 baldes visuais (ver src/core/comunicacao/buckets.ts).
 	// Exige o índice composto (ativo ASC, estagioAtualizadoEm ASC) — se o Firestore ainda não tiver
 	// esse índice, o erro traz um link para criá-lo automaticamente no Console.
-	const [contatosSnapshot, mensagensSnapshot] = await Promise.all([
+	const [contatosSnapshot, mensagensSnapshot, opcoesInteresse] = await Promise.all([
 		firestore.collection("contatos").where("ativo", "==", true).orderBy("estagioAtualizadoEm", "asc").get(),
 		firestore.collection("mensagens").where("ativo", "==", true).get(),
+		listarInteressesAtivos(),
 	]);
 
-	const contatos: Contato[] = contatosSnapshot.docs.map((doc) => {
+	let contatos: Contato[] = contatosSnapshot.docs.map((doc) => {
 		const data = doc.data() as ContatoDoc;
 		return {
 			id: doc.id,
@@ -65,8 +75,13 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 			estagioAtualizadoEm: toIso(data.estagioAtualizadoEm ?? null),
 			criadoEm: toIso(data.criadoEm ?? null),
 			ativo: data.ativo,
+			interesses: data.interesses ?? [],
 		};
 	});
+
+	if (filtros.interesse) {
+		contatos = contatos.filter((contato) => contato.interesses.includes(filtros.interesse as string));
+	}
 
 	// Card mostra "o curso" — antes de convertido é o interesseInicial (o que a pessoa
 	// perguntou); a partir de convertido, o dado que importa é o curso em que ela está
@@ -122,13 +137,10 @@ export default async function VagoesPage(): Promise<React.ReactElement> {
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
 				<CopilotoInput />
 				<div className="flex shrink-0 items-center gap-2">
-					<select
-						disabled
-						className="rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-70"
-					>
-						<option>Curso: todos</option>
-					</select>
-					<NovoContatoDialog />
+					<Suspense fallback={null}>
+						<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+					</Suspense>
+					<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
 				</div>
 			</div>
 

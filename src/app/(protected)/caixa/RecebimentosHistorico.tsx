@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RECEBIMENTO_STATUS, type Recebimento } from "@/core/financeiro/recebimentos/schema";
 import { ORIGENS } from "@/core/financeiro/shared";
 import { formatCentavos } from "@/lib/currency";
@@ -54,30 +55,32 @@ export function RecebimentosHistorico({
 	return (
 		<div>
 			<div className="mb-3 flex flex-wrap gap-2">
-				<select
-					value={origem}
-					onChange={(event) => setOrigem(event.target.value)}
-					className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-				>
-					<option value="todas">Todas as origens</option>
-					{ORIGENS.map((opcao) => (
-						<option key={opcao} value={opcao}>
-							{ORIGEM_LABELS[opcao]}
-						</option>
-					))}
-				</select>
-				<select
-					value={status}
-					onChange={(event) => setStatus(event.target.value)}
-					className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-				>
-					<option value="todos">Todos os status</option>
-					{RECEBIMENTO_STATUS.map((opcao) => (
-						<option key={opcao} value={opcao}>
-							{STATUS_LABELS[opcao]}
-						</option>
-					))}
-				</select>
+				<Select value={origem} onValueChange={setOrigem}>
+					<SelectTrigger className="w-auto min-w-[9rem]">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="todas">Todas as origens</SelectItem>
+						{ORIGENS.map((opcao) => (
+							<SelectItem key={opcao} value={opcao}>
+								{ORIGEM_LABELS[opcao]}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<Select value={status} onValueChange={setStatus}>
+					<SelectTrigger className="w-auto min-w-[9rem]">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="todos">Todos os status</SelectItem>
+						{RECEBIMENTO_STATUS.map((opcao) => (
+							<SelectItem key={opcao} value={opcao}>
+								{STATUS_LABELS[opcao]}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
 
 			<div className="overflow-x-auto rounded-lg border border-border bg-card">

@@ -1,29 +1,47 @@
 import type { Timestamp } from "firebase-admin/firestore";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
+import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { Turma } from "@/core/turmas/schema";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
 import { NovaTurmaDialog } from "./NovaTurmaDialog";
 import { TurmaEditDialog } from "./TurmaEditDialog";
-import { TurmaInativarButton } from "./TurmaInativarButton";
+import { TurmaExcluirButton } from "./TurmaExcluirButton";
+import { TurmaMatriculasSheet } from "./TurmaMatriculasSheet";
 
 const TURMAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 
 interface TurmaDoc {
 	nome: string;
+	assunto?: string;
 	mensalidadeCentavos: number;
 	repasseTipo: string;
 	repasseValor: number;
 	dataInicio?: Timestamp;
 	dataFim?: Timestamp | null;
 	educadorPessoaId: string | null;
+	capacidadeMaxima?: number | null;
 	ativo: boolean;
+}
+
+interface PessoaResumoDoc {
+	nome: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
+}
+
+interface MatriculaResumoDoc {
+	pessoaId: string;
+	turmaId: string;
+	dataMatricula?: Timestamp;
+	status: string;
 }
 
 function formatarData(iso: string | null): string {
@@ -37,7 +55,11 @@ function formatarRepasse(turma: Turma): string {
 	return turma.repasseTipo === "percentual" ? `${turma.repasseValor}%` : formatCentavos(turma.repasseValor);
 }
 
-export default async function TurmasPage(): Promise<React.ReactElement> {
+interface TurmasPageProps {
+	searchParams: Promise<{ arquivados?: string }>;
+}
+
+export default async function TurmasPage({ searchParams }: TurmasPageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
 
 	// Autorização checada de novo aqui (não só na sidebar) — cada rota protege a si mesma.
@@ -45,19 +67,58 @@ export default async function TurmasPage(): Promise<React.ReactElement> {
 		redirect("/");
 	}
 
-	const snapshot = await getFirebaseAdminFirestore().collection("turmas").where("ativo", "==", true).get();
+	const filtros = await searchParams;
+	const mostrarArquivados = filtros.arquivados === "1";
 
-	const turmas: Turma[] = snapshot.docs.map((doc) => {
+	const firestore = getFirebaseAdminFirestore();
+	const turmasQuery = mostrarArquivados
+		? firestore.collection("turmas")
+		: firestore.collection("turmas").where("ativo", "==", true);
+	const [turmasSnapshot, pessoasSnapshot, matriculasAtivasSnapshot] = await Promise.all([
+		turmasQuery.get(),
+		firestore.collection("pessoas").get(),
+		firestore.collection("matriculas").where("status", "==", "ativa").get(),
+	]);
+
+	const pessoasNomes = new Map<string, string>();
+	const colaboradoresPorId = new Map<string, PessoaBusca>();
+	pessoasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as PessoaResumoDoc;
+		pessoasNomes.set(doc.id, data.nome);
+		if (data.ehProfessor) {
+			colaboradoresPorId.set(doc.id, { id: doc.id, nome: data.nome, ehAluno: data.ehAluno, ehProfessor: true });
+		}
+	});
+
+	const matriculasPorTurma = new Map<
+		string,
+		{ matriculaId: string; pessoaId: string; pessoaNome: string; dataMatricula: string | null }[]
+	>();
+	matriculasAtivasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as MatriculaResumoDoc;
+		const lista = matriculasPorTurma.get(data.turmaId) ?? [];
+		lista.push({
+			matriculaId: doc.id,
+			pessoaId: data.pessoaId,
+			pessoaNome: pessoasNomes.get(data.pessoaId) ?? "(pessoa removida)",
+			dataMatricula: toIso(data.dataMatricula ?? null),
+		});
+		matriculasPorTurma.set(data.turmaId, lista);
+	});
+
+	const turmas: Turma[] = turmasSnapshot.docs.map((doc) => {
 		const data = doc.data() as TurmaDoc;
 		return {
 			id: doc.id,
 			nome: data.nome,
+			assunto: data.assunto ?? "",
 			mensalidadeCentavos: data.mensalidadeCentavos,
 			repasseTipo: data.repasseTipo as Turma["repasseTipo"],
 			repasseValor: data.repasseValor,
 			dataInicio: toIso(data.dataInicio ?? null),
 			dataFim: toIso(data.dataFim ?? null),
 			educadorPessoaId: data.educadorPessoaId ?? null,
+			capacidadeMaxima: data.capacidadeMaxima ?? null,
 			ativo: data.ativo,
 		};
 	});
@@ -66,11 +127,7 @@ export default async function TurmasPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<Link href="/pessoas" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
-				← Voltar para Pessoas
-			</Link>
-
-			<div className="mb-6 mt-3 flex flex-wrap items-center justify-between gap-4">
+			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
 					<p className="text-sm text-muted-foreground">Cursos/turmas oferecidos pela escola.</p>
@@ -78,37 +135,60 @@ export default async function TurmasPage(): Promise<React.ReactElement> {
 				<NovaTurmaDialog />
 			</div>
 
+			<div className="mb-4 flex justify-end">
+				<Suspense fallback={null}>
+					<AbaAtivosArquivados />
+				</Suspense>
+			</div>
+
 			<div className="overflow-x-auto rounded-lg border border-border bg-card">
 				<table className="w-full text-left text-sm">
 					<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
 						<tr>
 							<th className="px-4 py-3 font-medium">Nome</th>
+							<th className="px-4 py-3 font-medium">Assunto</th>
 							<th className="px-4 py-3 font-medium">Mensalidade</th>
 							<th className="px-4 py-3 font-medium">Repasse</th>
 							<th className="px-4 py-3 font-medium">Período</th>
+							<th className="px-4 py-3 font-medium">Vagas</th>
 							<th className="px-4 py-3 font-medium" />
 						</tr>
 					</thead>
 					<tbody>
-						{turmas.map((turma) => (
-							<tr key={turma.id} className="border-b border-border last:border-0">
-								<td className="px-4 py-3 text-foreground">{turma.nome}</td>
-								<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
-								<td className="px-4 py-3 text-muted-foreground">{formatarRepasse(turma)}</td>
-								<td className="px-4 py-3 text-muted-foreground">
-									{formatarData(turma.dataInicio)} – {formatarData(turma.dataFim)}
-								</td>
-								<td className="px-4 py-3 text-right">
-									<div className="flex justify-end gap-1">
-										<TurmaEditDialog turma={turma} />
-										<TurmaInativarButton id={turma.id} />
-									</div>
-								</td>
-							</tr>
-						))}
+						{turmas.map((turma) => {
+							const alunos = matriculasPorTurma.get(turma.id) ?? [];
+							return (
+								<tr key={turma.id} className="border-b border-border last:border-0">
+									<td className="px-4 py-3 text-foreground">{turma.nome}</td>
+									<td className="px-4 py-3 text-muted-foreground">{turma.assunto || "—"}</td>
+									<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
+									<td className="px-4 py-3 text-muted-foreground">{formatarRepasse(turma)}</td>
+									<td className="px-4 py-3 text-muted-foreground">
+										{formatarData(turma.dataInicio)} – {formatarData(turma.dataFim)}
+									</td>
+									<td className="px-4 py-3 text-muted-foreground">
+										{alunos.length}
+										{turma.capacidadeMaxima !== null ? ` / ${turma.capacidadeMaxima}` : ""}
+									</td>
+									<td className="px-4 py-3 text-right">
+										<div className="flex justify-end gap-1">
+											<TurmaMatriculasSheet turmaNome={turma.nome} alunos={alunos} />
+											<TurmaEditDialog
+												turma={turma}
+												educadorInicial={turma.educadorPessoaId ? (colaboradoresPorId.get(turma.educadorPessoaId) ?? null) : null}
+												matriculasAtivasCount={alunos.length}
+											/>
+											{mostrarArquivados && !turma.ativo && session.role === "admin" ? (
+												<TurmaExcluirButton id={turma.id} nome={turma.nome} />
+											) : null}
+										</div>
+									</td>
+								</tr>
+							);
+						})}
 						{turmas.length === 0 ? (
 							<tr>
-								<td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+								<td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
 									Nenhuma turma cadastrada ainda.
 								</td>
 							</tr>

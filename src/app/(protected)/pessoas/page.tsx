@@ -1,39 +1,67 @@
 import type { Timestamp } from "firebase-admin/firestore";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
-import type { Pessoa } from "@/core/pessoas/schema";
+import { listarInteressesAtivos } from "@/core/interesses/actions";
+import { normalizar } from "@/core/pessoas/normalizar";
 import { toIso } from "@/core/shared/serialize";
 
-import { NovaPessoaDialog } from "./NovaPessoaDialog";
-import { PessoaRowActions } from "./PessoaRowActions";
-import { PessoasFiltroBar } from "./PessoasFiltroBar";
+import { PessoasListagem, type PessoaListagemRow } from "./PessoasListagem";
+
+// Sem isso, trocar só o searchParam `arquivados`/`ordenar`/etc. na mesma rota pode servir uma
+// resposta em cache do Router do Next em vez de buscar dados frescos no servidor — foi a causa
+// raiz das abas Ativos/Arquivados parecendo travadas no mesmo conteúdo (round 3).
+export const dynamic = "force-dynamic";
 
 const PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
-
-const STATUS_LABELS: Record<string, string> = {
-	lead: "Lead",
-	matriculado: "Matriculado",
-	ativo: "Ativo",
-	banco_talentos: "Banco de talentos",
-};
+const ITENS_POR_PAGINA = 25;
 
 interface PessoaDoc {
-	tipo: string;
 	nome: string;
-	status: string;
+	ehAluno: boolean;
+	ehProfessor: boolean;
+	statusAluno: string | null;
+	statusProfessor: string | null;
 	ativo: boolean;
 	criadoViaContatoId: string | null;
 	criadoEm?: Timestamp;
+	interesses?: string[];
+	numeroMatriculaAluno?: string | null;
+	numeroMatriculaProfessor?: string | null;
+	email?: string | null;
+	telefone?: string | null;
+}
+
+interface TurmaResumoDoc {
+	nome: string;
+	mensalidadeCentavos: number;
+	ativo: boolean;
+}
+
+interface MatriculaResumoDoc {
+	pessoaId: string;
+	turmaId: string;
+	status: string;
 }
 
 interface PessoasPageProps {
-	searchParams: Promise<{ tipo?: string; status?: string }>;
+	searchParams: Promise<{
+		aluno?: string;
+		professor?: string;
+		status?: string;
+		interesse?: string;
+		turma?: string;
+		arquivados?: string;
+		busca?: string;
+		ordenar?: string;
+		pagina?: string;
+	}>;
 }
+
+type PessoaFiltravel = PessoaListagemRow & { interesses: string[] };
 
 export default async function PessoasPage({ searchParams }: PessoasPageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
@@ -44,102 +72,130 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	}
 
 	const filtros = await searchParams;
+	const mostrarArquivados = filtros.arquivados === "1";
 
-	const snapshot = await getFirebaseAdminFirestore().collection("pessoas").where("ativo", "==", true).get();
+	const firestore = getFirebaseAdminFirestore();
+	// Arquivados mostra só ativo===false, nunca "todo mundo" — bug real do round 3, não era cache.
+	const pessoasQuery = firestore.collection("pessoas").where("ativo", "==", !mostrarArquivados);
+	const [pessoasSnapshot, turmasSnapshot, matriculasAtivasSnapshot, opcoesInteresse] = await Promise.all([
+		pessoasQuery.get(),
+		firestore.collection("turmas").where("ativo", "==", true).get(),
+		firestore.collection("matriculas").where("status", "==", "ativa").get(),
+		listarInteressesAtivos(),
+	]);
 
-	let pessoas: Pessoa[] = snapshot.docs.map((doc) => {
+	const turmasNomes = new Map<string, string>();
+	const turmasAtivas: { id: string; nome: string; mensalidadeCentavos: number }[] = [];
+	turmasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as TurmaResumoDoc;
+		turmasNomes.set(doc.id, data.nome);
+		turmasAtivas.push({ id: doc.id, nome: data.nome, mensalidadeCentavos: data.mensalidadeCentavos });
+	});
+	const opcoesTurma = Array.from(turmasNomes.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+	const turmasPorPessoa = new Map<string, string[]>();
+	matriculasAtivasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as MatriculaResumoDoc;
+		const nome = turmasNomes.get(data.turmaId);
+		if (nome === undefined) {
+			return;
+		}
+		const lista = turmasPorPessoa.get(data.pessoaId) ?? [];
+		lista.push(nome);
+		turmasPorPessoa.set(data.pessoaId, lista);
+	});
+
+	let pessoas: PessoaFiltravel[] = pessoasSnapshot.docs.map((doc) => {
 		const data = doc.data() as PessoaDoc;
 		return {
 			id: doc.id,
-			tipo: data.tipo as Pessoa["tipo"],
 			nome: data.nome,
-			status: data.status,
+			// `?? false`/`?? null` defensivos — documento legado de antes do papel duplo não teria
+			// esses campos gravados; sem isso a linha renderiza Tipo/Status vazios silenciosamente.
+			ehAluno: data.ehAluno ?? false,
+			ehProfessor: data.ehProfessor ?? false,
+			statusAluno: data.statusAluno ?? null,
+			statusProfessor: data.statusProfessor ?? null,
 			ativo: data.ativo,
-			criadoViaContatoId: data.criadoViaContatoId ?? null,
 			criadoEm: toIso(data.criadoEm ?? null),
+			turmas: turmasPorPessoa.get(doc.id) ?? [],
+			interesses: data.interesses ?? [],
 		};
 	});
 
-	pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+	const marcouAluno = filtros.aluno === "1";
+	const marcouProfessor = filtros.professor === "1";
+	if (marcouAluno || marcouProfessor) {
+		pessoas = pessoas.filter((pessoa) => (marcouAluno && pessoa.ehAluno) || (marcouProfessor && pessoa.ehProfessor));
+	}
+	if (filtros.status === "lead" || filtros.status === "matriculado") {
+		// Papéis considerados pro cruzamento com Status: só os marcados no filtro de Tipo — ou,
+		// se nenhum/os dois estiverem marcados, todos os papéis que a pessoa de fato tem.
+		pessoas = pessoas.filter((pessoa) => {
+			const consideraAluno = marcouAluno !== marcouProfessor ? marcouAluno : pessoa.ehAluno;
+			const consideraProfessor = marcouAluno !== marcouProfessor ? marcouProfessor : pessoa.ehProfessor;
+			const bateAluno =
+				consideraAluno &&
+				pessoa.ehAluno &&
+				(filtros.status === "lead" ? pessoa.statusAluno === "lead" : pessoa.statusAluno === "matriculado");
+			const bateProfessor =
+				consideraProfessor &&
+				pessoa.ehProfessor &&
+				(filtros.status === "lead" ? pessoa.statusProfessor === "banco_talentos" : pessoa.statusProfessor === "ativo");
+			return bateAluno || bateProfessor;
+		});
+	}
+	if (filtros.interesse) {
+		pessoas = pessoas.filter((pessoa) => pessoa.interesses.includes(filtros.interesse as string));
+	}
+	if (filtros.turma) {
+		pessoas = pessoas.filter((pessoa) => pessoa.turmas.includes(filtros.turma as string));
+	}
+	if (filtros.busca) {
+		const termoNormalizado = normalizar(filtros.busca);
+		pessoas = pessoas.filter((pessoa) => normalizar(pessoa.nome).startsWith(termoNormalizado));
+	}
 
-	if (filtros.tipo) {
-		pessoas = pessoas.filter((pessoa) => pessoa.tipo === filtros.tipo);
-	}
-	if (filtros.status) {
-		pessoas = pessoas.filter((pessoa) => pessoa.status === filtros.status);
-	}
+	const [campoOrdenar, direcaoOrdenar] = (filtros.ordenar ?? "nome_asc").split("_");
+	pessoas.sort((a, b) => {
+		const comparacao =
+			campoOrdenar === "criadoEm" ? (a.criadoEm ?? "").localeCompare(b.criadoEm ?? "") : a.nome.localeCompare(b.nome, "pt-BR");
+		return direcaoOrdenar === "desc" ? -comparacao : comparacao;
+	});
+
+	const totalItens = pessoas.length;
+	const totalPaginas = Math.max(1, Math.ceil(totalItens / ITENS_POR_PAGINA));
+	const paginaSolicitada = Number.parseInt(filtros.pagina ?? "1", 10);
+	const paginaAtual = Number.isFinite(paginaSolicitada) ? Math.min(Math.max(paginaSolicitada, 1), totalPaginas) : 1;
+
+	const pessoasPagina: PessoaListagemRow[] = pessoas
+		.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA)
+		.map((pessoa) => ({
+			id: pessoa.id,
+			nome: pessoa.nome,
+			ehAluno: pessoa.ehAluno,
+			ehProfessor: pessoa.ehProfessor,
+			statusAluno: pessoa.statusAluno,
+			statusProfessor: pessoa.statusProfessor,
+			ativo: pessoa.ativo,
+			criadoEm: pessoa.criadoEm,
+			turmas: pessoa.turmas,
+		}));
 
 	return (
-		<div>
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
-					<p className="text-sm text-muted-foreground">Alunos e colaboradores cadastrados na escola.</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<Link
-						href="/pessoas/turmas"
-						className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-					>
-						Turmas
-					</Link>
-					{session.role === "admin" ? (
-						<Link
-							href="/pessoas/importar"
-							className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-						>
-							Importar CSV
-						</Link>
-					) : null}
-					<NovaPessoaDialog />
-				</div>
-			</div>
-
-			<div className="mb-4">
-				<Suspense fallback={null}>
-					<PessoasFiltroBar />
-				</Suspense>
-			</div>
-
-			<div className="overflow-x-auto rounded-lg border border-border bg-card">
-				<table className="w-full text-left text-sm">
-					<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-						<tr>
-							<th className="px-4 py-3 font-medium">Nome</th>
-							<th className="px-4 py-3 font-medium">Tipo</th>
-							<th className="px-4 py-3 font-medium">Status</th>
-							<th className="px-4 py-3 font-medium" />
-						</tr>
-					</thead>
-					<tbody>
-						{pessoas.map((pessoa) => (
-							<tr key={pessoa.id} className="border-b border-border last:border-0">
-								<td className="px-4 py-3">
-									<Link href={`/pessoas/${pessoa.id}`} className="text-foreground hover:underline">
-										{pessoa.nome}
-									</Link>
-								</td>
-								<td className="px-4 py-3 capitalize text-muted-foreground">{pessoa.tipo}</td>
-								<td className="px-4 py-3">
-									<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-										{STATUS_LABELS[pessoa.status] ?? pessoa.status}
-									</span>
-								</td>
-								<td className="px-4 py-3 text-right">
-									<PessoaRowActions id={pessoa.id} />
-								</td>
-							</tr>
-						))}
-						{pessoas.length === 0 ? (
-							<tr>
-								<td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-									Nenhuma pessoa encontrada.
-								</td>
-							</tr>
-						) : null}
-					</tbody>
-				</table>
-			</div>
-		</div>
+		<Suspense fallback={null}>
+			<PessoasListagem
+				pessoas={pessoasPagina}
+				totalItens={totalItens}
+				paginaAtual={paginaAtual}
+				totalPaginas={totalPaginas}
+				itensPorPagina={ITENS_POR_PAGINA}
+				opcoesInteresse={opcoesInteresse}
+				opcoesTurma={opcoesTurma}
+				turmasAtivas={turmasAtivas}
+				podeImportar={session.role === "admin"}
+			/>
+		</Suspense>
 	);
 }

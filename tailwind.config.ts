@@ -50,7 +50,21 @@ const config: Config = {
     				DEFAULT: 'var(--destructive)',
     				foreground: 'var(--destructive-foreground)'
     			},
-    			border: 'var(--border)',
+    			danger: {
+    				DEFAULT: 'var(--danger)',
+    				foreground: 'var(--danger-foreground)'
+    			},
+    			tertiary: 'var(--tertiary)',
+    			soft: {
+    				DEFAULT: 'var(--surface-soft)',
+    				hover: 'var(--surface-soft-hover)'
+    			},
+    			track: 'var(--surface-track)',
+    			subtle: 'var(--surface-hover)',
+    			border: {
+    				DEFAULT: 'var(--border)',
+    				strong: 'var(--border-strong)'
+    			},
     			input: 'var(--input)',
     			ring: 'var(--ring)',
     			column: 'var(--column)',
