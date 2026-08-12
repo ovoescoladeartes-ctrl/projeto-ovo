@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Origem } from "@/core/shared/origem";
+
 export const PESSOA_TIPOS = ["aluno", "colaborador"] as const;
 export type PessoaTipo = (typeof PESSOA_TIPOS)[number];
 
@@ -30,4 +32,9 @@ export interface Pessoa {
 	/** Preenchido só pela conversão contato → pessoa da fase 4; nulo em cadastro manual. */
 	criadoViaContatoId: string | null;
 	criadoEm: string | null;
+	/** Campos abaixo: nulos em Pessoas cadastradas antes da integração Wix existir. */
+	email: string | null;
+	telefone: string | null;
+	wixContactId: string | null;
+	origem: Origem;
 }

@@ -108,6 +108,10 @@ async function converterContatoEmPessoa(contatoId: string): Promise<ActionResult
 				ativo: true,
 				criadoViaContatoId: contatoId,
 				criadoEm: FieldValue.serverTimestamp(),
+				email: null,
+				telefone: null,
+				wixContactId: null,
+				origem: "manual",
 			});
 
 			tx.set(

@@ -24,6 +24,8 @@ interface TurmaDoc {
 	dataFim?: Timestamp | null;
 	educadorPessoaId: string | null;
 	ativo: boolean;
+	wixProductId?: string | null;
+	origem?: Turma["origem"];
 }
 
 function formatarData(iso: string | null): string {
@@ -59,6 +61,8 @@ export default async function TurmasPage(): Promise<React.ReactElement> {
 			dataFim: toIso(data.dataFim ?? null),
 			educadorPessoaId: data.educadorPessoaId ?? null,
 			ativo: data.ativo,
+			wixProductId: data.wixProductId ?? null,
+			origem: data.origem ?? "manual",
 		};
 	});
 
@@ -92,7 +96,16 @@ export default async function TurmasPage(): Promise<React.ReactElement> {
 					<tbody>
 						{turmas.map((turma) => (
 							<tr key={turma.id} className="border-b border-border last:border-0">
-								<td className="px-4 py-3 text-foreground">{turma.nome}</td>
+								<td className="px-4 py-3 text-foreground">
+									<div className="flex items-center gap-2">
+										{turma.nome}
+										{turma.wixProductId !== null ? (
+											<span className="inline-block shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+												Origem: Wix
+											</span>
+										) : null}
+									</div>
+								</td>
 								<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
 								<td className="px-4 py-3 text-muted-foreground">{formatarRepasse(turma)}</td>
 								<td className="px-4 py-3 text-muted-foreground">

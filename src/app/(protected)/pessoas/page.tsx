@@ -29,6 +29,10 @@ interface PessoaDoc {
 	ativo: boolean;
 	criadoViaContatoId: string | null;
 	criadoEm?: Timestamp;
+	email?: string | null;
+	telefone?: string | null;
+	wixContactId?: string | null;
+	origem?: Pessoa["origem"];
 }
 
 interface PessoasPageProps {
@@ -57,6 +61,10 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 			ativo: data.ativo,
 			criadoViaContatoId: data.criadoViaContatoId ?? null,
 			criadoEm: toIso(data.criadoEm ?? null),
+			email: data.email ?? null,
+			telefone: data.telefone ?? null,
+			wixContactId: data.wixContactId ?? null,
+			origem: data.origem ?? "manual",
 		};
 	});
 

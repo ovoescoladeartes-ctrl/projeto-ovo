@@ -46,6 +46,10 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 			ativo: true,
 			criadoViaContatoId: null,
 			criadoEm: FieldValue.serverTimestamp(),
+			email: null,
+			telefone: null,
+			wixContactId: null,
+			origem: "manual",
 		});
 
 		// Aluno entra no funil de Vagões desde já; colaborador ainda não tem funil (ver
