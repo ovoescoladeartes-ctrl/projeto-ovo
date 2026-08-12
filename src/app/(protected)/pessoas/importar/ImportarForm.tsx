@@ -65,11 +65,16 @@ export function ImportarForm(): React.ReactElement {
 		<div className="max-w-3xl space-y-6">
 			<div className="rounded-lg border border-border bg-card p-4">
 				<p className="mb-3 text-sm text-muted-foreground">
-					Arquivo CSV com colunas <code className="rounded bg-muted px-1">nome</code>,{" "}
-					<code className="rounded bg-muted px-1">tipo</code> (aluno/colaborador),{" "}
-					<code className="rounded bg-muted px-1">turma</code> (nome exato de uma turma já cadastrada, só para
-					alunos) e <code className="rounded bg-muted px-1">status</code> (lead/matriculado para aluno,
-					ativo/banco_talentos para colaborador).
+					Arquivo CSV com colunas <code className="rounded bg-muted px-1">nome</code> (obrigatório),{" "}
+					<code className="rounded bg-muted px-1">tipo</code> (aluno, professor ou A&P para papel duplo),{" "}
+					<code className="rounded bg-muted px-1">status</code> (lead/matriculado para aluno,
+					ativo/banco_talentos para professor — opcional),{" "}
+					<code className="rounded bg-muted px-1">turma</code> (nome exato de uma ou mais turmas já
+					cadastradas, separadas por vírgula, só para aluno),{" "}
+					<code className="rounded bg-muted px-1">especialidade</code> (só para professor),{" "}
+					<code className="rounded bg-muted px-1">email</code> e{" "}
+					<code className="rounded bg-muted px-1">telefone</code> — os quatro últimos são opcionais e
+					independentes entre si.
 				</p>
 				<div className="flex flex-wrap items-center gap-2">
 					<input

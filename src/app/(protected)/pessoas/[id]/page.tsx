@@ -29,6 +29,8 @@ interface PessoaDoc {
 	interesses?: string[];
 	numeroMatriculaAluno?: string | null;
 	numeroMatriculaProfessor?: string | null;
+	email?: string | null;
+	telefone?: string | null;
 }
 
 interface TurmaResumoDoc {
@@ -42,6 +44,7 @@ interface MatriculaDoc {
 	pessoaId: string;
 	turmaId: string;
 	dataMatricula?: Timestamp;
+	dataEncerramento?: Timestamp;
 	mensalidadeCombinadaCentavos: number;
 	motivo?: string | null;
 	status: string;
@@ -129,6 +132,8 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 		interesses: data.interesses ?? [],
 		numeroMatriculaAluno: data.numeroMatriculaAluno ?? null,
 		numeroMatriculaProfessor: data.numeroMatriculaProfessor ?? null,
+		email: data.email ?? null,
+		telefone: data.telefone ?? null,
 	};
 
 	const turmasNomes = new Map<string, string>();
@@ -154,6 +159,7 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 			pessoaId: matriculaData.pessoaId,
 			turmaId: matriculaData.turmaId,
 			dataMatricula: toIso(matriculaData.dataMatricula ?? null),
+			dataEncerramento: toIso(matriculaData.dataEncerramento ?? null),
 			mensalidadeCombinadaCentavos: matriculaData.mensalidadeCombinadaCentavos,
 			motivo: matriculaData.motivo ?? null,
 			status: matriculaData.status as MatriculaStatus,
@@ -196,6 +202,7 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 				turmasAtivas={turmasAtivas}
 				turmasLecionadas={turmasLecionadas}
 				papelParaAdicionarInicial={papelParaAdicionarInicial}
+				isAdmin={session.role === "admin"}
 			/>
 
 			<div className="mt-10">

@@ -69,7 +69,7 @@ export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): Rea
 	return (
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogTrigger asChild>
-				<Button type="button" variant="destructive" size="icon" aria-label="Excluir permanentemente">
+				<Button type="button" variant="destructive" size="icon" aria-label="Excluir permanentemente" title="Excluir permanentemente">
 					<Trash2 className="h-4 w-4" />
 				</Button>
 			</AlertDialogTrigger>

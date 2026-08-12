@@ -1,10 +1,11 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
 import {
 	Dialog,
 	DialogContent,
@@ -15,25 +16,57 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
 import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
+import { parseCentavosInput } from "@/lib/currency";
 
 import { criarPessoa } from "./actions";
 
+interface TurmaOpcao {
+	id: string;
+	nome: string;
+	mensalidadeCentavos: number;
+}
+
 interface NovaPessoaDialogProps {
 	opcoesInteresse: string[];
+	turmasAtivas: TurmaOpcao[];
 }
+
+const SEM_TURMA = "__sem_turma__";
 
 function papeisDe(pessoa: PessoaBusca): string {
 	return [pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ");
 }
 
-export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): React.ReactElement {
+function rotuloInteresses(ehAluno: boolean, ehProfessor: boolean): string {
+	if (ehAluno && ehProfessor) {
+		return "Interesses / Especialidade";
+	}
+	return ehProfessor ? "Especialidade" : "Interesses";
+}
+
+function hoje(): string {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function centavosParaInput(centavos: number): string {
+	return (centavos / 100).toFixed(2).replace(".", ",");
+}
+
+export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDialogProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [nome, setNome] = useState("");
 	const [ehAluno, setEhAluno] = useState(true);
 	const [ehProfessor, setEhProfessor] = useState(false);
 	const [interesses, setInteresses] = useState<string[]>([]);
+	const [email, setEmail] = useState("");
+	const [telefone, setTelefone] = useState("");
+	const [turmaId, setTurmaId] = useState(SEM_TURMA);
+	const [dataMatricula, setDataMatricula] = useState(hoje());
+	const [mensalidade, setMensalidade] = useState("");
+	const [motivoMatricula, setMotivoMatricula] = useState("");
 	const [duplicatas, setDuplicatas] = useState<PessoaBusca[]>([]);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
@@ -56,20 +89,78 @@ export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): Re
 		return () => clearTimeout(timer);
 	}, [nome]);
 
+	function handleTurmaChange(novoTurmaId: string): void {
+		setTurmaId(novoTurmaId);
+		if (novoTurmaId === SEM_TURMA) {
+			return;
+		}
+		const turma = turmasAtivas.find((item) => item.id === novoTurmaId);
+		setMensalidade(centavosParaInput(turma?.mensalidadeCentavos ?? 0));
+	}
+
+	function handleEhAlunoChange(marcado: boolean): void {
+		setEhAluno(marcado);
+		if (!marcado) {
+			setTurmaId(SEM_TURMA);
+			setMensalidade("");
+			setMotivoMatricula("");
+		}
+	}
+
+	function resetarFormulario(): void {
+		setNome("");
+		setEhAluno(true);
+		setEhProfessor(false);
+		setInteresses([]);
+		setEmail("");
+		setTelefone("");
+		setTurmaId(SEM_TURMA);
+		setDataMatricula(hoje());
+		setMensalidade("");
+		setMotivoMatricula("");
+		setDuplicatas([]);
+	}
+
 	function handleSalvar(): void {
 		setErro(null);
+
+		let matricula: {
+			turmaId: string;
+			dataMatricula: string;
+			mensalidadeCombinadaCentavos: number;
+			motivo: string | null;
+		} | undefined;
+
+		if (ehAluno && turmaId !== SEM_TURMA) {
+			const mensalidadeCombinadaCentavos = parseCentavosInput(mensalidade);
+			if (mensalidadeCombinadaCentavos === null) {
+				setErro("Mensalidade inválida.");
+				return;
+			}
+			matricula = {
+				turmaId,
+				dataMatricula,
+				mensalidadeCombinadaCentavos,
+				motivo: motivoMatricula.trim() === "" ? null : motivoMatricula.trim(),
+			};
+		}
+
 		startTransition(async () => {
-			const result = await criarPessoa({ nome, ehAluno, ehProfessor, interesses });
+			const result = await criarPessoa({
+				nome,
+				ehAluno,
+				ehProfessor,
+				interesses,
+				email: email.trim() === "" ? null : email.trim(),
+				telefone: telefone.trim() === "" ? null : telefone.trim(),
+				matricula,
+			});
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
 			}
 			setOpen(false);
-			setNome("");
-			setEhAluno(true);
-			setEhProfessor(false);
-			setInteresses([]);
-			setDuplicatas([]);
+			resetarFormulario();
 		});
 	}
 
@@ -81,7 +172,9 @@ export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): Re
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button type="button">Nova pessoa</Button>
+				<Button type="button" size="icon" className="h-9 w-9 shrink-0 rounded-full hover:!bg-primary/80" aria-label="Nova pessoa" title="Nova pessoa">
+					<Plus className="h-4 w-4" strokeWidth={2.4} />
+				</Button>
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
@@ -119,36 +212,96 @@ export function NovaPessoaDialog({ opcoesInteresse }: NovaPessoaDialogProps): Re
 						})}
 					</div>
 
-					<div className="space-y-1.5">
-						<Label>Papel</Label>
-						<div className="flex flex-wrap gap-4">
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="pessoa-eh-aluno"
-									checked={ehAluno}
-									onCheckedChange={(checked) => setEhAluno(checked === true)}
-									disabled={isPending}
-								/>
-								<Label htmlFor="pessoa-eh-aluno" className="font-normal">
-									Aluno
-								</Label>
-							</div>
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="pessoa-eh-professor"
-									checked={ehProfessor}
-									onCheckedChange={(checked) => setEhProfessor(checked === true)}
-									disabled={isPending}
-								/>
-								<Label htmlFor="pessoa-eh-professor" className="font-normal">
-									Professor
-								</Label>
-							</div>
+					<div className="grid grid-cols-2 gap-3">
+						<div className="space-y-1.5">
+							<Label htmlFor="pessoa-email">Email</Label>
+							<Input
+								id="pessoa-email"
+								type="email"
+								value={email}
+								onChange={(event) => setEmail(event.target.value)}
+								disabled={isPending}
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<Label htmlFor="pessoa-telefone">Telefone</Label>
+							<Input
+								id="pessoa-telefone"
+								value={telefone}
+								onChange={(event) => setTelefone(event.target.value)}
+								disabled={isPending}
+							/>
 						</div>
 					</div>
 
 					<div className="space-y-1.5">
-						<Label>Interesses</Label>
+						<Label>Papel</Label>
+						<div className="flex flex-wrap gap-2">
+							<Chip pressed={ehAluno} onClick={() => handleEhAlunoChange(!ehAluno)} disabled={isPending}>
+								Aluno
+							</Chip>
+							<Chip pressed={ehProfessor} onClick={() => setEhProfessor(!ehProfessor)} disabled={isPending}>
+								Professor
+							</Chip>
+						</div>
+					</div>
+
+					{ehAluno ? (
+						<div className="space-y-1.5">
+							<Label htmlFor="pessoa-turma">Turma (opcional)</Label>
+							<Select value={turmaId} onValueChange={handleTurmaChange} disabled={isPending}>
+								<SelectTrigger id="pessoa-turma">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value={SEM_TURMA}>Sem turma por enquanto</SelectItem>
+									{turmasAtivas.map((turma) => (
+										<SelectItem key={turma.id} value={turma.id}>
+											{turma.nome}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					) : null}
+
+					{ehAluno && turmaId !== SEM_TURMA ? (
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="pessoa-data-matricula">Data da matrícula</Label>
+								<Input
+									id="pessoa-data-matricula"
+									type="date"
+									value={dataMatricula}
+									onChange={(event) => setDataMatricula(event.target.value)}
+									disabled={isPending}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="pessoa-mensalidade">Mensalidade combinada (R$)</Label>
+								<Input
+									id="pessoa-mensalidade"
+									inputMode="decimal"
+									value={mensalidade}
+									onChange={(event) => setMensalidade(event.target.value)}
+									disabled={isPending}
+								/>
+							</div>
+							<div className="col-span-2 space-y-1.5">
+								<Label htmlFor="pessoa-motivo-matricula">Motivo (opcional)</Label>
+								<Input
+									id="pessoa-motivo-matricula"
+									placeholder="Ex.: bolsa, permuta, desconto combinado"
+									value={motivoMatricula}
+									onChange={(event) => setMotivoMatricula(event.target.value)}
+									disabled={isPending}
+								/>
+							</div>
+						</div>
+					) : null}
+
+					<div className="space-y-1.5">
+						<Label>{rotuloInteresses(ehAluno, ehProfessor)}</Label>
 						<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
 					</div>
 

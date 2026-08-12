@@ -32,6 +32,30 @@ arquivo real antes de confiar cegamente nos valores aqui.
 | Botão outline ("Ver") | fundo branco, borda preta 1px, texto preto | estimado | `Button variant="outline"` (padrão shadcn, sem token novo) | Botões "Ver" nas pendências |
 | Fundo de botão de perigo/destrutivo | `#9C0000` | implementado | `--danger` / `Button variant="destructive"` | Confirmação de ação destrutiva (ex.: excluir permanentemente) |
 | Texto sobre botão de perigo | `#F9FAFB` | implementado | `--danger-foreground` | Idem |
+| Borda forte (controles interativos) | `#d8d8d3` | implementado | `--border-strong` / `border-border-strong` | Checkbox, trilho do segmented control — mais escura que `--border` (bordas leves de card/tabela) |
+| Texto terciário/apagado | `#b3b3ac` | implementado | `--tertiary` / `text-tertiary` | Estados apagados (ex.: botão "Exportar" sem seleção) |
+| Fundo "soft" (preenchido, sem borda) | `#e6e6e1`, hover `#dedad3` | implementado | `--surface-soft` / `--surface-soft-hover` / `bg-soft`, `bg-soft-hover` | Botão "Filtros avançados" — preenchimento sólido, nunca borda |
+| Fundo do trilho de segmented control | `#f1f1ee` | implementado | `--surface-track` / `bg-track` | Fundo do trilho Ativos/Arquivados, com borda `border-strong` 1.5px |
+| Fundo de hover sutil | `#f2f2ef` | implementado | `--surface-hover` / `bg-subtle` | Estado de hover de controles com fundo branco/bordado (busca, chip inativo, aba inativa do segmented control) — `--accent` (oklch 0.97) é quase idêntico a `--background` (oklch 0.976) e não serve pra esse fim, hover fica imperceptível |
+
+Origem desta leva de tokens: "Prompt de implementação — Cadastro (Pessoas & Turmas)", validado
+pelo usuário em 2026-08-12, com uma captura de tela de referência interativa da listagem de
+Pessoas. Os valores de `bg-page`/`text-primary`/`text-secondary` desse documento já bateram (ou
+ficaram próximos o bastante) dos tokens `--background`/`--foreground`/`--muted-foreground`
+existentes — não duplicados. `--surface-hover` foi acrescentado depois, no round de bugs de
+2026-08-12 (teste real encontrou hover imperceptível em vários controles).
+
+### Armadilha conhecida — `className` em cima de um `Button` com `variant`
+
+`src/components/ui/button.tsx` mescla `className` **dentro** de `buttonVariants({ variant, size,
+className })`, que usa `clsx` internamente (sem tailwind-merge) — duas classes `hover:bg-*`
+diferentes (uma vinda do `variant`, outra do seu `className`) coexistem no HTML final, e quem
+vence no navegador é a ordem em que o Tailwind gerou as regras no CSS, não a ordem das classes no
+JSX. Isso é **não determinístico** o bastante pra já ter causado um bug real (hover de "Filtros
+avançados" não aparecendo). Ao sobrescrever `hover:`/cor de um `Button` existente via `className`,
+use o sufixo `!` (ex.: `hover:!bg-soft-hover`) pra garantir precedência — não confie na ordem das
+classes. Isso não é um problema em componentes que não usam `variant` (`Chip`,
+`AbaAtivosArquivados`), só em cima do `Button` do shadcn.
 
 ### Tipografia
 
@@ -59,6 +83,32 @@ arquivo real antes de confiar cegamente nos valores aqui.
 |---|---|---|---|
 | Radius de card | ~0.75rem (mais arredondado que o default 0.5rem do shadcn) | estimado | Todos os cards, banner, inputs |
 | Sombra | nenhuma elevação visível — só borda 1px | estimado | Cards usam borda, não `shadow` pesado |
+| Card principal (Cadastro) | 12px (`rounded-xl`) | implementado | `Card` de listagem de Pessoas |
+| Campo de busca | 9px (`rounded-[9px]`) | implementado | `Input` de busca |
+| Botão "Baixar contatos" | 10px (`rounded-[10px]`) | implementado | — |
+| Chip (seleção múltipla, ex. Aluno/Professor) | 999px / pílula (`rounded-full`) | implementado | `Chip` (`src/components/ui/chip.tsx`) |
+| Botão "Filtros avançados" / trilho do segmented control / ícone de linha (olho) / botão "Exportar" | 8px (`rounded-lg`) | implementado | — |
+| Botão redondo de ação primária ("+") | 50% / círculo (`rounded-full` num `h-9 w-9`) | implementado | Trigger do modal "Nova pessoa" |
+| Checkbox | 5px (`rounded-[5px]`, **não** circular) | implementado | Ver "Checkbox — medida exata" abaixo |
+| Botões de paginação | 7px (`rounded-[7px]`) | implementado | — |
+
+**Checkbox — medida exata (corrige um bug retroativo, vale pro app inteiro):** caixa 18×18px,
+borda 1.6px na cor `border-strong`, canto `rounded-[5px]`, ícone de check 12×12px (margem visível
+entre o check e a borda interna). Antes disso, `Checkbox` usava a classe `rounded-sm`, que neste
+projeto mapeia pra `calc(var(--radius) - 4px)` = 8px — numa caixa de 16×16px isso renderizava
+quase um círculo. Por isso o checkbox agora usa um radius explícito, independente da escala
+`--radius` (que continua servindo bem card/botão/input, só não serve a esse caso pequeno).
+
+### Altura de controles (Cadastro)
+
+| Grupo | Altura | Uso |
+|---|---|---|
+| Linha "busca/ações" | 36px (`h-9`) | Campo de busca, botão "Baixar contatos", botão redondo "+" |
+| Linha "filtros" | 30px (`h-[30px]`) | Chips de papel, botão "Filtros avançados", segmented control |
+
+Deliberadamente duas alturas diferentes — cria hierarquia visual entre "o que eu faço" (linha de
+cima) e "como eu filtro" (linha de baixo). Ver candidata a regra MANDATÓRIA na seção de perguntas
+em aberto.
 
 ### Responsividade
 
@@ -99,9 +149,17 @@ sidebar como um drawer.
 | Cards de estágio do funil | — | `FunnelStageCard`, `FunnelStageRow` |
 | Cabeçalho da página (título + busca + data) | — | `DashboardHeader` |
 | Dropdowns de seleção única (filtros, formulários) | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` — nunca `<select>` nativo (ver regra MANDATÓRIA abaixo) | — |
+| Checkbox (corrigido — quadrado, não circular) | `Checkbox` (`src/components/ui/checkbox.tsx`) | Seleção em massa da listagem de Pessoas, formulários |
+| Chip de seleção múltipla (pílula, preenchido quando ativo) | — | `Chip` (`src/components/ui/chip.tsx`) — usado pra papel Aluno/Professor; diferente de `Checkbox`, não é pra seleção em massa de linha |
+| Botão "Filtros avançados" (agrupa filtros pouco usados) | `Sheet` (gaveta lateral) + `Button` | `FiltrosAvancadosSheet` |
+| Segmented control (Ativos/Arquivados) | — | `AbaAtivosArquivados` (`src/components/`) |
+| Botão redondo de ação primária ("+") | `Button size="icon"` + `rounded-full` | Trigger de `NovaPessoaDialog` |
+| Exportar contextual (dropdown de ações, disparado do cabeçalho de uma tabela) | `DropdownMenu` | `ExportarDropdown` (`src/app/(protected)/pessoas/`) |
 
 Biblioteca de ícones: **lucide-react** (estilo de traço fino consistente com os ícones do
-Figma).
+Figma). Nos componentes de Cadastro listados acima, os ícones usam traço mais grosso (2.1–2.6px,
+ver regra em "Perguntas e premissas em aberto") — ainda não aplicado retroativamente ao resto do
+app.
 
 ---
 
@@ -189,6 +247,21 @@ desta conversa:
    (fundo `#9C0000`, texto `#F9FAFB` — ver tabela de Cor acima). Não crie um estilo de botão de
    perigo paralelo nem sobrescreva a cor via `style`/classe arbitrária num botão específico — o
    token é reusável em qualquer confirmação destrutiva futura.
+10. **`Checkbox` (`src/components/ui/checkbox.tsx`) é quadrado, nunca circular**: caixa 18×18px,
+    `rounded-[5px]`, borda 1.6px `border-strong`, ícone de check 12×12px. Antes disso, a classe
+    `rounded-sm` (que neste projeto mapeia pra `calc(var(--radius) - 4px)` = 8px numa caixa de
+    16×16px) fazia o componente renderizar quase circular — bug corrigido retroativamente em
+    2026-08-12, vale pro app inteiro, não só onde foi notado (Cadastro/Pessoas). Não reintroduza
+    `rounded-sm`/`rounded-md`/`rounded-full` neste componente.
+11. **Dois níveis de confirmação para ações que desfazem estado, escolhidos pelo tamanho do
+    estrago:**
+    - **Leve** (`AlertDialog` simples, só "Cancelar"/confirmar, sem digitar nada) — pra ações
+      reversíveis que merecem uma pausa, mas não risco de perda de dado: Arquivar pessoa,
+      Encerrar matrícula. Ver `PessoaArquivarButton.tsx`, `MatriculaEncerrarButton.tsx`.
+    - **Pesada** (`AlertDialog` exigindo digitar o nome exato) — reservada só pra exclusão
+      permanente (irreversível de verdade). Ver `PessoaExcluirButton.tsx`.
+    Ações totalmente reversíveis na hora (Desarquivar pessoa, Restaurar matrícula) não precisam
+    de nenhuma confirmação — o próprio desfazer já é a rede de segurança.
 
 ---
 
@@ -207,3 +280,18 @@ desta conversa:
    Figma.
 4. O chevron de toggle da sidebar não tem um estado "expandido" desenhado nas capturas —
    tratado como decorativo/desabilitado até haver um design para esse estado.
+5. **Candidata a regra MANDATÓRIA, ainda não confirmada com o Rogério**: as duas alturas de
+   controle da barra de Pessoas (36px "o que eu faço" / 30px "como eu filtro", ver "Altura de
+   controles" nos tokens acima) e o princípio geral de "cada família de componente tem seu
+   próprio tom, não só sua própria forma" (ex.: `border` leve pra divisórias vs. `border-strong`
+   pra controles interativos). Proposto no "Prompt de implementação — Cadastro" de 2026-08-12 —
+   sinalizar pro Rogério antes de tratar como regra fixa de todo o app.
+6. **Backlog de auditoria**: Dashboard, Vagões e Caixa provavelmente têm a mesma inconsistência
+   de altura/raio/tom que a listagem de Pessoas tinha antes do ajuste de 2026-08-12 (controles
+   com alturas/raios variados sem hierarquia deliberada). Não foi tocado nesta tarefa — só
+   registrado aqui pra alguém auditar depois.
+7. O "Prompt de implementação — Cadastro (Pessoas & Turmas)" de 2026-08-12 menciona dois anexos
+   (`wireframe-pessoas-ajustado.html`, `teste-importacao-contatos.csv`) que não chegaram a entrar
+   no repositório nem foram enviados na conversa — a implementação do formato de importação CSV
+   (papel duplo `A&P`, múltiplas turmas por linha) não foi validada contra o arquivo de teste
+   mencionado.

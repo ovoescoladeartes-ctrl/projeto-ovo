@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
@@ -25,14 +25,10 @@ import { formatCentavos, parseCentavosInput } from "@/lib/currency";
 import { atualizarMatricula } from "./actions";
 import { MatricularDialog } from "./MatricularDialog";
 import { MatriculaEncerrarButton } from "./MatriculaEncerrarButton";
+import { MatriculaRestaurarButton } from "./MatriculaRestaurarButton";
 import { atualizarPessoa, inativarPessoa } from "../actions";
-
-const STATUS_LABELS: Record<string, string> = {
-	lead: "Lead",
-	matriculado: "Matriculado",
-	ativo: "Ativo",
-	banco_talentos: "Banco de talentos",
-};
+import { PessoaExcluirButton } from "../PessoaExcluirButton";
+import { StatusBadge } from "../StatusBadge";
 
 const MATRICULA_STATUS_LABELS: Record<string, string> = {
 	ativa: "Ativa",
@@ -41,6 +37,13 @@ const MATRICULA_STATUS_LABELS: Record<string, string> = {
 
 function centavosParaInput(centavos: number): string {
 	return (centavos / 100).toFixed(2).replace(".", ",");
+}
+
+function formatarData(iso: string | null): string {
+	if (iso === null) {
+		return "—";
+	}
+	return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 interface MatriculaComTurma {
@@ -72,6 +75,14 @@ interface PessoaDetalheEditorProps {
 	turmasAtivas: TurmaOpcao[];
 	turmasLecionadas: TurmaLecionada[];
 	papelParaAdicionarInicial: "aluno" | "professor" | null;
+	isAdmin: boolean;
+}
+
+function rotuloInteresses(ehAluno: boolean, ehProfessor: boolean): string {
+	if (ehAluno && ehProfessor) {
+		return "Interesses / Especialidade";
+	}
+	return ehProfessor ? "Especialidade" : "Interesses";
 }
 
 export function PessoaDetalheEditor({
@@ -81,12 +92,15 @@ export function PessoaDetalheEditor({
 	turmasAtivas,
 	turmasLecionadas,
 	papelParaAdicionarInicial,
+	isAdmin,
 }: PessoaDetalheEditorProps): React.ReactElement {
 	const [modoEdicao, setModoEdicao] = useState(papelParaAdicionarInicial !== null);
 	const [nome, setNome] = useState(pessoa.nome);
 	const [ehAluno, setEhAluno] = useState(pessoa.ehAluno || papelParaAdicionarInicial === "aluno");
 	const [ehProfessor, setEhProfessor] = useState(pessoa.ehProfessor || papelParaAdicionarInicial === "professor");
 	const [interesses, setInteresses] = useState<string[]>(pessoa.interesses);
+	const [email, setEmail] = useState(pessoa.email ?? "");
+	const [telefone, setTelefone] = useState(pessoa.telefone ?? "");
 	const [matriculaEdits, setMatriculaEdits] = useState<Record<string, MatriculaEdicao>>({});
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
@@ -109,6 +123,8 @@ export function PessoaDetalheEditor({
 		setEhAluno(pessoa.ehAluno);
 		setEhProfessor(pessoa.ehProfessor);
 		setInteresses(pessoa.interesses);
+		setEmail(pessoa.email ?? "");
+		setTelefone(pessoa.telefone ?? "");
 		setMatriculaEdits({});
 		setErro(null);
 		setModoEdicao(false);
@@ -148,7 +164,15 @@ export function PessoaDetalheEditor({
 
 		startTransition(async () => {
 			const resultados = await Promise.all([
-				atualizarPessoa({ id: pessoa.id, nome, interesses, ehAluno, ehProfessor }),
+				atualizarPessoa({
+					id: pessoa.id,
+					nome,
+					interesses,
+					ehAluno,
+					ehProfessor,
+					email: email.trim() === "" ? null : email.trim(),
+					telefone: telefone.trim() === "" ? null : telefone.trim(),
+				}),
 				...matriculasParaAtualizar.map((dados) => atualizarMatricula(dados)),
 			]);
 			const erroEncontrado = resultados.find((resultado) => resultado.status === "error");
@@ -214,36 +238,48 @@ export function PessoaDetalheEditor({
 					{modoEdicao ? (
 						<div className="space-y-1.5">
 							<Label>Papel</Label>
-							<div className="flex flex-wrap gap-4">
-								<div className="flex items-center gap-2">
-									<Checkbox
-										id={`pessoa-eh-aluno-${pessoa.id}`}
-										checked={ehAluno}
-										onCheckedChange={(checked) => setEhAluno(checked === true)}
-										disabled={isPending}
-									/>
-									<Label htmlFor={`pessoa-eh-aluno-${pessoa.id}`} className="font-normal">
-										Aluno
-									</Label>
-								</div>
-								<div className="flex items-center gap-2">
-									<Checkbox
-										id={`pessoa-eh-professor-${pessoa.id}`}
-										checked={ehProfessor}
-										onCheckedChange={(checked) => setEhProfessor(checked === true)}
-										disabled={isPending}
-									/>
-									<Label htmlFor={`pessoa-eh-professor-${pessoa.id}`} className="font-normal">
-										Professor
-									</Label>
-								</div>
+							<div className="flex flex-wrap gap-2">
+								<Chip pressed={ehAluno} onClick={() => setEhAluno(!ehAluno)} disabled={isPending}>
+									Aluno
+								</Chip>
+								<Chip pressed={ehProfessor} onClick={() => setEhProfessor(!ehProfessor)} disabled={isPending}>
+									Professor
+								</Chip>
 							</div>
 						</div>
 					) : null}
 
 					{modoEdicao ? (
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor={`pessoa-email-${pessoa.id}`}>Email</Label>
+								<Input
+									id={`pessoa-email-${pessoa.id}`}
+									type="email"
+									value={email}
+									onChange={(event) => setEmail(event.target.value)}
+									disabled={isPending}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor={`pessoa-telefone-${pessoa.id}`}>Telefone</Label>
+								<Input
+									id={`pessoa-telefone-${pessoa.id}`}
+									value={telefone}
+									onChange={(event) => setTelefone(event.target.value)}
+									disabled={isPending}
+								/>
+							</div>
+						</div>
+					) : pessoa.email !== null || pessoa.telefone !== null ? (
+						<p className="text-sm text-muted-foreground">
+							{[pessoa.email, pessoa.telefone].filter((valor) => valor !== null).join(" · ")}
+						</p>
+					) : null}
+
+					{modoEdicao ? (
 						<div className="space-y-1.5">
-							<Label>Interesses</Label>
+							<Label>{rotuloInteresses(ehAluno, ehProfessor)}</Label>
 							<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
 						</div>
 					) : pessoa.interesses.length > 0 ? (
@@ -258,29 +294,37 @@ export function PessoaDetalheEditor({
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
 
-					{modoEdicao && pessoa.ativo ? (
-						<AlertDialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
-							<AlertDialogTrigger asChild>
-								<Button type="button" variant="ghost" className="text-muted-foreground">
-									Arquivar
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Arquivar {pessoa.nome}?</AlertDialogTitle>
-									<AlertDialogDescription>
-										A pessoa some da lista principal, mas o histórico continua acessível.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								{arquivarErro !== null ? <p className="text-xs text-destructive">{arquivarErro}</p> : null}
-								<AlertDialogFooter>
-									<AlertDialogCancel disabled={isArquivando}>Cancelar</AlertDialogCancel>
-									<Button type="button" variant="destructive" onClick={handleArquivar} disabled={isArquivando}>
-										{isArquivando ? "Arquivando..." : "Arquivar"}
-									</Button>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+					{modoEdicao && (pessoa.ativo || (!pessoa.ativo && isAdmin)) ? (
+						<div className="rounded-md border border-danger/30 bg-danger/5 p-4">
+							<h3 className="text-sm font-semibold text-danger">Zona de risco</h3>
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								{pessoa.ativo ? (
+									<AlertDialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
+										<AlertDialogTrigger asChild>
+											<Button type="button" variant="ghost" className="text-muted-foreground">
+												Arquivar
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Arquivar {pessoa.nome}?</AlertDialogTitle>
+												<AlertDialogDescription>
+													A pessoa some da lista principal, mas o histórico continua acessível.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											{arquivarErro !== null ? <p className="text-xs text-destructive">{arquivarErro}</p> : null}
+											<AlertDialogFooter>
+												<AlertDialogCancel disabled={isArquivando}>Cancelar</AlertDialogCancel>
+												<Button type="button" variant="destructive" onClick={handleArquivar} disabled={isArquivando}>
+													{isArquivando ? "Arquivando..." : "Arquivar"}
+												</Button>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								) : null}
+								{!pessoa.ativo && isAdmin ? <PessoaExcluirButton id={pessoa.id} nome={pessoa.nome} /> : null}
+							</div>
+						</div>
 					) : null}
 				</div>
 
@@ -294,10 +338,10 @@ export function PessoaDetalheEditor({
 			{ehAluno ? (
 				<div className="mt-10">
 					<h2 className="text-lg font-semibold text-foreground">Aluno</h2>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Status: {pessoa.statusAluno !== null ? STATUS_LABELS[pessoa.statusAluno] : "—"}
-						{pessoa.numeroMatriculaAluno !== null ? ` · Nº ${pessoa.numeroMatriculaAluno}` : ""}
-					</p>
+					<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+						{pessoa.statusAluno !== null ? <StatusBadge status={pessoa.statusAluno} /> : "—"}
+						{pessoa.numeroMatriculaAluno !== null ? <span>Nº {pessoa.numeroMatriculaAluno}</span> : null}
+					</div>
 
 					<div className="mt-4 mb-3 flex items-center justify-between">
 						<h3 className="text-sm font-semibold text-foreground">Matrículas</h3>
@@ -312,6 +356,8 @@ export function PessoaDetalheEditor({
 									<th className="px-4 py-3 font-medium">Status</th>
 									<th className="px-4 py-3 font-medium">Mensalidade combinada</th>
 									<th className="px-4 py-3 font-medium">Motivo</th>
+									<th className="px-4 py-3 font-medium">Data de matrícula</th>
+									<th className="px-4 py-3 font-medium">Data de encerramento</th>
 									<th className="px-4 py-3 font-medium" />
 								</tr>
 							</thead>
@@ -361,17 +407,21 @@ export function PessoaDetalheEditor({
 													matricula.motivo ?? "—"
 												)}
 											</td>
+											<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataMatricula)}</td>
+											<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataEncerramento)}</td>
 											<td className="px-4 py-3 text-right">
 												{matricula.status === "ativa" ? (
 													<MatriculaEncerrarButton id={matricula.id} pessoaId={pessoa.id} />
-												) : null}
+												) : (
+													<MatriculaRestaurarButton id={matricula.id} pessoaId={pessoa.id} />
+												)}
 											</td>
 										</tr>
 									);
 								})}
 								{matriculas.length === 0 ? (
 									<tr>
-										<td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+										<td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
 											Nenhuma matrícula ainda.
 										</td>
 									</tr>
@@ -387,10 +437,10 @@ export function PessoaDetalheEditor({
 			{ehProfessor ? (
 				<div className="mt-10">
 					<h2 className="text-lg font-semibold text-foreground">Professor</h2>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Status: {pessoa.statusProfessor !== null ? STATUS_LABELS[pessoa.statusProfessor] : "—"}
-						{pessoa.numeroMatriculaProfessor !== null ? ` · Nº ${pessoa.numeroMatriculaProfessor}` : ""}
-					</p>
+					<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+						{pessoa.statusProfessor !== null ? <StatusBadge status={pessoa.statusProfessor} /> : "—"}
+						{pessoa.numeroMatriculaProfessor !== null ? <span>Nº {pessoa.numeroMatriculaProfessor}</span> : null}
+					</div>
 
 					<h3 className="mt-4 mb-3 text-sm font-semibold text-foreground">Turmas lecionadas</h3>
 					<p className="mb-3 text-xs text-muted-foreground">

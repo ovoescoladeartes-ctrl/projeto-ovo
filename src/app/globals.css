@@ -22,6 +22,12 @@
     --destructive-foreground: oklch(0.985 0 0);
     --danger: #9C0000;
     --danger-foreground: #F9FAFB;
+    --border-strong: #d8d8d3;
+    --tertiary: #b3b3ac;
+    --surface-soft: #e6e6e1;
+    --surface-soft-hover: #dedad3;
+    --surface-track: #f1f1ee;
+    --surface-hover: #e9e9e4;
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);

@@ -13,12 +13,27 @@ export type StatusProfessor = (typeof PROFESSOR_STATUS)[number];
  * status e número nunca são aceitos como input aqui — são sempre derivados (ver
  * `recalcularStatusProfessor` e `matricular`).
  */
+const campoOpcional = z
+	.string()
+	.trim()
+	.transform((valor) => (valor === "" ? null : valor))
+	.nullable()
+	.optional();
+
+/** Vazio vira `null` antes de validar — só valida formato de email quando algo foi digitado. */
+const campoEmailOpcional = z.preprocess(
+	(valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+	z.string().trim().email("Email inválido.").nullable().optional(),
+);
+
 export const pessoaInputSchema = z
 	.object({
 		nome: z.string().trim().min(1, "Nome é obrigatório."),
 		ehAluno: z.boolean(),
 		ehProfessor: z.boolean(),
 		interesses: z.array(z.string()).default([]),
+		email: campoEmailOpcional,
+		telefone: campoOpcional,
 	})
 	.refine((dados) => dados.ehAluno || dados.ehProfessor, {
 		message: "Marque pelo menos um papel (Aluno ou Professor).",
@@ -42,6 +57,8 @@ export interface Pessoa {
 	criadoEm: string | null;
 	/** Assuntos de interesse (fonte de verdade: coleção `interesses`) — independente de Matrícula real. */
 	interesses: string[];
+	email: string | null;
+	telefone: string | null;
 	/**
 	 * Identificador legível (`A-AAAA-NNNN`), atribuído uma única vez na primeira Matrícula real.
 	 * Somente leitura na UI — não há action de edição (ver `numeroMatricula.ts`).
