@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
-import { gerarResposta } from "@/core/copiloto/answerEngine";
+import { perguntarCopiloto } from "@/core/copiloto/actions";
 import type { CopilotoMessage } from "@/core/copiloto/types";
 
 interface CopilotoContextValue {
@@ -43,14 +43,14 @@ export function CopilotoProvider({ children }: { children: React.ReactNode }): R
 		]);
 		setIsThinking(true);
 
-		setTimeout(() => {
-			const resposta = gerarResposta(textoLimpo);
-			setMessages((atual) => [
-				...atual,
-				{ id: proximoId(idCounter), role: "assistant", ...resposta },
-			]);
-			setIsThinking(false);
-		}, 700);
+		perguntarCopiloto(textoLimpo)
+			.then((resposta) => {
+				setMessages((atual) => [
+					...atual,
+					{ id: proximoId(idCounter), role: "assistant", ...resposta },
+				]);
+			})
+			.finally(() => setIsThinking(false));
 	}, []);
 
 	return (
