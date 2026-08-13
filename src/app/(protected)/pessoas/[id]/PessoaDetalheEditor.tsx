@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
@@ -27,6 +26,7 @@ import { MatricularDialog } from "./MatricularDialog";
 import { MatriculaEncerrarButton } from "./MatriculaEncerrarButton";
 import { MatriculaRestaurarButton } from "./MatriculaRestaurarButton";
 import { atualizarPessoa, inativarPessoa } from "../actions";
+import { PapelDropdown } from "../PapelDropdown";
 import { PessoaExcluirButton } from "../PessoaExcluirButton";
 import { StatusBadge } from "../StatusBadge";
 
@@ -238,14 +238,12 @@ export function PessoaDetalheEditor({
 					{modoEdicao ? (
 						<div className="space-y-1.5">
 							<Label>Papel</Label>
-							<div className="flex flex-wrap gap-2">
-								<Chip pressed={ehAluno} onClick={() => setEhAluno(!ehAluno)} disabled={isPending}>
-									Aluno
-								</Chip>
-								<Chip pressed={ehProfessor} onClick={() => setEhProfessor(!ehProfessor)} disabled={isPending}>
-									Professor
-								</Chip>
-							</div>
+							<PapelDropdown
+								ehAluno={ehAluno}
+								ehProfessor={ehProfessor}
+								onChange={(papel, marcado) => (papel === "aluno" ? setEhAluno(marcado) : setEhProfessor(marcado))}
+								disabled={isPending}
+							/>
 						</div>
 					) : null}
 

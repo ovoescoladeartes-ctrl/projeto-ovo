@@ -1,11 +1,9 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import {
 	Dialog,
 	DialogContent,
@@ -22,6 +20,7 @@ import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { criarPessoa } from "./actions";
+import { PapelDropdown } from "./PapelDropdown";
 
 interface TurmaOpcao {
 	id: string;
@@ -98,13 +97,17 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 		setMensalidade(centavosParaInput(turma?.mensalidadeCentavos ?? 0));
 	}
 
-	function handleEhAlunoChange(marcado: boolean): void {
-		setEhAluno(marcado);
-		if (!marcado) {
-			setTurmaId(SEM_TURMA);
-			setMensalidade("");
-			setMotivoMatricula("");
+	function handlePapelChange(papel: "aluno" | "professor", marcado: boolean): void {
+		if (papel === "aluno") {
+			setEhAluno(marcado);
+			if (!marcado) {
+				setTurmaId(SEM_TURMA);
+				setMensalidade("");
+				setMotivoMatricula("");
+			}
+			return;
 		}
+		setEhProfessor(marcado);
 	}
 
 	function resetarFormulario(): void {
@@ -172,9 +175,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button type="button" size="icon" className="h-9 w-9 shrink-0 rounded-full hover:!bg-primary/80" aria-label="Nova pessoa" title="Nova pessoa">
-					<Plus className="h-4 w-4" strokeWidth={2.4} />
-				</Button>
+				<Button type="button">Nova pessoa</Button>
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
@@ -212,38 +213,30 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 						})}
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="pessoa-email">Email</Label>
-							<Input
-								id="pessoa-email"
-								type="email"
-								value={email}
-								onChange={(event) => setEmail(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="pessoa-telefone">Telefone</Label>
-							<Input
-								id="pessoa-telefone"
-								value={telefone}
-								onChange={(event) => setTelefone(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="pessoa-email">Email</Label>
+						<Input
+							id="pessoa-email"
+							type="email"
+							value={email}
+							onChange={(event) => setEmail(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor="pessoa-telefone">Telefone</Label>
+						<Input
+							id="pessoa-telefone"
+							value={telefone}
+							onChange={(event) => setTelefone(event.target.value)}
+							disabled={isPending}
+						/>
 					</div>
 
 					<div className="space-y-1.5">
 						<Label>Papel</Label>
-						<div className="flex flex-wrap gap-2">
-							<Chip pressed={ehAluno} onClick={() => handleEhAlunoChange(!ehAluno)} disabled={isPending}>
-								Aluno
-							</Chip>
-							<Chip pressed={ehProfessor} onClick={() => setEhProfessor(!ehProfessor)} disabled={isPending}>
-								Professor
-							</Chip>
-						</div>
+						<PapelDropdown ehAluno={ehAluno} ehProfessor={ehProfessor} onChange={handlePapelChange} disabled={isPending} />
 					</div>
 
 					{ehAluno ? (
@@ -266,7 +259,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 					) : null}
 
 					{ehAluno && turmaId !== SEM_TURMA ? (
-						<div className="grid grid-cols-2 gap-3">
+						<>
 							<div className="space-y-1.5">
 								<Label htmlFor="pessoa-data-matricula">Data da matrícula</Label>
 								<Input
@@ -287,7 +280,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 									disabled={isPending}
 								/>
 							</div>
-							<div className="col-span-2 space-y-1.5">
+							<div className="space-y-1.5">
 								<Label htmlFor="pessoa-motivo-matricula">Motivo (opcional)</Label>
 								<Input
 									id="pessoa-motivo-matricula"
@@ -297,7 +290,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 									disabled={isPending}
 								/>
 							</div>
-						</div>
+						</>
 					) : null}
 
 					<div className="space-y-1.5">

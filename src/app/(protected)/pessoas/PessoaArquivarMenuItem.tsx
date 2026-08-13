@@ -1,6 +1,5 @@
 "use client";
 
-import { Archive } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import {
@@ -14,19 +13,22 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { inativarPessoa } from "./actions";
 
-interface PessoaArquivarButtonProps {
+interface PessoaArquivarMenuItemProps {
 	id: string;
 	nome: string;
 }
 
 /**
- * Ação de linha na listagem — `inativarPessoa` já checa o motivo de bloqueio internamente e
+ * Item do menu overflow da linha — `inativarPessoa` já checa o motivo de bloqueio internamente e
  * devolve a mensagem pronta, então não precisa do fluxo em duas fases que `PessoaExcluirButton` usa.
+ * `onSelect` com preventDefault pra não brigar com o fechamento do DropdownMenu na abertura do
+ * AlertDialog (padrão shadcn pra "item de menu que abre diálogo").
  */
-export function PessoaArquivarButton({ id, nome }: PessoaArquivarButtonProps): React.ReactElement {
+export function PessoaArquivarMenuItem({ id, nome }: PessoaArquivarMenuItemProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
@@ -53,16 +55,9 @@ export function PessoaArquivarButton({ id, nome }: PessoaArquivarButtonProps): R
 	return (
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="rounded-lg text-danger hover:bg-danger/10 hover:text-danger"
-					aria-label={`Arquivar ${nome}`}
-						title={`Arquivar ${nome}`}
-				>
-					<Archive className="h-4 w-4" strokeWidth={2.4} />
-				</Button>
+				<DropdownMenuItem onSelect={(event) => event.preventDefault()} className="text-danger focus:text-danger">
+					Arquivar pessoa
+				</DropdownMenuItem>
 			</AlertDialogTrigger>
 			<AlertDialogContent>
 				<AlertDialogHeader>
