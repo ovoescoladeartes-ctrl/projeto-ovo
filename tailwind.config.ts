@@ -55,11 +55,6 @@ const config: Config = {
     				foreground: 'var(--danger-foreground)'
     			},
     			tertiary: 'var(--tertiary)',
-    			soft: {
-    				DEFAULT: 'var(--surface-soft)',
-    				hover: 'var(--surface-soft-hover)'
-    			},
-    			track: 'var(--surface-track)',
     			subtle: 'var(--surface-hover)',
     			border: {
     				DEFAULT: 'var(--border)',

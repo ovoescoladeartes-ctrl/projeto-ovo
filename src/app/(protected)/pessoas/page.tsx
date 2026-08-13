@@ -6,7 +6,6 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
-import { normalizar } from "@/core/pessoas/normalizar";
 import { toIso } from "@/core/shared/serialize";
 
 import { PessoasListagem, type PessoaListagemRow } from "./PessoasListagem";
@@ -55,7 +54,6 @@ interface PessoasPageProps {
 		interesse?: string;
 		turma?: string;
 		arquivados?: string;
-		busca?: string;
 		ordenar?: string;
 		pagina?: string;
 	}>;
@@ -152,10 +150,6 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	if (filtros.turma) {
 		pessoas = pessoas.filter((pessoa) => pessoa.turmas.includes(filtros.turma as string));
 	}
-	if (filtros.busca) {
-		const termoNormalizado = normalizar(filtros.busca);
-		pessoas = pessoas.filter((pessoa) => normalizar(pessoa.nome).startsWith(termoNormalizado));
-	}
 
 	const [campoOrdenar, direcaoOrdenar] = (filtros.ordenar ?? "nome_asc").split("_");
 	pessoas.sort((a, b) => {
@@ -194,7 +188,6 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 				opcoesInteresse={opcoesInteresse}
 				opcoesTurma={opcoesTurma}
 				turmasAtivas={turmasAtivas}
-				podeImportar={session.role === "admin"}
 			/>
 		</Suspense>
 	);

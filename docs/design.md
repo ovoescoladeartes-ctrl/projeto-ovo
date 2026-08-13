@@ -34,9 +34,7 @@ arquivo real antes de confiar cegamente nos valores aqui.
 | Texto sobre botão de perigo | `#F9FAFB` | implementado | `--danger-foreground` | Idem |
 | Borda forte (controles interativos) | `#d8d8d3` | implementado | `--border-strong` / `border-border-strong` | Checkbox, trilho do segmented control — mais escura que `--border` (bordas leves de card/tabela) |
 | Texto terciário/apagado | `#b3b3ac` | implementado | `--tertiary` / `text-tertiary` | Estados apagados (ex.: botão "Exportar" sem seleção) |
-| Fundo "soft" (preenchido, sem borda) | `#e6e6e1`, hover `#dedad3` | implementado | `--surface-soft` / `--surface-soft-hover` / `bg-soft`, `bg-soft-hover` | Botão "Filtros avançados" — preenchimento sólido, nunca borda |
-| Fundo do trilho de segmented control | `#f1f1ee` | implementado | `--surface-track` / `bg-track` | Fundo do trilho Ativos/Arquivados, com borda `border-strong` 1.5px |
-| Fundo de hover sutil | `#f2f2ef` | implementado | `--surface-hover` / `bg-subtle` | Estado de hover de controles com fundo branco/bordado (busca, chip inativo, aba inativa do segmented control) — `--accent` (oklch 0.97) é quase idêntico a `--background` (oklch 0.976) e não serve pra esse fim, hover fica imperceptível |
+| Fundo de hover sutil | `#e9e9e4` | implementado | `--surface-hover` / `bg-subtle` | Estado de hover de controles com fundo branco/bordado (chip inativo, aba inativa) — `--accent` (oklch 0.97) é quase idêntico a `--background` (oklch 0.976) e não serve pra esse fim, hover fica imperceptível |
 
 Origem desta leva de tokens: "Prompt de implementação — Cadastro (Pessoas & Turmas)", validado
 pelo usuário em 2026-08-12, com uma captura de tela de referência interativa da listagem de
@@ -44,6 +42,14 @@ Pessoas. Os valores de `bg-page`/`text-primary`/`text-secondary` desse documento
 ficaram próximos o bastante) dos tokens `--background`/`--foreground`/`--muted-foreground`
 existentes — não duplicados. `--surface-hover` foi acrescentado depois, no round de bugs de
 2026-08-12 (teste real encontrou hover imperceptível em vários controles).
+
+**Atualização — 2026-08-13 (round de padronização):** as alturas exatas (36px/30px por tipo de
+controle) e os tokens `--surface-soft`/`--surface-soft-hover`/`bg-soft`/`bg-soft-hover` e
+`--surface-track`/`bg-track` pedidos nos rounds anteriores foram **revertidos** — feedback de
+revisão determinou que customizar visualmente componentes shadcn além do necessário não vale a
+pena nesta fase; o padrão default do shadcn, seguindo Dashboard/Vagões como referência, é
+suficiente. `--border-strong`/`bg-subtle`/`--tertiary` continuam vivos porque ainda têm uso real
+(`Checkbox`, `Chip`, `ExportarDropdown`) — não foram tocados por essa reversão.
 
 ### Armadilha conhecida — `className` em cima de um `Button` com `variant`
 

@@ -53,19 +53,15 @@ export function FiltrosAvancadosSheet({ opcoesInteresse, opcoesTurma }: FiltrosA
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					className="h-[30px] cursor-pointer gap-2 rounded-lg bg-soft text-[13px] hover:!bg-soft-hover"
-				>
-					<Filter className="h-4 w-4" strokeWidth={2.4} />
+				<Button type="button" variant="outline" className="gap-2">
+					<Filter className="h-4 w-4" />
 					Filtros avançados
 					{filtrosAtivos > 0 ? (
 						<Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">
 							{filtrosAtivos}
 						</Badge>
 					) : null}
-					<ChevronDown className="h-4 w-4" strokeWidth={2.4} />
+					<ChevronDown className="h-4 w-4" />
 				</Button>
 			</SheetTrigger>
 			<SheetContent>

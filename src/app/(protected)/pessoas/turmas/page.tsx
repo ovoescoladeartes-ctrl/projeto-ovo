@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
+import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -127,11 +128,9 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	return (
 		<div>
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
-					<p className="text-sm text-muted-foreground">Cursos/turmas oferecidos pela escola.</p>
-				</div>
+			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
+				<CopilotoInput />
 				<NovaTurmaDialog />
 			</div>
 

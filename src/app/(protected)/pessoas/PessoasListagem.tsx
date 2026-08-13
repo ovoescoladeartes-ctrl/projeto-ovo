@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Download, Eye } from "lucide-react";
+import { ChevronDown, Eye, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -10,13 +10,13 @@ import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 import { ExportarDropdown } from "./ExportarDropdown";
 import { NovaPessoaDialog } from "./NovaPessoaDialog";
-import { PessoaArquivarButton } from "./PessoaArquivarButton";
-import { PessoaDesarquivarButton } from "./PessoaDesarquivarButton";
-import { PessoasBusca } from "./PessoasBusca";
+import { PessoaArquivarMenuItem } from "./PessoaArquivarMenuItem";
+import { PessoaDesarquivarMenuItem } from "./PessoaDesarquivarMenuItem";
 import { PessoasFiltroBar } from "./PessoasFiltroBar";
 import { PessoasPaginacao } from "./PessoasPaginacao";
 import { StatusBadge } from "./StatusBadge";
@@ -50,7 +50,6 @@ interface PessoasListagemProps {
 	opcoesInteresse: string[];
 	opcoesTurma: string[];
 	turmasAtivas: TurmaOpcao[];
-	podeImportar: boolean;
 }
 
 function formatarData(iso: string | null): string {
@@ -61,9 +60,9 @@ function formatarData(iso: string | null): string {
 }
 
 /**
- * Envolve busca/filtros/tabela/paginação num único card. Seleção em massa (checkbox por linha)
- * alimenta o botão "Exportar" do cabeçalho da tabela (ExportarDropdown) e troca o subtítulo do
- * cabeçalho da página pro estado "N selecionadas".
+ * Header (título | Copiloto | Nova pessoa) e abas Ativos/Arquivados seguem o mesmo padrão de
+ * Vagões — fora do card. O card só tem filtros + tabela + paginação. Seleção em massa (checkbox
+ * por linha) alimenta o botão "Exportar" do cabeçalho da tabela (ExportarDropdown).
  */
 export function PessoasListagem({
 	pessoas,
@@ -74,7 +73,6 @@ export function PessoasListagem({
 	opcoesInteresse,
 	opcoesTurma,
 	turmasAtivas,
-	podeImportar,
 }: PessoasListagemProps): React.ReactElement {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -125,7 +123,6 @@ export function PessoasListagem({
 		const ativo = campoAtual === campo;
 		return (
 			<ChevronDown
-				strokeWidth={2.4}
 				className={cn(
 					"h-3.5 w-3.5 transition-transform",
 					ativo ? "text-foreground" : "text-muted-foreground/50",
@@ -137,7 +134,7 @@ export function PessoasListagem({
 
 	return (
 		<div>
-			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
 					{selecionados.size > 0 ? (
@@ -146,43 +143,30 @@ export function PessoasListagem({
 							<button
 								type="button"
 								onClick={() => setSelecionados(new Set())}
-								className="cursor-pointer text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+								className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
 							>
 								Cancelar seleção
 							</button>
 						</p>
-					) : (
-						<p className="text-sm text-muted-foreground">Alunos e colaboradores cadastrados na escola.</p>
-					)}
+					) : null}
 				</div>
 				<CopilotoInput />
+				<NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />
 			</div>
 
-			<Card className="rounded-xl">
-				<CardContent className="p-4">
-					<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-						<PessoasBusca />
-						<div className="flex items-center gap-3">
-							{podeImportar ? (
-								<Button type="button" variant="outline" className="h-9 gap-2 rounded-[10px] text-sm hover:!border-border-strong hover:!bg-subtle" asChild>
-									<Link href="/pessoas/importar">
-										<Download className="h-4 w-4" strokeWidth={2.4} />
-										Baixar contatos
-									</Link>
-								</Button>
-							) : null}
-							<NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />
-						</div>
-					</div>
+			<div className="mb-4">
+				<AbaAtivosArquivados />
+			</div>
 
-					<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+			<Card>
+				<CardContent className="p-4">
+					<div className="mb-4 flex flex-wrap items-center gap-3">
 						<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
-						<AbaAtivosArquivados />
 					</div>
 
 					<div className="overflow-x-auto rounded-lg border border-border">
 						<table className="w-full text-left text-sm">
-							<thead className="border-b border-border bg-muted/50 text-[11.5px] uppercase tracking-[0.04em] text-muted-foreground">
+							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
 								<tr>
 									<th className="w-10 px-4 py-3">
 										<Checkbox
@@ -191,16 +175,16 @@ export function PessoasListagem({
 											aria-label="Selecionar todos"
 										/>
 									</th>
-									<th className="px-4 py-3 font-semibold">
+									<th className="px-4 py-3 font-medium">
 										<Link href={hrefOrdenar("nome")} className="inline-flex items-center gap-1 hover:text-foreground">
 											Nome
 											{iconeOrdenar("nome")}
 										</Link>
 									</th>
-									<th className="px-4 py-3 font-semibold">Tipo</th>
-									<th className="px-4 py-3 font-semibold">Status</th>
-									<th className="px-4 py-3 font-semibold">Turma(s)</th>
-									<th className="px-4 py-3 font-semibold">
+									<th className="px-4 py-3 font-medium">Tipo</th>
+									<th className="px-4 py-3 font-medium">Status</th>
+									<th className="px-4 py-3 font-medium">Turma(s)</th>
+									<th className="px-4 py-3 font-medium">
 										<Link
 											href={hrefOrdenar("criadoEm")}
 											className="inline-flex items-center gap-1 hover:text-foreground"
@@ -228,12 +212,9 @@ export function PessoasListagem({
 												/>
 											</td>
 											<td className="px-4 py-3">
-												<div className="flex items-center gap-1">
-													{!pessoa.ativo ? <PessoaDesarquivarButton id={pessoa.id} nome={pessoa.nome} /> : null}
-													<Link href={`/pessoas/${pessoa.id}`} className="font-semibold text-foreground hover:underline">
-														{pessoa.nome}
-													</Link>
-												</div>
+												<Link href={`/pessoas/${pessoa.id}`} className="font-medium text-foreground hover:underline">
+													{pessoa.nome}
+												</Link>
 											</td>
 											<td className="px-4 py-3 text-muted-foreground">
 												{[pessoa.ehAluno ? "Aluno" : null, pessoa.ehProfessor ? "Professor" : null].filter(Boolean).join(", ")}
@@ -258,16 +239,28 @@ export function PessoasListagem({
 														type="button"
 														variant="ghost"
 														size="icon"
-														className="rounded-lg"
 														aria-label={`Ver ${pessoa.nome}`}
-											title={`Ver ${pessoa.nome}`}
+														title={`Ver ${pessoa.nome}`}
 														asChild
 													>
 														<Link href={`/pessoas/${pessoa.id}`}>
-															<Eye className="h-4 w-4" strokeWidth={2.4} />
+															<Eye className="h-4 w-4" />
 														</Link>
 													</Button>
-													{pessoa.ativo ? <PessoaArquivarButton id={pessoa.id} nome={pessoa.nome} /> : null}
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+																<MoreVertical className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															{pessoa.ativo ? (
+																<PessoaArquivarMenuItem id={pessoa.id} nome={pessoa.nome} />
+															) : (
+																<PessoaDesarquivarMenuItem id={pessoa.id} nome={pessoa.nome} />
+															)}
+														</DropdownMenuContent>
+													</DropdownMenu>
 												</div>
 											</td>
 										</tr>
