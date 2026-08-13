@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import type { Matricula } from "@/core/matriculas/schema";
 import type { Pessoa } from "@/core/pessoas/schema";
 import { formatCentavos, parseCentavosInput } from "@/lib/currency";
@@ -199,24 +200,17 @@ export function PessoaDetalheEditor({
 
 	return (
 		<div>
-			{modoEdicao ? (
-				<div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted px-4 py-3">
-					<p className="text-sm text-muted-foreground">
-						Editando {pessoa.nome} — as mudanças valem pra página inteira.
-					</p>
-					<div className="flex gap-2">
-						<Button type="button" variant="outline" size="sm" onClick={handleCancelar} disabled={isPending}>
-							Cancelar
-						</Button>
-						<Button type="button" size="sm" onClick={handleSalvar} disabled={isPending || nome.trim() === "" || (!ehAluno && !ehProfessor)}>
-							{isPending ? "Salvando..." : "Salvar"}
-						</Button>
-					</div>
-				</div>
-			) : null}
+			<PageBreadcrumb
+				items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: pessoa.nome }]}
+			/>
 
 			<div className="mt-3 mb-6 flex flex-wrap items-start justify-between gap-4">
 				<div className="flex-1 space-y-4">
+					<div>
+						<h1 className="text-2xl font-bold text-foreground sm:text-3xl">{pessoa.nome}</h1>
+						{pessoa.ativo ? null : <p className="text-sm text-muted-foreground">Arquivado</p>}
+					</div>
+
 					{modoEdicao ? (
 						<div className="space-y-1.5">
 							<Label htmlFor={`pessoa-nome-${pessoa.id}`}>Nome</Label>
@@ -228,12 +222,7 @@ export function PessoaDetalheEditor({
 								className="max-w-md"
 							/>
 						</div>
-					) : (
-						<div>
-							<h1 className="text-2xl font-bold text-foreground sm:text-3xl">{pessoa.nome}</h1>
-							{pessoa.ativo ? null : <p className="text-sm text-muted-foreground">Arquivado</p>}
-						</div>
-					)}
+					) : null}
 
 					{modoEdicao ? (
 						<div className="space-y-1.5">
@@ -326,11 +315,20 @@ export function PessoaDetalheEditor({
 					) : null}
 				</div>
 
-				{!modoEdicao ? (
+				{modoEdicao ? (
+					<div className="flex gap-2">
+						<Button type="button" variant="outline" size="sm" onClick={handleCancelar} disabled={isPending}>
+							Cancelar
+						</Button>
+						<Button type="button" size="sm" onClick={handleSalvar} disabled={isPending || nome.trim() === "" || (!ehAluno && !ehProfessor)}>
+							{isPending ? "Salvando..." : "Salvar"}
+						</Button>
+					</div>
+				) : (
 					<Button type="button" variant="outline" size="sm" onClick={() => setModoEdicao(true)}>
 						Editar
 					</Button>
-				) : null}
+				)}
 			</div>
 
 			{ehAluno ? (

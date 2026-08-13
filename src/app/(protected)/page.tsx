@@ -13,6 +13,7 @@ import {
 	VAGOES_ROLES,
 } from "@/core/dashboard/consultas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { cn } from "@/lib/utils";
 
 export default async function HomePage(): Promise<React.ReactElement> {
 	const session = await getServerSession();
@@ -30,7 +31,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
 	]);
 
-	const abaPadrao = podeVerComunicacao ? "comunicacao" : "financeiro";
+	const abaPadrao = podeVerFinanceiro ? "financeiro" : "comunicacao";
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -41,20 +42,23 @@ export default async function HomePage(): Promise<React.ReactElement> {
 			) : (
 				<Tabs defaultValue={abaPadrao}>
 					<TabsList className="bg-transparent p-0">
-						{podeVerComunicacao ? (
-							<TabsTrigger
-								value="comunicacao"
-								className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-							>
-								Comunicação
-							</TabsTrigger>
-						) : null}
 						{podeVerFinanceiro ? (
 							<TabsTrigger
 								value="financeiro"
-								className="ml-6 rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Financeiro
+							</TabsTrigger>
+						) : null}
+						{podeVerComunicacao ? (
+							<TabsTrigger
+								value="comunicacao"
+								className={cn(
+									"rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+									podeVerFinanceiro && "ml-6",
+								)}
+							>
+								Comunicação
 							</TabsTrigger>
 						) : null}
 					</TabsList>

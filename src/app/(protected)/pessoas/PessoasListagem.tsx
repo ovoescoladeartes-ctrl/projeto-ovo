@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -134,7 +135,8 @@ export function PessoasListagem({
 
 	return (
 		<div>
-			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Pessoas" }]} />
+			<div className="mb-4 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
 					{selecionados.size > 0 ? (

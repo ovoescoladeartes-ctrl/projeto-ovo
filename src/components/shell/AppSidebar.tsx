@@ -61,7 +61,13 @@ const NAV_ITEMS: readonly NavItem[] = [
 		],
 	},
 	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
-	{ label: "Configurações", icon: Settings, href: null, roles: ["admin", "financeiro", "comunicacao", "educador"] },
+	{
+		label: "Configurações",
+		icon: Settings,
+		href: null,
+		roles: ["admin", "comunicacao"],
+		children: [{ label: "Mensagens", href: "/mensagens" }],
+	},
 ];
 
 function rotaAtiva(pathname: string, href: string): boolean {

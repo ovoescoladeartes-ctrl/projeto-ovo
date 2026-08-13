@@ -8,10 +8,10 @@ import { confirmarSincronizacaoWix, previewSincronizacaoWix, type ConfirmWixResu
 
 function Contagem({ label, criar, atualizar }: { label: string; criar: number; atualizar?: number }): React.ReactElement {
 	return (
-		<div className="rounded-lg border border-border bg-card p-4">
-			<p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-			<p className="mt-1 text-2xl font-bold text-foreground">{criar}</p>
-			<p className="text-xs text-muted-foreground">
+		<div className="min-w-0 rounded-lg border border-border bg-card p-4">
+			<p className="break-words text-xs text-muted-foreground">{label}</p>
+			<p className="mt-1 break-words text-2xl font-bold text-foreground">{criar}</p>
+			<p className="break-words text-xs text-muted-foreground">
 				a criar{atualizar !== undefined ? ` · ${atualizar} a atualizar` : ""}
 			</p>
 		</div>
