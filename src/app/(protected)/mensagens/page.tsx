@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Mensagem, MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
@@ -50,7 +51,8 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+			<PageBreadcrumb items={[{ label: "Configurações" }, { label: "Biblioteca de mensagens" }]} />
+			<div className="mb-6 mt-2 flex flex-wrap items-center justify-between gap-4">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Biblioteca de mensagens</h1>
 					<p className="text-sm text-muted-foreground">Respostas prontas por categoria, usadas no board de Vagões.</p>
