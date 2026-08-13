@@ -38,6 +38,8 @@ export async function criarRecebimento(input: unknown): Promise<ActionResult> {
 				...parsed.data,
 				dataRecebimento: new Date(parsed.data.dataRecebimento),
 				ativo: true,
+				wixOrderId: null,
+				wixLineItemId: null,
 			});
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };

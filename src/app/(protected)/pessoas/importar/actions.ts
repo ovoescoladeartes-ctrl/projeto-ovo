@@ -321,6 +321,8 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 				ativo: true,
 				criadoViaContatoId: null,
 				criadoEm: FieldValue.serverTimestamp(),
+				wixContactId: null,
+				origem: "manual",
 			});
 			contadorNoBatch += 1;
 			importadas += 1;

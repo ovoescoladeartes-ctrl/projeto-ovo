@@ -1,10 +1,5 @@
-import {
-	mockKpisComunicacao,
-	mockKpisFinanceiro,
-	mockPendenciasComunicacao,
-} from "@/core/dashboard/mockData";
-
-import { mockAlunosPendentes } from "./mockAlunosPendentes";
+import { GeminiApiError } from "./errors";
+import { geminiGenerateJson } from "./geminiClient";
 import type { CopilotoCta } from "./types";
 
 interface CopilotoResposta {
@@ -12,81 +7,78 @@ interface CopilotoResposta {
 	cta?: CopilotoCta;
 }
 
-function normalizar(texto: string): string {
-	return texto
-		.toLowerCase()
-		.normalize("NFD")
-		.replace(/[̀-ͯ]/g, "");
-}
+const ROTAS_VALIDAS = ["/", "/vagoes", "/pessoas", "/pessoas/turmas", "/caixa"] as const;
 
-function respostaPagamentosPendentes(): CopilotoResposta {
-	const nomes = mockAlunosPendentes
-		.map((aluno) => `${aluno.nome} (${aluno.motivo})`)
-		.join(", ");
+const RESPONSE_SCHEMA = {
+	type: "OBJECT",
+	properties: {
+		texto: { type: "STRING" },
+		cta: {
+			type: "OBJECT",
+			nullable: true,
+			properties: {
+				label: { type: "STRING" },
+				href: { type: "STRING", enum: ROTAS_VALIDAS },
+			},
+			required: ["label", "href"],
+		},
+	},
+	required: ["texto"],
+};
 
-	return {
-		texto: `Encontrei ${mockAlunosPendentes.length} alunos com pagamento pendente: ${nomes}.`,
-		cta: { label: "Ver", href: "/caixa" },
-	};
-}
+const SYSTEM_INSTRUCTION = `
+Você é o Copiloto do painel interno de uma escola de artes. Responda em
+português do Brasil, em 1-2 frases, direto ao ponto.
 
-function respostaLeadsSemResposta(): CopilotoResposta {
-	const nomes = mockPendenciasComunicacao.map((item) => item.meta.split(" · ")[0]).join(", ");
+Responda SOMENTE com base nos dados fornecidos no contexto abaixo do prompt —
+nunca invente números, nomes ou fatos que não estejam lá. Se o contexto não
+tiver o suficiente pra responder, diga isso claramente em vez de chutar.
 
-	return {
-		texto: `Tem ${mockPendenciasComunicacao.length} pendências de comunicação em aberto: ${nomes}.`,
-		cta: { label: "Ver", href: "/vagoes" },
-	};
-}
+Quando fizer sentido levar a pessoa pra uma tela do sistema pra ver mais
+detalhes ou agir, inclua um "cta" com label curto (ex: "Ver") e o href de uma
+das rotas válidas. Caso contrário, omita o cta.
+`.trim();
 
-function respostaAlunosAtivos(): CopilotoResposta {
-	const kpi = mockKpisComunicacao.find((item) => item.label === "Alunos ativos");
-
-	return {
-		texto: `A escola tem ${kpi?.value ?? "?"} alunos ativos no momento${kpi?.subtitle ? ` (${kpi.subtitle})` : ""}.`,
-		cta: { label: "Ver", href: "/pessoas" },
-	};
-}
-
-function respostaResumoDoDia(): CopilotoResposta {
-	const recebido = mockKpisFinanceiro.find((item) => item.label === "Recebido no mês");
-	const alunos = mockKpisComunicacao.find((item) => item.label === "Alunos ativos");
-	const leads = mockKpisComunicacao.find((item) => item.label === "Leads da semana");
-
-	return {
-		texto: `Hoje: ${alunos?.value ?? "?"} alunos ativos, ${leads?.value ?? "?"} leads na semana e ${recebido?.value ?? "?"} recebidos no mês (${recebido?.subtitle ?? ""}).`,
-	};
+interface CopilotoRespostaBruta {
+	texto: string;
+	cta?: { label: string; href: string } | null;
 }
 
 function respostaFallback(): CopilotoResposta {
 	return {
-		texto: "Ainda não sei responder isso — essa é uma pergunta pra guardar pro Copiloto de verdade (v5).",
+		texto: "Não consegui falar com o Copiloto agora — tenta de novo em instantes.",
 	};
 }
 
 /**
- * Motor de resposta 100% mockado: casa a pergunta contra alguns padrões de
- * palavra-chave e monta a resposta a partir dos dados mocados do dashboard,
- * simulando uma consulta à base. Sem IA nenhuma por trás.
+ * Motor de resposta do Copiloto: manda a pergunta + um contexto com dados
+ * reais do dashboard (já filtrado pela role de quem pergunta, ver
+ * montarContextoCopiloto) pro Gemini, e pede de volta um JSON estruturado
+ * { texto, cta? } já pronto pra exibir.
  */
-export function gerarResposta(pergunta: string): CopilotoResposta {
-	const texto = normalizar(pergunta);
+export async function gerarResposta(pergunta: string, contexto: string): Promise<CopilotoResposta> {
+	const prompt = `Contexto:\n${contexto}\n\nPergunta: ${pergunta}`;
 
-	if (/pag|inadimpl|atras|cobranc/.test(texto)) {
-		return respostaPagamentosPendentes();
+	try {
+		const bruto = await geminiGenerateJson({
+			systemInstruction: SYSTEM_INSTRUCTION,
+			prompt,
+			responseSchema: RESPONSE_SCHEMA,
+		});
+
+		const resposta = JSON.parse(bruto) as CopilotoRespostaBruta;
+
+		return {
+			texto: resposta.texto,
+			cta: resposta.cta ?? undefined,
+		};
+	} catch (erro) {
+		if (erro instanceof GeminiApiError) {
+			console.error(`[copiloto] Gemini falhou (${erro.httpStatus}): ${erro.message}`);
+		} else {
+			console.error("[copiloto] falha ao interpretar resposta do Gemini", erro);
+		}
+
+		return respostaFallback();
 	}
-
-	if (/lead|sem resposta|esfriando|follow.?up/.test(texto)) {
-		return respostaLeadsSemResposta();
-	}
-
-	if (/quantos alunos|alunos ativos|numero de alunos/.test(texto)) {
-		return respostaAlunosAtivos();
-	}
-
-	if (/resumo|como esta|como anda|hoje|no dia/.test(texto)) {
-		return respostaResumoDoDia();
-	}
-
-	return respostaFallback();
 }

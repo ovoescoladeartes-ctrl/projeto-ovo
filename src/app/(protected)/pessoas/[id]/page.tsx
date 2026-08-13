@@ -31,6 +31,8 @@ interface PessoaDoc {
 	numeroMatriculaProfessor?: string | null;
 	email?: string | null;
 	telefone?: string | null;
+	wixContactId?: string | null;
+	origem?: Pessoa["origem"];
 }
 
 interface TurmaResumoDoc {
@@ -61,6 +63,8 @@ interface RecebimentoDoc {
 	status: string;
 	dataRecebimento?: Timestamp;
 	ativo: boolean;
+	wixOrderId?: string | null;
+	wixLineItemId?: string | null;
 }
 
 const RECEBIMENTO_STATUS_LABELS: Record<string, string> = {
@@ -134,6 +138,8 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 		numeroMatriculaProfessor: data.numeroMatriculaProfessor ?? null,
 		email: data.email ?? null,
 		telefone: data.telefone ?? null,
+		wixContactId: data.wixContactId ?? null,
+		origem: data.origem ?? "manual",
 	};
 
 	const turmasNomes = new Map<string, string>();
@@ -185,6 +191,8 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 			status: recebimentoData.status as RecebimentoStatus,
 			dataRecebimento: toIso(recebimentoData.dataRecebimento ?? null),
 			ativo: recebimentoData.ativo,
+			wixOrderId: recebimentoData.wixOrderId ?? null,
+			wixLineItemId: recebimentoData.wixLineItemId ?? null,
 		};
 	});
 	recebimentos.sort((a, b) => (b.dataRecebimento ?? "").localeCompare(a.dataRecebimento ?? ""));

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Origem } from "@/core/shared/origem";
+
 export const ALUNO_STATUS = ["lead", "matriculado"] as const;
 export type StatusAluno = (typeof ALUNO_STATUS)[number];
 
@@ -69,4 +71,7 @@ export interface Pessoa {
 	 * alguma Turma ativa pela primeira vez. Somente leitura na UI.
 	 */
 	numeroMatriculaProfessor: string | null;
+	/** Nulo em Pessoas cadastradas antes da integração Wix existir. */
+	wixContactId: string | null;
+	origem: Origem;
 }

@@ -11,6 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/she
 import { CopilotoComposer } from "./CopilotoComposer";
 import { CopilotoMessageBubble } from "./CopilotoMessageBubble";
 import { useCopiloto } from "./CopilotoProvider";
+import { CopilotoThinkingBubble } from "./CopilotoThinkingBubble";
 
 export function CopilotoDrawer(): React.ReactElement {
 	const { messages, isDrawerOpen, isThinking, closeDrawer, submitQuestion } = useCopiloto();
@@ -48,17 +49,13 @@ export function CopilotoDrawer(): React.ReactElement {
 						{messages.map((message) => (
 							<CopilotoMessageBubble key={message.id} message={message} />
 						))}
-						{isThinking ? (
-							<div className="rounded-2xl border border-border bg-card p-4">
-								<p className="text-sm text-muted-foreground">Consultando os dados da escola...</p>
-							</div>
-						) : null}
+						{isThinking ? <CopilotoThinkingBubble /> : null}
 						<div ref={scrollAnchorRef} />
 					</div>
 				</ScrollArea>
 
 				<div className="p-4 pt-0">
-					<CopilotoComposer onSubmit={submitQuestion} />
+					<CopilotoComposer onSubmit={submitQuestion} disabled={isThinking} />
 				</div>
 			</SheetContent>
 		</Sheet>
