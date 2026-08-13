@@ -63,6 +63,22 @@ use o sufixo `!` (ex.: `hover:!bg-soft-hover`) pra garantir precedência — nã
 classes. Isso não é um problema em componentes que não usam `variant` (`Chip`,
 `AbaAtivosArquivados`), só em cima do `Button` do shadcn.
 
+### Armadilha conhecida — atributo `hidden` perde pra classe `flex`/`grid`/`block`
+
+Qualquer elemento com o atributo HTML `hidden` (ex.: o `TabsContent` inativo do Radix, que usa
+`hidden` pra esconder a aba não selecionada) **e também** uma classe de display do Tailwind
+(`flex`, `grid`, `block`, etc.) fica com o `display` da classe vencendo, não o `display: none` do
+`hidden` — porque `@tailwind utilities` é injetado depois de `@tailwind base` no CSS gerado, e as
+duas regras têm a mesma especificidade, então quem vem por último no cascade ganha. O elemento
+"escondido" continua ocupando espaço no layout normalmente (só fica com conteúdo vazio + a própria
+margem/gap dele). Foi exatamente a causa de um bug real: no Dashboard, a aba Financeiro tinha um
+espaço quase duas vezes maior acima do primeiro card do que a aba Comunicação, porque o
+`TabsContent` de Comunicação (inativo, `hidden`, mas com `flex flex-col gap-6` na classe) continuava
+renderizado no fluxo, empurrando o conteúdo de Financeiro pra baixo. Corrigido globalmente em
+`src/app/globals.css` com `[hidden] { display: none !important; }` — não precisa de mais nada por
+componente, mas vale saber a causa se aparecer um espaçamento estranho perto de qualquer
+`TabsContent`/conteúdo condicional que usa `hidden` em vez de desmontar.
+
 ### Tipografia
 
 | Token | Valor estimado | Confiança | Uso |
@@ -161,6 +177,7 @@ sidebar como um drawer.
 | Segmented control (Ativos/Arquivados) | — | `AbaAtivosArquivados` (`src/components/`) |
 | Botão redondo de ação primária ("+") | `Button size="icon"` + `rounded-full` | Trigger de `NovaPessoaDialog` |
 | Exportar contextual (dropdown de ações, disparado do cabeçalho de uma tabela) | `DropdownMenu` | `ExportarDropdown` (`src/app/(protected)/pessoas/`) |
+| Trail de navegação acima do `<h1>` de toda página interna | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator` | `PageBreadcrumb` (`src/components/shell/PageBreadcrumb.tsx`) |
 
 Biblioteca de ícones: **lucide-react** (estilo de traço fino consistente com os ícones do
 Figma). Nos componentes de Cadastro listados acima, os ícones usam traço mais grosso (2.1–2.6px,
@@ -197,6 +214,17 @@ desta conversa:
    (~90% do tempo). Antes de considerar qualquer UI pronta, teste em viewport mobile.
    Ver seção "Responsividade" nos tokens acima para o que já foi implementado (sidebar
    com drawer mobile via `Sidebar`/`Sheet` do shadcn).
+   **Corolário — todo `Card`/item dentro de um `grid`/`flex` que exibe número, valor
+   monetário ou qualquer texto sem espaço pra quebrar precisa de `min-w-0` no item e
+   `break-words` no texto.** Bug corrigido em 2026-08-13: os `KpiCard` do Dashboard
+   (`RECEBIDO NO MÊS`, `SALDO VIVO`) vazavam pra fora do card em telas estreitas — item de
+   grid, por padrão CSS (`min-width: auto`), nunca encolhe abaixo do tamanho intrínseco do
+   próprio conteúdo, mesmo com a coluna do grid configurada como `minmax(0, 1fr)`
+   (`grid-cols-N` do Tailwind). "R$ 1.570,00" usa espaço não quebrável entre o `R$` e o
+   número (`Intl.NumberFormat`/`toLocaleString`), então sem `break-words` o texto não tem
+   onde quebrar e vaza. Ver `KpiCard.tsx`/`FunnelStageCard.tsx` como referência; o board de
+   Vagões (`Board.tsx`/`ContatoCard.tsx`) já usava esse padrão corretamente antes desse bug
+   ser corrigido em outro lugar — copie de lá também.
 6. **Todo título de página (`<h1>`) usa exatamente as classes do `DashboardHeader`**:
    `text-2xl font-bold text-foreground sm:text-3xl`. `DashboardHeader.tsx` é a referência
    canônica — nunca `text-lg`/`font-semibold` (tamanho de subtítulo, usado por engano nas
@@ -231,6 +259,29 @@ desta conversa:
    ```
    (o `ml-6` é só no segundo trigger em diante, para o espaçamento entre abas — o primeiro
    não leva margem lateral).
+   **Sempre que a `Tabs` for especificamente Comunicação/Financeiro (Dashboard, Vagões — e
+   qualquer rota nova que reúna essas duas seções), Financeiro vem primeiro, Comunicação
+   depois.** Decidido com o Rogério em 2026-08-13. Isso vale só pra esse par específico de abas
+   (Comunicação/Financeiro) — não é uma regra geral de ordenação pra outros pares (ex.:
+   Recebimentos/Repasses no Caixa mantém sua própria ordem). Como o `ml-6` decora o *segundo*
+   trigger renderizado (não um valor fixo por rótulo), ele acompanha a troca: some do trigger
+   que virou primeiro e aparece no que virou segundo, condicionado a esse primeiro realmente
+   estar sendo renderizado (ex.: Vagões só aplica `ml-6` em "Comunicação" quando `podeVerFinanceiro`
+   também for `true` e o trigger "Financeiro" estiver presente).
+   **Espaçamento entre a `TabsList` e o conteúdo abaixo dela é sempre `mt-6` (24px)** — nunca
+   o `mt-2` default do `TabsContent` do shadcn nem outro valor arbitrário. Quando o conteúdo é
+   comum a todas as abas em vez de estar dentro de um `TabsContent` por aba (caso de Vagões,
+   onde o `Board` não muda entre Comunicação/Financeiro), o próprio `<Tabs>` leva `mb-6` em vez
+   de `mt-6` no conteúdo — mesmo valor, aplicado do outro lado do mesmo espaço. Bug corrigido em
+   2026-08-13: Vagões estava com `mb-4` (16px) enquanto Dashboard e Caixa usam `mt-6` (24px) no
+   `TabsContent`, um espaçamento visivelmente menor e inconsistente com o resto do app.
+   ```tsx
+   {/* Conteúdo por aba (Dashboard, Caixa) */}
+   <TabsContent value="..." className="mt-6 flex flex-col gap-6">...</TabsContent>
+
+   {/* Conteúdo compartilhado entre abas (Vagões) */}
+   <Tabs defaultValue="..." className="mb-6">...</Tabs>
+   ```
 8. **Todo dropdown de seleção única usa o `Select` do shadcn (`src/components/ui/select.tsx`),
    nunca um `<select>` HTML cru estilizado na mão** — era o padrão em todas as telas do v1
    (Pessoas, Turmas, Matricular, filtro de Vagões, Caixa, Mensagens), e por isso o
@@ -268,6 +319,60 @@ desta conversa:
       permanente (irreversível de verdade). Ver `PessoaExcluirButton.tsx`.
     Ações totalmente reversíveis na hora (Desarquivar pessoa, Restaurar matrícula) não precisam
     de nenhuma confirmação — o próprio desfazer já é a rede de segurança.
+12. **Página interna com mais de um nível de hierarquia (dentro do `(protected)`) usa
+    `PageBreadcrumb` (`src/components/shell/PageBreadcrumb.tsx`, sobre o `Breadcrumb` do shadcn)
+    imediatamente acima do `<h1>`.** Decidido com o Rogério em 2026-08-13, ajustado no mesmo dia.
+    Regras do trail:
+    - **Nunca repete "Dashboard"** — o trail começa direto na seção (Dashboard, sendo a raiz, não
+      tem breadcrumb nenhum).
+    - **Página de nível único na sidebar (Vagões, Caixa) não leva breadcrumb algum** — um trail de
+      um item só só repetiria o texto do `<h1>` logo abaixo (bug corrigido em 2026-08-13: existia
+      `<PageBreadcrumb items={[{ label: "Vagões" }]} />` nessas páginas, redundante com o h1
+      "Vagões" na linha seguinte). `PageBreadcrumb` só entra quando o trail tem 2+ itens de
+      verdade.
+    - Página dentro de um grupo da sidebar sem rota própria (Cadastro → Pessoas/Turmas,
+      Configurações → Mensagens) usa o rótulo do grupo como primeiro item, **sem `href`** (texto
+      simples, não clicável — não existe `/cadastro` nem `/configuracoes` como rota). Controle de
+      acessos e Sincronizar com a Wix também usam "Configurações" como primeiro item por
+      pertencerem ao mesmo grupo conceitual, mesmo ainda não linkados na sidebar (ver "Perguntas e
+      premissas em aberto").
+    - Rota aninhada (`/pessoas/[id]`, `/pessoas/importar`) inclui o nível intermediário como link
+      de volta (`{ label: "Pessoas", href: "/pessoas" }`) antes do item atual — isso substitui
+      qualquer link manual de "← Voltar para X" que a página tivesse antes.
+    Copie exatamente (exemplo de rota aninhada):
+    ```tsx
+    <PageBreadcrumb
+      items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: pessoa.nome }]}
+    />
+    ```
+13. **`AbaAtivosArquivados` (segmented control Ativos/Arquivados) é sempre alinhado à esquerda**,
+    igual em toda página que o usa (Pessoas, Turmas) — nunca `flex justify-end`. Bug corrigido em
+    2026-08-13: a página de Turmas envolvia o componente num `<div className="mb-4 flex
+    justify-end">`, jogando-o pra direita, enquanto Pessoas usa só `<div className="mb-4">`
+    (alinhamento natural à esquerda). Copie exatamente:
+    ```tsx
+    <div className="mb-4">
+      <AbaAtivosArquivados />
+    </div>
+    ```
+14. **Rótulo de `Card`/item avulso (KPI, contador) nunca usa `uppercase`/`tracking-wide` — texto
+    normal (ex.: "Recebido no mês", "Pessoas"), nunca caixa alta ("RECEBIDO NO MÊS").** Decidido
+    com o Rogério em 2026-08-13. As strings de label nesses casos já vinham em texto normal no
+    código (`core/dashboard/consultas.ts`, `WixSyncPanel.tsx`) — quem forçava caixa alta era só a
+    classe `uppercase` (+ `tracking-wide`, que só faz sentido acompanhando `uppercase`); os dois
+    saíram juntos. Ver `KpiCard.tsx`/`WixSyncPanel.tsx` (`Contagem`) como referência.
+    **Cabeçalho de tabela (`<thead>`) é o oposto — continua sempre `uppercase tracking-wide`,
+    de propósito**: é o padrão consistente hoje em toda tabela do app (Pessoas, Turmas,
+    Importar, Pessoa detalhe, Mensagens, Admin/Usuários, Caixa Recebimentos/Repasses) e não deve
+    ser alterado nem por engano nem por analogia com a regra dos cards acima — são contextos
+    diferentes (rótulo de valor destacado vs. cabeçalho denso de coluna). Copie exatamente:
+    ```tsx
+    {/* Card/contador — sem uppercase */}
+    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+
+    {/* Cabeçalho de tabela — com uppercase */}
+    <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+    ```
 
 ---
 
@@ -301,3 +406,8 @@ desta conversa:
    no repositório nem foram enviados na conversa — a implementação do formato de importação CSV
    (papel duplo `A&P`, múltiplas turmas por linha) não foi validada contra o arquivo de teste
    mencionado.
+8. **`/admin/usuarios` (Controle de acessos) e `/admin/wix-sync` (Sincronizar com a Wix) ainda não
+   têm link na sidebar** — só acessíveis por URL direta. `Configurações` na sidebar hoje só expande
+   pra "Mensagens" (adicionado em 2026-08-13). Se/quando essas duas telas entrarem no menu, seus
+   `PageBreadcrumb` já usam "Configurações" como primeiro item — só falta o item em `NAV_ITEMS`
+   (`src/components/shell/AppSidebar.tsx`).

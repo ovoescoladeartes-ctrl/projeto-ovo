@@ -1,5 +1,4 @@
 import type { Timestamp } from "firebase-admin/firestore";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getServerSession } from "@/core/auth/getServerSession";
@@ -199,10 +198,6 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 
 	return (
 		<div>
-			<Link href="/pessoas" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
-				← Voltar para Pessoas
-			</Link>
-
 			<PessoaDetalheEditor
 				pessoa={pessoa}
 				opcoesInteresse={opcoesInteresse}

@@ -89,3 +89,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* @tailwind utilities sempre vence @tailwind base em empate de especificidade — sem isso, um
+   elemento com o atributo `hidden` (ex.: TabsContent inativo do Radix) e a classe `flex`/`grid`
+   continua com display aplicado e ocupando espaço no layout, mesmo escondido. */
+[hidden] {
+  display: none !important;
+}

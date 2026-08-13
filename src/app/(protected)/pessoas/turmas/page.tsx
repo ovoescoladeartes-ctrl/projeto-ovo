@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -132,13 +133,14 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	return (
 		<div>
-			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Turmas" }]} />
+			<div className="mb-4 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
 				<CopilotoInput />
 				<NovaTurmaDialog />
 			</div>
 
-			<div className="mb-4 flex justify-end">
+			<div className="mb-4">
 				<Suspense fallback={null}>
 					<AbaAtivosArquivados />
 				</Suspense>

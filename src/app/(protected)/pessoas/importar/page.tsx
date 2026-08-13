@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 
 import { ImportarForm } from "./ImportarForm";
@@ -16,9 +16,7 @@ export default async function ImportarPessoasPage(): Promise<React.ReactElement>
 
 	return (
 		<div>
-			<Link href="/pessoas" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
-				← Voltar para Pessoas
-			</Link>
+			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: "Importar" }]} />
 
 			<div className="mt-3 mb-6">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Importar Pessoas (CSV)</h1>
