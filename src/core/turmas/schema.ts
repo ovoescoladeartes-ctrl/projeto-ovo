@@ -5,10 +5,15 @@ import type { Origem } from "@/core/shared/origem";
 export const REPASSE_TIPOS = ["percentual", "fixo"] as const;
 export type RepasseTipo = (typeof REPASSE_TIPOS)[number];
 
+export const TURMA_TIPOS = ["curso", "oficina"] as const;
+export type TurmaTipo = (typeof TURMA_TIPOS)[number];
+
 const turmaBaseSchema = z.object({
 	nome: z.string().trim().min(1, "Nome é obrigatório."),
 	/** Assunto do curso (ex.: "Aquarela") — separado do nome de exibição, que pode incluir dia/horário. */
 	assunto: z.string().trim().min(1, "Assunto é obrigatório."),
+	/** Curso (várias aulas ao longo do tempo) vs. Oficina (evento de sessão única). `null` = não classificado. */
+	tipo: z.enum(TURMA_TIPOS).nullable().default(null),
 	mensalidadeCentavos: z.number().int().nonnegative(),
 	repasseTipo: z.enum(REPASSE_TIPOS),
 	repasseValor: z.number().nonnegative(),
@@ -41,6 +46,7 @@ export interface Turma {
 	id: string;
 	nome: string;
 	assunto: string;
+	tipo: TurmaTipo | null;
 	mensalidadeCentavos: number;
 	repasseTipo: RepasseTipo;
 	repasseValor: number;

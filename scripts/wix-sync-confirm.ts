@@ -241,11 +241,12 @@ async function main(): Promise<void> {
 			merge: false,
 			data: {
 				nome: item.nome,
-				assunto: item.nome,
+				assunto: "",
+				tipo: item.tipo,
 				mensalidadeCentavos: item.mensalidadeCentavos,
 				repasseTipo: "percentual",
 				repasseValor: 0,
-				dataInicio: null,
+				dataInicio: item.dataInicio !== null ? new Date(item.dataInicio) : null,
 				dataFim: null,
 				educadorPessoaId: null,
 				capacidadeMaxima: null,
@@ -260,7 +261,7 @@ async function main(): Promise<void> {
 		operacoes.push({
 			ref: firestore.collection("turmas").doc(item.turmaId),
 			merge: true,
-			data: { nome: item.nome, mensalidadeCentavos: item.mensalidadeCentavos, origem: "wix" },
+			data: { mensalidadeCentavos: item.mensalidadeCentavos, origem: "wix" },
 		});
 	});
 

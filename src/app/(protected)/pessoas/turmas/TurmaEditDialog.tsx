@@ -26,10 +26,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PessoaBusca } from "@/core/pessoas/actions";
-import type { RepasseTipo, Turma } from "@/core/turmas/schema";
+import type { RepasseTipo, Turma, TurmaTipo } from "@/core/turmas/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { atualizarTurma, inativarTurma } from "./actions";
+
+const TIPO_SEM_CLASSIFICACAO = "nenhum";
 
 function centavosParaInput(centavos: number): string {
 	return (centavos / 100).toFixed(2).replace(".", ",");
@@ -49,6 +51,7 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 	const [open, setOpen] = useState(false);
 	const [nome, setNome] = useState(turma.nome);
 	const [assunto, setAssunto] = useState(turma.assunto);
+	const [tipo, setTipo] = useState(turma.tipo ?? TIPO_SEM_CLASSIFICACAO);
 	const [mensalidade, setMensalidade] = useState(centavosParaInput(turma.mensalidadeCentavos));
 	const [repasseTipo, setRepasseTipo] = useState<RepasseTipo>(turma.repasseTipo);
 	const [repasseValor, setRepasseValor] = useState(
@@ -112,6 +115,7 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 				id: turma.id,
 				nome,
 				assunto,
+				tipo: tipo === TIPO_SEM_CLASSIFICACAO ? null : (tipo as TurmaTipo),
 				mensalidadeCentavos,
 				repasseTipo,
 				repasseValor: repasseValorFinal,
@@ -159,6 +163,20 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 							onChange={(event) => setAssunto(event.target.value)}
 							disabled={isPending}
 						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-tipo-${turma.id}`}>Tipo (opcional)</Label>
+						<Select value={tipo} onValueChange={setTipo} disabled={isPending}>
+							<SelectTrigger id={`turma-tipo-${turma.id}`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={TIPO_SEM_CLASSIFICACAO}>Não classificado</SelectItem>
+								<SelectItem value="curso">Curso</SelectItem>
+								<SelectItem value="oficina">Oficina</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="space-y-1.5">
