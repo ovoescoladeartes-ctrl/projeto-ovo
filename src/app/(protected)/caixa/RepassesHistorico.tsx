@@ -10,6 +10,11 @@ import { formatCentavos } from "@/lib/currency";
 import { MarcarPagoButton } from "./MarcarPagoButton";
 
 const STATUS_LABELS: Record<string, string> = { pendente: "Pendente", pago: "Pago" };
+// Cores indicativas de status (regra 18 do design.md): verde=pago, amarelo=pendente.
+const STATUS_CORES: Record<string, string> = {
+	pago: "bg-emerald-100 text-emerald-800",
+	pendente: "bg-amber-100 text-amber-800",
+};
 const ORIGEM_LABELS: Record<string, string> = { wix: "Wix", manual: "Manual" };
 const DESTINO_LABELS: Record<DestinoTipo, string> = { educador: "Educador", espaco: "Espaço", outro: "Outro" };
 
@@ -38,7 +43,7 @@ export function RepassesHistorico({ repasses, pessoasNomes, turmasNomes }: Repas
 
 	return (
 		<div>
-			<div className="mb-3 flex flex-wrap gap-2">
+			<div className="mb-6 flex flex-wrap items-center gap-3">
 				<Select value={origem} onValueChange={setOrigem}>
 					<SelectTrigger className="w-auto min-w-[9rem]">
 						<SelectValue />
@@ -94,7 +99,9 @@ export function RepassesHistorico({ repasses, pessoasNomes, turmasNomes }: Repas
 								<td className="px-4 py-3 text-foreground">{formatCentavos(repasse.valorCentavos)}</td>
 								<td className="px-4 py-3 text-muted-foreground">{ORIGEM_LABELS[repasse.origem]}</td>
 								<td className="px-4 py-3">
-									<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+									<span
+										className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CORES[repasse.status] ?? "bg-secondary text-secondary-foreground"}`}
+									>
 										{STATUS_LABELS[repasse.status]}
 									</span>
 								</td>
