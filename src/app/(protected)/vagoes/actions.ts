@@ -181,10 +181,13 @@ export async function moverEstagioContato(input: unknown): Promise<ActionResult>
 		return converterContatoEmPessoa(parsed.data.id);
 	}
 
+	const firestore = getFirebaseAdminFirestore();
+	const contatoRef = firestore.collection("contatos").doc(parsed.data.id);
+
 	try {
 		// `pessoaId` nunca é incluído aqui: mover um contato já convertido de volta para
 		// outro estágio não apaga o vínculo — fica como rastro histórico (decisão fase 4).
-		await getFirebaseAdminFirestore().collection("contatos").doc(parsed.data.id).set(
+		await contatoRef.set(
 			{
 				estagio: parsed.data.estagio,
 				arquivadoMotivo: parsed.data.arquivadoMotivo,
@@ -196,6 +199,34 @@ export async function moverEstagioContato(input: unknown): Promise<ActionResult>
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
+	// Fecha o laço com Cadastro: arquivar como "ex_aluno" aqui também reflete em
+	// Pessoa.statusAluno — mas só quando isso não contradiz uma matrícula ativa de verdade (a
+	// matrícula é a fonte de verdade sobre estar matriculado, o board é só o funil de comunicação).
+	// Não cobre o caso raro de um contato nunca convertido (sem nenhuma Matrícula real) ser
+	// arquivado direto como "ex_aluno" — viraria "ex_aluno" mesmo sem nunca ter sido aluno de
+	// fato; não tratado aqui, ver design.md.
+	if (parsed.data.estagio === "arquivado" && parsed.data.arquivadoMotivo === "ex_aluno") {
+		const contatoDoc = await contatoRef.get();
+		const contatoData = contatoDoc.data() as { pessoaId?: string | null } | undefined;
+		if (contatoData?.pessoaId) {
+			const pessoaId = contatoData.pessoaId;
+			const pessoaRef = firestore.collection("pessoas").doc(pessoaId);
+			await firestore.runTransaction(async (tx) => {
+				const pessoaDoc = await tx.get(pessoaRef);
+				if (!pessoaDoc.exists) {
+					return;
+				}
+				const pessoaData = pessoaDoc.data() as { ehAluno: boolean; statusAluno: string | null };
+				if (!pessoaData.ehAluno || pessoaData.statusAluno === "matriculado") {
+					return;
+				}
+				tx.set(pessoaRef, { statusAluno: "ex_aluno" }, { merge: true });
+			});
+			revalidatePath(`/pessoas/${pessoaId}`);
+		}
+	}
+
 	revalidatePath("/vagoes");
+	revalidatePath("/pessoas");
 	return { status: "ok" };
 }

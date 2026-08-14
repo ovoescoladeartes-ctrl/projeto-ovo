@@ -20,6 +20,7 @@ interface FiltrosAvancadosSheetProps {
 const STATUS_OPCOES = [
 	{ value: "lead", label: "Lead" },
 	{ value: "matriculado", label: "Matriculado" },
+	{ value: "ex_aluno", label: "Ex-aluno" },
 ];
 
 /**

@@ -1,34 +1,18 @@
-"use client";
+import { MoreVertical } from "lucide-react";
 
-import { useState, useTransition } from "react";
-
-import {
-	AlertDialog,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { InteresseTagsInput } from "@/components/InteresseTagsInput";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import type { Matricula } from "@/core/matriculas/schema";
 import type { Pessoa } from "@/core/pessoas/schema";
-import { formatCentavos, parseCentavosInput } from "@/lib/currency";
+import { formatCentavos } from "@/lib/currency";
 
-import { atualizarMatricula } from "./actions";
 import { MatricularDialog } from "./MatricularDialog";
-import { MatriculaEncerrarButton } from "./MatriculaEncerrarButton";
-import { MatriculaRestaurarButton } from "./MatriculaRestaurarButton";
-import { atualizarPessoa, inativarPessoa } from "../actions";
-import { PapelDropdown } from "../PapelDropdown";
-import { PessoaExcluirButton } from "../PessoaExcluirButton";
+import { MatriculaEditDialog } from "./MatriculaEditDialog";
+import { MatriculaEncerrarMenuItem } from "./MatriculaEncerrarMenuItem";
+import { MatriculaRestaurarMenuItem } from "./MatriculaRestaurarMenuItem";
+import { PessoaEditDialog } from "./PessoaEditDialog";
 import { StatusBadge } from "../StatusBadge";
 
 const MATRICULA_STATUS_LABELS: Record<string, string> = {
@@ -42,10 +26,6 @@ const MATRICULA_STATUS_CORES: Record<string, string> = {
 	ativa: "bg-emerald-100 text-emerald-800",
 	encerrada: "bg-blue-100 text-blue-800",
 };
-
-function centavosParaInput(centavos: number): string {
-	return (centavos / 100).toFixed(2).replace(".", ",");
-}
 
 function formatarData(iso: string | null): string {
 	if (iso === null) {
@@ -71,11 +51,6 @@ interface TurmaLecionada {
 	ativo: boolean;
 }
 
-interface MatriculaEdicao {
-	mensalidade: string;
-	motivo: string;
-}
-
 interface PessoaDetalheEditorProps {
 	pessoa: Pessoa;
 	opcoesInteresse: string[];
@@ -84,13 +59,6 @@ interface PessoaDetalheEditorProps {
 	turmasLecionadas: TurmaLecionada[];
 	papelParaAdicionarInicial: "aluno" | "professor" | null;
 	isAdmin: boolean;
-}
-
-function rotuloInteresses(ehAluno: boolean, ehProfessor: boolean): string {
-	if (ehAluno && ehProfessor) {
-		return "Interesses / Especialidade";
-	}
-	return ehProfessor ? "Especialidade" : "Interesses";
 }
 
 export function PessoaDetalheEditor({
@@ -102,109 +70,6 @@ export function PessoaDetalheEditor({
 	papelParaAdicionarInicial,
 	isAdmin,
 }: PessoaDetalheEditorProps): React.ReactElement {
-	const [modoEdicao, setModoEdicao] = useState(papelParaAdicionarInicial !== null);
-	const [nome, setNome] = useState(pessoa.nome);
-	const [ehAluno, setEhAluno] = useState(pessoa.ehAluno || papelParaAdicionarInicial === "aluno");
-	const [ehProfessor, setEhProfessor] = useState(pessoa.ehProfessor || papelParaAdicionarInicial === "professor");
-	const [interesses, setInteresses] = useState<string[]>(pessoa.interesses);
-	const [email, setEmail] = useState(pessoa.email ?? "");
-	const [telefone, setTelefone] = useState(pessoa.telefone ?? "");
-	const [matriculaEdits, setMatriculaEdits] = useState<Record<string, MatriculaEdicao>>({});
-	const [erro, setErro] = useState<string | null>(null);
-	const [isPending, startTransition] = useTransition();
-
-	const [arquivarOpen, setArquivarOpen] = useState(false);
-	const [arquivarErro, setArquivarErro] = useState<string | null>(null);
-	const [isArquivando, startArquivarTransition] = useTransition();
-
-	function edicaoDaMatricula(matricula: Matricula): MatriculaEdicao {
-		return (
-			matriculaEdits[matricula.id] ?? {
-				mensalidade: centavosParaInput(matricula.mensalidadeCombinadaCentavos),
-				motivo: matricula.motivo ?? "",
-			}
-		);
-	}
-
-	function handleCancelar(): void {
-		setNome(pessoa.nome);
-		setEhAluno(pessoa.ehAluno);
-		setEhProfessor(pessoa.ehProfessor);
-		setInteresses(pessoa.interesses);
-		setEmail(pessoa.email ?? "");
-		setTelefone(pessoa.telefone ?? "");
-		setMatriculaEdits({});
-		setErro(null);
-		setModoEdicao(false);
-	}
-
-	function handleSalvar(): void {
-		setErro(null);
-
-		const matriculasParaAtualizar: {
-			id: string;
-			pessoaId: string;
-			mensalidadeCombinadaCentavos: number;
-			motivo: string | null;
-		}[] = [];
-
-		for (const { matricula, turmaNome } of matriculas) {
-			const edit = matriculaEdits[matricula.id];
-			if (edit === undefined) {
-				continue;
-			}
-			const original = edicaoDaMatricula(matricula);
-			if (edit.mensalidade === original.mensalidade && edit.motivo === original.motivo) {
-				continue;
-			}
-			const mensalidadeCombinadaCentavos = parseCentavosInput(edit.mensalidade);
-			if (mensalidadeCombinadaCentavos === null) {
-				setErro(`Mensalidade inválida na matrícula de ${turmaNome}.`);
-				return;
-			}
-			matriculasParaAtualizar.push({
-				id: matricula.id,
-				pessoaId: pessoa.id,
-				mensalidadeCombinadaCentavos,
-				motivo: edit.motivo.trim() === "" ? null : edit.motivo.trim(),
-			});
-		}
-
-		startTransition(async () => {
-			const resultados = await Promise.all([
-				atualizarPessoa({
-					id: pessoa.id,
-					nome,
-					interesses,
-					ehAluno,
-					ehProfessor,
-					email: email.trim() === "" ? null : email.trim(),
-					telefone: telefone.trim() === "" ? null : telefone.trim(),
-				}),
-				...matriculasParaAtualizar.map((dados) => atualizarMatricula(dados)),
-			]);
-			const erroEncontrado = resultados.find((resultado) => resultado.status === "error");
-			if (erroEncontrado) {
-				setErro(erroEncontrado.message ?? "Não foi possível salvar.");
-				return;
-			}
-			setMatriculaEdits({});
-			setModoEdicao(false);
-		});
-	}
-
-	function handleArquivar(): void {
-		setArquivarErro(null);
-		startArquivarTransition(async () => {
-			const result = await inativarPessoa(pessoa.id);
-			if (result.status === "error") {
-				setArquivarErro(result.message ?? "Não foi possível arquivar.");
-				return;
-			}
-			setArquivarOpen(false);
-		});
-	}
-
 	return (
 		<div>
 			<PageBreadcrumb
@@ -223,65 +88,13 @@ export function PessoaDetalheEditor({
 						{pessoa.ativo ? null : <p className="text-sm text-muted-foreground">Arquivado</p>}
 					</div>
 
-					{modoEdicao ? (
-						<div className="space-y-1.5">
-							<Label htmlFor={`pessoa-nome-${pessoa.id}`}>Nome</Label>
-							<Input
-								id={`pessoa-nome-${pessoa.id}`}
-								value={nome}
-								onChange={(event) => setNome(event.target.value)}
-								disabled={isPending}
-								className="max-w-md"
-							/>
-						</div>
-					) : null}
-
-					{modoEdicao ? (
-						<div className="space-y-1.5">
-							<Label>Papel</Label>
-							<PapelDropdown
-								ehAluno={ehAluno}
-								ehProfessor={ehProfessor}
-								onChange={(papel, marcado) => (papel === "aluno" ? setEhAluno(marcado) : setEhProfessor(marcado))}
-								disabled={isPending}
-							/>
-						</div>
-					) : null}
-
-					{modoEdicao ? (
-						<div className="grid grid-cols-2 gap-3">
-							<div className="space-y-1.5">
-								<Label htmlFor={`pessoa-email-${pessoa.id}`}>Email</Label>
-								<Input
-									id={`pessoa-email-${pessoa.id}`}
-									type="email"
-									value={email}
-									onChange={(event) => setEmail(event.target.value)}
-									disabled={isPending}
-								/>
-							</div>
-							<div className="space-y-1.5">
-								<Label htmlFor={`pessoa-telefone-${pessoa.id}`}>Telefone</Label>
-								<Input
-									id={`pessoa-telefone-${pessoa.id}`}
-									value={telefone}
-									onChange={(event) => setTelefone(event.target.value)}
-									disabled={isPending}
-								/>
-							</div>
-						</div>
-					) : pessoa.email !== null || pessoa.telefone !== null ? (
+					{pessoa.email !== null || pessoa.telefone !== null ? (
 						<p className="text-sm text-muted-foreground">
 							{[pessoa.email, pessoa.telefone].filter((valor) => valor !== null).join(" · ")}
 						</p>
 					) : null}
 
-					{modoEdicao ? (
-						<div className="space-y-1.5">
-							<Label>{rotuloInteresses(ehAluno, ehProfessor)}</Label>
-							<InteresseTagsInput value={interesses} onChange={setInteresses} opcoes={opcoesInteresse} disabled={isPending} />
-						</div>
-					) : pessoa.interesses.length > 0 ? (
+					{pessoa.interesses.length > 0 ? (
 						<div className="flex flex-wrap gap-1.5">
 							{pessoa.interesses.map((interesse) => (
 								<Badge key={interesse} variant="outline">
@@ -290,60 +103,17 @@ export function PessoaDetalheEditor({
 							))}
 						</div>
 					) : null}
-
-					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
-
-					{modoEdicao && (pessoa.ativo || (!pessoa.ativo && isAdmin)) ? (
-						<div className="rounded-md border border-danger/30 bg-danger/5 p-4">
-							<h3 className="text-sm font-semibold text-danger">Zona de risco</h3>
-							<div className="mt-3 flex flex-wrap items-center gap-2">
-								{pessoa.ativo ? (
-									<AlertDialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
-										<AlertDialogTrigger asChild>
-											<Button type="button" variant="ghost" className="text-muted-foreground">
-												Arquivar
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Arquivar {pessoa.nome}?</AlertDialogTitle>
-												<AlertDialogDescription>
-													A pessoa some da lista principal, mas o histórico continua acessível.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											{arquivarErro !== null ? <p className="text-xs text-destructive">{arquivarErro}</p> : null}
-											<AlertDialogFooter>
-												<AlertDialogCancel disabled={isArquivando}>Cancelar</AlertDialogCancel>
-												<Button type="button" variant="destructive" onClick={handleArquivar} disabled={isArquivando}>
-													{isArquivando ? "Arquivando..." : "Arquivar"}
-												</Button>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
-								) : null}
-								{!pessoa.ativo && isAdmin ? <PessoaExcluirButton id={pessoa.id} nome={pessoa.nome} /> : null}
-							</div>
-						</div>
-					) : null}
 				</div>
 
-				{modoEdicao ? (
-					<div className="flex gap-2">
-						<Button type="button" variant="outline" size="sm" onClick={handleCancelar} disabled={isPending}>
-							Cancelar
-						</Button>
-						<Button type="button" size="sm" onClick={handleSalvar} disabled={isPending || nome.trim() === "" || (!ehAluno && !ehProfessor)}>
-							{isPending ? "Salvando..." : "Salvar"}
-						</Button>
-					</div>
-				) : (
-					<Button type="button" variant="outline" size="sm" onClick={() => setModoEdicao(true)}>
-						Editar
-					</Button>
-				)}
+				<PessoaEditDialog
+					pessoa={pessoa}
+					opcoesInteresse={opcoesInteresse}
+					isAdmin={isAdmin}
+					papelParaAdicionarInicial={papelParaAdicionarInicial}
+				/>
 			</div>
 
-			{ehAluno ? (
+			{pessoa.ehAluno ? (
 				<div className="mt-10">
 					<h2 className="text-lg font-semibold text-foreground">Aluno</h2>
 					<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
@@ -370,65 +140,41 @@ export function PessoaDetalheEditor({
 								</tr>
 							</thead>
 							<tbody>
-								{matriculas.map(({ matricula, turmaNome }) => {
-									const edit = edicaoDaMatricula(matricula);
-									return (
-										<tr key={matricula.id} className="border-b border-border last:border-0">
-											<td className="px-4 py-3 text-foreground">{turmaNome}</td>
-											<td className="px-4 py-3">
-												<span
-													className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${MATRICULA_STATUS_CORES[matricula.status] ?? "bg-secondary text-secondary-foreground"}`}
-												>
-													{MATRICULA_STATUS_LABELS[matricula.status] ?? matricula.status}
-												</span>
-											</td>
-											<td className="px-4 py-3 text-muted-foreground">
-												{modoEdicao ? (
-													<Input
-														inputMode="decimal"
-														value={edit.mensalidade}
-														onChange={(event) =>
-															setMatriculaEdits((prev) => ({
-																...prev,
-																[matricula.id]: { ...edit, mensalidade: event.target.value },
-															}))
-														}
-														disabled={isPending}
-														className="w-28"
-													/>
-												) : (
-													formatCentavos(matricula.mensalidadeCombinadaCentavos)
-												)}
-											</td>
-											<td className="px-4 py-3 text-muted-foreground">
-												{modoEdicao ? (
-													<Input
-														placeholder="Ex.: bolsa, permuta, desconto combinado"
-														value={edit.motivo}
-														onChange={(event) =>
-															setMatriculaEdits((prev) => ({
-																...prev,
-																[matricula.id]: { ...edit, motivo: event.target.value },
-															}))
-														}
-														disabled={isPending}
-													/>
-												) : (
-													matricula.motivo ?? "—"
-												)}
-											</td>
-											<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataMatricula)}</td>
-											<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataEncerramento)}</td>
-											<td className="px-4 py-3 text-right">
-												{matricula.status === "ativa" ? (
-													<MatriculaEncerrarButton id={matricula.id} pessoaId={pessoa.id} />
-												) : (
-													<MatriculaRestaurarButton id={matricula.id} pessoaId={pessoa.id} />
-												)}
-											</td>
-										</tr>
-									);
-								})}
+								{matriculas.map(({ matricula, turmaNome }) => (
+									<tr key={matricula.id} className="border-b border-border last:border-0">
+										<td className="px-4 py-3 text-foreground">{turmaNome}</td>
+										<td className="px-4 py-3">
+											<span
+												className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${MATRICULA_STATUS_CORES[matricula.status] ?? "bg-secondary text-secondary-foreground"}`}
+											>
+												{MATRICULA_STATUS_LABELS[matricula.status] ?? matricula.status}
+											</span>
+										</td>
+										<td className="px-4 py-3 text-muted-foreground">{formatCentavos(matricula.mensalidadeCombinadaCentavos)}</td>
+										<td className="px-4 py-3 text-muted-foreground">{matricula.motivo ?? "—"}</td>
+										<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataMatricula)}</td>
+										<td className="px-4 py-3 text-muted-foreground">{formatarData(matricula.dataEncerramento)}</td>
+										<td className="px-4 py-3 text-right">
+											<div className="flex items-center justify-end gap-1">
+												<MatriculaEditDialog matricula={matricula} turmaNome={turmaNome} />
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+															<MoreVertical className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														{matricula.status === "ativa" ? (
+															<MatriculaEncerrarMenuItem id={matricula.id} pessoaId={pessoa.id} />
+														) : (
+															<MatriculaRestaurarMenuItem id={matricula.id} pessoaId={pessoa.id} />
+														)}
+													</DropdownMenuContent>
+												</DropdownMenu>
+											</div>
+										</td>
+									</tr>
+								))}
 								{matriculas.length === 0 ? (
 									<tr>
 										<td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
@@ -442,9 +188,9 @@ export function PessoaDetalheEditor({
 				</div>
 			) : null}
 
-			{ehAluno && ehProfessor ? <hr className="my-10 border-border" /> : null}
+			{pessoa.ehAluno && pessoa.ehProfessor ? <hr className="my-10 border-border" /> : null}
 
-			{ehProfessor ? (
+			{pessoa.ehProfessor ? (
 				<div className="mt-10">
 					<h2 className="text-lg font-semibold text-foreground">Professor</h2>
 					<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">

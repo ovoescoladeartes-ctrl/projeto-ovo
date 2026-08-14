@@ -1,6 +1,6 @@
 "use server";
 
-import { FieldValue, type Timestamp } from "firebase-admin/firestore";
+import { FieldValue, type Firestore, type Timestamp } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -195,6 +195,30 @@ const encerrarMatriculaInputSchema = z.object({
 	pessoaId: z.string().min(1),
 });
 
+/**
+ * Fecha o laço com Vagões: reflete matriculado ↔ ex_aluno no Contato vinculado (se existir),
+ * nos dois sentidos — `encerrarMatricula` arquiva como "ex_aluno", `restaurarMatricula` volta pra
+ * "convertido". Best-effort, sem transação (a atomicidade forte só é exigida na direção inversa,
+ * contato→pessoa de "convertido", ver `converterContatoEmPessoa` em vagoes/actions.ts). Idempotente:
+ * não escreve se o Contato já está no estágio pedido.
+ */
+async function sincronizarContatoDaPessoa(
+	firestore: Firestore,
+	pessoaId: string,
+	dados: { estagio: "convertido" | "arquivado"; arquivadoMotivo: "ex_aluno" | null },
+): Promise<void> {
+	const contatoSnapshot = await firestore.collection("contatos").where("pessoaId", "==", pessoaId).limit(1).get();
+	const [contatoDoc] = contatoSnapshot.docs;
+	if (contatoDoc === undefined) {
+		return;
+	}
+	const contatoData = contatoDoc.data() as { estagio: string };
+	if (contatoData.estagio === dados.estagio) {
+		return;
+	}
+	await contatoDoc.ref.set({ ...dados, estagioAtualizadoEm: FieldValue.serverTimestamp() }, { merge: true });
+}
+
 export async function encerrarMatricula(input: unknown): Promise<ActionResult> {
 	const session = await getServerSession();
 	if (session === null || !podeGerenciarMatriculas(session.role)) {
@@ -216,10 +240,14 @@ export async function encerrarMatricula(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	await recalcularStatusAluno(firestore, parsed.data.pessoaId);
+	const novoStatus = await recalcularStatusAluno(firestore, parsed.data.pessoaId);
+	if (novoStatus === "ex_aluno") {
+		await sincronizarContatoDaPessoa(firestore, parsed.data.pessoaId, { estagio: "arquivado", arquivadoMotivo: "ex_aluno" });
+	}
 
 	revalidatePath("/pessoas");
 	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }
 
@@ -277,9 +305,13 @@ export async function restaurarMatricula(input: unknown): Promise<ActionResult> 
 		return { status: "error", message };
 	}
 
-	await recalcularStatusAluno(firestore, parsed.data.pessoaId);
+	const novoStatus = await recalcularStatusAluno(firestore, parsed.data.pessoaId);
+	if (novoStatus === "matriculado") {
+		await sincronizarContatoDaPessoa(firestore, parsed.data.pessoaId, { estagio: "convertido", arquivadoMotivo: null });
+	}
 
 	revalidatePath("/pessoas");
 	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }

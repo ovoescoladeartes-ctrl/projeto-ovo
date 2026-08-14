@@ -151,60 +151,56 @@ export function NovaTurmaDialog(): React.ReactElement {
 						/>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="turma-repasse-tipo">Tipo de repasse</Label>
-							<Select
-								value={form.repasseTipo}
-								onValueChange={(value) => setForm({ ...form, repasseTipo: value as RepasseTipo, repasseValor: "" })}
-								disabled={isPending}
-							>
-								<SelectTrigger id="turma-repasse-tipo">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="percentual">Percentual</SelectItem>
-									<SelectItem value="fixo">Fixo</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-1.5">
-							<Label htmlFor="turma-repasse-valor">
-								{form.repasseTipo === "percentual" ? "Repasse (%)" : "Repasse (R$)"}
-							</Label>
-							<Input
-								id="turma-repasse-valor"
-								inputMode="decimal"
-								placeholder={form.repasseTipo === "percentual" ? "30" : "45,00"}
-								value={form.repasseValor}
-								onChange={(event) => setForm({ ...form, repasseValor: event.target.value })}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-repasse-tipo">Tipo de repasse</Label>
+						<Select
+							value={form.repasseTipo}
+							onValueChange={(value) => setForm({ ...form, repasseTipo: value as RepasseTipo, repasseValor: "" })}
+							disabled={isPending}
+						>
+							<SelectTrigger id="turma-repasse-tipo">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="percentual">Percentual</SelectItem>
+								<SelectItem value="fixo">Fixo</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="turma-data-inicio">Início</Label>
-							<Input
-								id="turma-data-inicio"
-								type="date"
-								value={form.dataInicio}
-								onChange={(event) => setForm({ ...form, dataInicio: event.target.value })}
-								disabled={isPending}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="turma-data-fim">Fim (opcional)</Label>
-							<Input
-								id="turma-data-fim"
-								type="date"
-								value={form.dataFim}
-								onChange={(event) => setForm({ ...form, dataFim: event.target.value })}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-repasse-valor">
+							{form.repasseTipo === "percentual" ? "Repasse (%)" : "Repasse (R$)"}
+						</Label>
+						<Input
+							id="turma-repasse-valor"
+							inputMode="decimal"
+							placeholder={form.repasseTipo === "percentual" ? "30" : "45,00"}
+							value={form.repasseValor}
+							onChange={(event) => setForm({ ...form, repasseValor: event.target.value })}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-data-inicio">Início</Label>
+						<Input
+							id="turma-data-inicio"
+							type="date"
+							value={form.dataInicio}
+							onChange={(event) => setForm({ ...form, dataInicio: event.target.value })}
+							disabled={isPending}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-data-fim">Fim (opcional)</Label>
+						<Input
+							id="turma-data-fim"
+							type="date"
+							value={form.dataFim}
+							onChange={(event) => setForm({ ...form, dataFim: event.target.value })}
+							disabled={isPending}
+						/>
 					</div>
 
 					<div className="space-y-1.5">

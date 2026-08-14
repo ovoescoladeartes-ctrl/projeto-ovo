@@ -48,6 +48,7 @@ interface MatriculaResumoDoc {
 
 interface PessoasPageProps {
 	searchParams: Promise<{
+		busca?: string;
 		aluno?: string;
 		professor?: string;
 		status?: string;
@@ -122,22 +123,27 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		};
 	});
 
+	if (filtros.busca !== undefined && filtros.busca.trim() !== "") {
+		const buscaNormalizada = filtros.busca.trim().toLowerCase();
+		pessoas = pessoas.filter((pessoa) => pessoa.nome.toLowerCase().includes(buscaNormalizada));
+	}
+
 	const marcouAluno = filtros.aluno === "1";
 	const marcouProfessor = filtros.professor === "1";
 	if (marcouAluno || marcouProfessor) {
 		pessoas = pessoas.filter((pessoa) => (marcouAluno && pessoa.ehAluno) || (marcouProfessor && pessoa.ehProfessor));
 	}
-	if (filtros.status === "lead" || filtros.status === "matriculado") {
+	if (filtros.status === "lead" || filtros.status === "matriculado" || filtros.status === "ex_aluno") {
 		// Papéis considerados pro cruzamento com Status: só os marcados no filtro de Tipo — ou,
 		// se nenhum/os dois estiverem marcados, todos os papéis que a pessoa de fato tem.
+		// "ex_aluno" é exclusivo de Aluno — Professor não tem status equivalente (só
+		// banco_talentos/ativo), então nunca bate por esse lado.
 		pessoas = pessoas.filter((pessoa) => {
 			const consideraAluno = marcouAluno !== marcouProfessor ? marcouAluno : pessoa.ehAluno;
 			const consideraProfessor = marcouAluno !== marcouProfessor ? marcouProfessor : pessoa.ehProfessor;
-			const bateAluno =
-				consideraAluno &&
-				pessoa.ehAluno &&
-				(filtros.status === "lead" ? pessoa.statusAluno === "lead" : pessoa.statusAluno === "matriculado");
+			const bateAluno = consideraAluno && pessoa.ehAluno && pessoa.statusAluno === filtros.status;
 			const bateProfessor =
+				filtros.status !== "ex_aluno" &&
 				consideraProfessor &&
 				pessoa.ehProfessor &&
 				(filtros.status === "lead" ? pessoa.statusProfessor === "banco_talentos" : pessoa.statusProfessor === "ativo");

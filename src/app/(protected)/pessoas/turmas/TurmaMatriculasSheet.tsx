@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface AlunoMatriculado {
@@ -31,9 +31,7 @@ export function TurmaMatriculasSheet({ turmaNome, alunos }: TurmaMatriculasSheet
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button type="button" variant="ghost" size="sm">
-					Ver alunos ({alunos.length})
-				</Button>
+				<DropdownMenuItem onSelect={(event) => event.preventDefault()}>Ver alunos ({alunos.length})</DropdownMenuItem>
 			</SheetTrigger>
 			<SheetContent>
 				<SheetHeader>

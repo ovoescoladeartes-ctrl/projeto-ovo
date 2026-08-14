@@ -61,9 +61,10 @@ function formatarData(iso: string | null): string {
 }
 
 /**
- * Header (título | Copiloto | Nova pessoa) e abas Ativos/Arquivados seguem o mesmo padrão de
- * Vagões — fora do card. O card só tem filtros + tabela + paginação. Seleção em massa (checkbox
- * por linha) alimenta o botão "Exportar" do cabeçalho da tabela (ExportarDropdown).
+ * Header (título | Copiloto | Nova pessoa), abas Ativos/Arquivados e filtros (busca + papel +
+ * avançados) ficam fora do card, seguindo a ordem da regra 15 do design.md — o card só tem
+ * tabela + paginação. Seleção em massa (checkbox por linha) alimenta o botão "Exportar" do
+ * cabeçalho da tabela (ExportarDropdown).
  */
 export function PessoasListagem({
 	pessoas,
@@ -160,12 +161,12 @@ export function PessoasListagem({
 				<AbaAtivosArquivados />
 			</div>
 
+			<div className="mb-6">
+				<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
+			</div>
+
 			<Card>
 				<CardContent className="p-4">
-					<div className="mb-6 flex flex-wrap items-center gap-3">
-						<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
-					</div>
-
 					<div className="overflow-x-auto rounded-lg border border-border">
 						<table className="w-full text-left text-sm">
 							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
@@ -237,16 +238,10 @@ export function PessoasListagem({
 											<td className="px-4 py-3 text-muted-foreground">{formatarData(pessoa.criadoEm)}</td>
 											<td className="px-4 py-3 text-right">
 												<div className="flex justify-end gap-1">
-													<Button
-														type="button"
-														variant="ghost"
-														size="icon"
-														aria-label={`Ver ${pessoa.nome}`}
-														title={`Ver ${pessoa.nome}`}
-														asChild
-													>
+													<Button type="button" variant="outline" size="sm" aria-label={`Ver ${pessoa.nome}`} asChild>
 														<Link href={`/pessoas/${pessoa.id}`}>
 															<Eye className="h-4 w-4" />
+															Ver
 														</Link>
 													</Button>
 													<DropdownMenu>

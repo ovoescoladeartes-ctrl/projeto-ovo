@@ -1,6 +1,5 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import {
@@ -14,19 +13,20 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { excluirPessoaPermanentemente, verificarBloqueioExclusaoPessoa } from "./actions";
+import { excluirTurmaPermanentemente, verificarBloqueioExclusaoTurma } from "./actions";
 
 type Fase = "carregando" | "bloqueado" | "confirmar";
 
-interface PessoaExcluirButtonProps {
+interface TurmaExcluirMenuItemProps {
 	id: string;
 	nome: string;
 }
 
-export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): React.ReactElement {
+export function TurmaExcluirMenuItem({ id, nome }: TurmaExcluirMenuItemProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [fase, setFase] = useState<Fase>("carregando");
 	const [motivoBloqueio, setMotivoBloqueio] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): Rea
 		setTextoConfirmacao("");
 		setErro(null);
 		startTransition(async () => {
-			const resultado = await verificarBloqueioExclusaoPessoa(id);
+			const resultado = await verificarBloqueioExclusaoTurma(id);
 			if (resultado.bloqueado) {
 				setMotivoBloqueio(resultado.motivo);
 				setFase("bloqueado");
@@ -57,7 +57,7 @@ export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): Rea
 	function handleExcluir(): void {
 		setErro(null);
 		startTransition(async () => {
-			const result = await excluirPessoaPermanentemente(id);
+			const result = await excluirTurmaPermanentemente(id);
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível excluir.");
 				return;
@@ -69,15 +69,15 @@ export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): Rea
 	return (
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogTrigger asChild>
-				<Button type="button" variant="destructive" size="icon" aria-label="Excluir permanentemente" title="Excluir permanentemente">
-					<Trash2 className="h-4 w-4" />
-				</Button>
+				<DropdownMenuItem onSelect={(event) => event.preventDefault()} className="text-danger focus:text-danger">
+					Excluir permanentemente
+				</DropdownMenuItem>
 			</AlertDialogTrigger>
 			<AlertDialogContent>
 				{fase === "carregando" ? (
 					<AlertDialogHeader>
 						<AlertDialogTitle>Verificando...</AlertDialogTitle>
-						<AlertDialogDescription>Checando se há registros ligados a essa pessoa.</AlertDialogDescription>
+						<AlertDialogDescription>Checando se há matrículas ligadas a essa turma.</AlertDialogDescription>
 					</AlertDialogHeader>
 				) : fase === "bloqueado" ? (
 					<>
@@ -99,7 +99,7 @@ export function PessoaExcluirButton({ id, nome }: PessoaExcluirButtonProps): Rea
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<div className="space-y-1.5">
-							<Label htmlFor={`excluir-confirmacao-${id}`}>Nome da pessoa</Label>
+							<Label htmlFor={`excluir-confirmacao-${id}`}>Nome da turma</Label>
 							<Input
 								id={`excluir-confirmacao-${id}`}
 								value={textoConfirmacao}
