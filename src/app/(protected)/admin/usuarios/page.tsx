@@ -5,7 +5,7 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { PENDING_ACCESS } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
-import { RoleSelectForm } from "./RoleSelectForm";
+import { RoleEditDialog } from "./RoleEditDialog";
 
 interface UsuarioRow {
 	uid: string;
@@ -61,7 +61,7 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 							<th className="px-4 py-3 font-medium">Nome</th>
 							<th className="px-4 py-3 font-medium">E-mail</th>
 							<th className="px-4 py-3 font-medium">Papel atual</th>
-							<th className="px-4 py-3 font-medium">Alterar</th>
+							<th className="px-4 py-3 font-medium" />
 						</tr>
 					</thead>
 					<tbody>
@@ -77,7 +77,7 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 									</span>
 								</td>
 								<td className="px-4 py-3">
-									<RoleSelectForm uid={usuario.uid} currentRole={usuario.role} />
+									<RoleEditDialog uid={usuario.uid} nome={usuario.nome} currentRole={usuario.role} />
 								</td>
 							</tr>
 						))}

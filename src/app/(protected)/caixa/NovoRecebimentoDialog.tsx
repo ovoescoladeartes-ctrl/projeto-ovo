@@ -141,61 +141,57 @@ export function NovoRecebimentoDialog({ turmas }: NovoRecebimentoDialogProps): R
 						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="recebimento-valor">Valor (R$)</Label>
-							<Input
-								id="recebimento-valor"
-								inputMode="decimal"
-								placeholder="150,00"
-								value={valor}
-								onChange={(event) => setValor(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="recebimento-data">Data</Label>
-							<Input
-								id="recebimento-data"
-								type="date"
-								value={dataRecebimento}
-								onChange={(event) => setDataRecebimento(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="recebimento-valor">Valor (R$)</Label>
+						<Input
+							id="recebimento-valor"
+							inputMode="decimal"
+							placeholder="150,00"
+							value={valor}
+							onChange={(event) => setValor(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="recebimento-data">Data</Label>
+						<Input
+							id="recebimento-data"
+							type="date"
+							value={dataRecebimento}
+							onChange={(event) => setDataRecebimento(event.target.value)}
+							disabled={isPending}
+						/>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="recebimento-forma">Forma de pagamento</Label>
-							<Select value={formaPagamento} onValueChange={(value) => setFormaPagamento(value as FormaPagamento)} disabled={isPending}>
-								<SelectTrigger id="recebimento-forma">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{FORMAS_PAGAMENTO.map((forma) => (
-										<SelectItem key={forma} value={forma}>
-											{FORMA_LABELS[forma]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="recebimento-status">Status</Label>
-							<Select value={status} onValueChange={(value) => setStatus(value as RecebimentoStatus)} disabled={isPending}>
-								<SelectTrigger id="recebimento-status">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{RECEBIMENTO_STATUS.map((opcao) => (
-										<SelectItem key={opcao} value={opcao}>
-											{STATUS_LABELS[opcao]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="recebimento-forma">Forma de pagamento</Label>
+						<Select value={formaPagamento} onValueChange={(value) => setFormaPagamento(value as FormaPagamento)} disabled={isPending}>
+							<SelectTrigger id="recebimento-forma">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{FORMAS_PAGAMENTO.map((forma) => (
+									<SelectItem key={forma} value={forma}>
+										{FORMA_LABELS[forma]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="recebimento-status">Status</Label>
+						<Select value={status} onValueChange={(value) => setStatus(value as RecebimentoStatus)} disabled={isPending}>
+							<SelectTrigger id="recebimento-status">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{RECEBIMENTO_STATUS.map((opcao) => (
+									<SelectItem key={opcao} value={opcao}>
+										{STATUS_LABELS[opcao]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}

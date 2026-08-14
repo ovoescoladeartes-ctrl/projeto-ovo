@@ -1,14 +1,17 @@
+import { MoreVertical } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Mensagem, MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 import { MensagemEditDialog } from "./MensagemEditDialog";
-import { MensagemInativarButton } from "./MensagemInativarButton";
+import { MensagemInativarMenuItem } from "./MensagemInativarMenuItem";
 import { NovaMensagemDialog } from "./NovaMensagemDialog";
 
 const MENSAGENS_ROLES: readonly Role[] = ["admin", "comunicacao"];
@@ -80,7 +83,16 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 								<td className="px-4 py-3 text-right">
 									<div className="flex justify-end gap-1">
 										<MensagemEditDialog mensagem={mensagem} />
-										<MensagemInativarButton id={mensagem.id} />
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+													<MoreVertical className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<MensagemInativarMenuItem id={mensagem.id} />
+											</DropdownMenuContent>
+										</DropdownMenu>
 									</div>
 								</td>
 							</tr>

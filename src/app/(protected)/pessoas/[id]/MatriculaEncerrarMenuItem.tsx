@@ -13,16 +13,17 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { encerrarMatricula } from "./actions";
 
-interface MatriculaEncerrarButtonProps {
+interface MatriculaEncerrarMenuItemProps {
 	id: string;
 	pessoaId: string;
 }
 
 /** Confirmação leve (sem digitar nome) — mesmo padrão do "Arquivar" pessoa, reservando o padrão de digitar o nome só pra exclusão permanente. */
-export function MatriculaEncerrarButton({ id, pessoaId }: MatriculaEncerrarButtonProps): React.ReactElement {
+export function MatriculaEncerrarMenuItem({ id, pessoaId }: MatriculaEncerrarMenuItemProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
@@ -36,9 +37,9 @@ export function MatriculaEncerrarButton({ id, pessoaId }: MatriculaEncerrarButto
 	return (
 		<AlertDialog open={open} onOpenChange={setOpen}>
 			<AlertDialogTrigger asChild>
-				<Button type="button" variant="ghost" size="sm">
-					Encerrar
-				</Button>
+				<DropdownMenuItem onSelect={(event) => event.preventDefault()} className="text-danger focus:text-danger">
+					Encerrar matrícula
+				</DropdownMenuItem>
 			</AlertDialogTrigger>
 			<AlertDialogContent>
 				<AlertDialogHeader>

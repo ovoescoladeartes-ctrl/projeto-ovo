@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { Origem } from "@/core/shared/origem";
 
-export const ALUNO_STATUS = ["lead", "matriculado"] as const;
+export const ALUNO_STATUS = ["lead", "matriculado", "ex_aluno"] as const;
 export type StatusAluno = (typeof ALUNO_STATUS)[number];
 
 export const PROFESSOR_STATUS = ["banco_talentos", "ativo"] as const;

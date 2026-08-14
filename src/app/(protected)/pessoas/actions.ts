@@ -154,6 +154,20 @@ async function motivoBloqueioArquivarPessoa(pessoaId: string): Promise<string | 
 	return motivos.length > 0 ? motivos.join(" ") : null;
 }
 
+/** Checagem prévia pro `AlertDialog` de "Arquivar" — mesmo padrão de `verificarBloqueioExclusaoPessoa`, pra não deixar o usuário confirmar uma ação que o servidor já sabe que vai recusar. */
+export async function verificarBloqueioArquivarPessoa(id: unknown): Promise<VerificarBloqueioResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarPessoas(session.role)) {
+		return { bloqueado: true, motivo: "Sem permissão." };
+	}
+	const parsed = idSchema.safeParse(id);
+	if (!parsed.success) {
+		return { bloqueado: true, motivo: "Dados inválidos." };
+	}
+	const motivo = await motivoBloqueioArquivarPessoa(parsed.data);
+	return { bloqueado: motivo !== null, motivo };
+}
+
 export async function inativarPessoa(id: unknown): Promise<ActionResult> {
 	const session = await getServerSession();
 	if (session === null || !podeGerenciarPessoas(session.role)) {
@@ -306,6 +320,16 @@ export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 				);
 			}
 		}
+
+		// `Contato.nome` é copiado do Pessoa só na criação (`contatoInicialDeAluno`) — sem isso, o
+		// card do board de Vagões fica com o nome antigo pra sempre depois de uma edição aqui.
+		if (parsed.data.nome !== atual.nome) {
+			const contatoParaRenomear = await firestore.collection("contatos").where("pessoaId", "==", parsed.data.id).limit(1).get();
+			const [contatoDoc] = contatoParaRenomear.docs;
+			if (contatoDoc !== undefined) {
+				await contatoDoc.ref.set({ nome: parsed.data.nome }, { merge: true });
+			}
+		}
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
@@ -391,6 +415,7 @@ export async function excluirPessoaPermanentemente(id: unknown): Promise<ActionR
 const EXPORT_STATUS_LABELS: Record<string, string> = {
 	lead: "Lead",
 	matriculado: "Matriculado",
+	ex_aluno: "Ex-aluno",
 	ativo: "Ativo",
 	banco_talentos: "Banco de talentos",
 };

@@ -1,5 +1,5 @@
 import type { Timestamp } from "firebase-admin/firestore";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -7,6 +7,8 @@ import { Suspense } from "react";
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -18,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 import { NovaTurmaDialog } from "./NovaTurmaDialog";
 import { TurmaEditDialog } from "./TurmaEditDialog";
-import { TurmaExcluirButton } from "./TurmaExcluirButton";
+import { TurmaExcluirMenuItem } from "./TurmaExcluirMenuItem";
 import { TurmaMatriculasSheet } from "./TurmaMatriculasSheet";
 import { TurmasFiltroBar } from "./TurmasFiltroBar";
 
@@ -348,15 +350,24 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 									</td>
 									<td className="px-4 py-3 text-right">
 										<div className="flex justify-end gap-1">
-											<TurmaMatriculasSheet turmaNome={turma.nome} alunos={alunos} />
 											<TurmaEditDialog
 												turma={turma}
 												educadorInicial={turma.educadorPessoaId ? (colaboradoresPorId.get(turma.educadorPessoaId) ?? null) : null}
 												matriculasAtivasCount={alunos.length}
 											/>
-											{mostrarArquivados && !turma.ativo && session.role === "admin" ? (
-												<TurmaExcluirButton id={turma.id} nome={turma.nome} />
-											) : null}
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+														<MoreVertical className="h-4 w-4" />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end">
+													<TurmaMatriculasSheet turmaNome={turma.nome} alunos={alunos} />
+													{mostrarArquivados && !turma.ativo && session.role === "admin" ? (
+														<TurmaExcluirMenuItem id={turma.id} nome={turma.nome} />
+													) : null}
+												</DropdownMenuContent>
+											</DropdownMenu>
 										</div>
 									</td>
 								</tr>

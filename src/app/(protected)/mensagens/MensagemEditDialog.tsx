@@ -1,10 +1,12 @@
 "use client";
 
+import { Pencil } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogFooter,
 	DialogHeader,
@@ -54,6 +56,7 @@ export function MensagemEditDialog({ mensagem }: MensagemEditDialogProps): React
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				<Button type="button" variant="outline" size="sm">
+					<Pencil className="h-4 w-4" />
 					Editar
 				</Button>
 			</DialogTrigger>
@@ -104,6 +107,11 @@ export function MensagemEditDialog({ mensagem }: MensagemEditDialogProps): React
 				</div>
 
 				<DialogFooter>
+					<DialogClose asChild>
+						<Button type="button" variant="outline" disabled={isPending}>
+							Cancelar
+						</Button>
+					</DialogClose>
 					<Button
 						type="button"
 						onClick={handleSalvar}
