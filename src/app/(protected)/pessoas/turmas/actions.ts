@@ -25,6 +25,7 @@ function turmaDocPayload(dados: TurmaInput): Record<string, unknown> {
 	return {
 		nome: dados.nome,
 		assunto: dados.assunto,
+		tipo: dados.tipo,
 		mensalidadeCentavos: dados.mensalidadeCentavos,
 		repasseTipo: dados.repasseTipo,
 		repasseValor: dados.repasseValor,

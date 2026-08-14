@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
@@ -51,12 +52,12 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Configurações" }, { label: "Biblioteca de mensagens" }]} />
-			<div className="mb-6 mt-2 flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Biblioteca de mensagens</h1>
-					<p className="text-sm text-muted-foreground">Respostas prontas por categoria, usadas no board de Vagões.</p>
-				</div>
+			<PageBreadcrumb
+				items={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Biblioteca de mensagens" }]}
+			/>
+			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Biblioteca de mensagens</h1>
+				<CopilotoInput />
 				<NovaMensagemDialog />
 			</div>
 

@@ -319,39 +319,47 @@ desta conversa:
       permanente (irreversível de verdade). Ver `PessoaExcluirButton.tsx`.
     Ações totalmente reversíveis na hora (Desarquivar pessoa, Restaurar matrícula) não precisam
     de nenhuma confirmação — o próprio desfazer já é a rede de segurança.
-12. **Página interna com mais de um nível de hierarquia (dentro do `(protected)`) usa
+12. **Toda página interna (dentro do `(protected)`), exceto o próprio Dashboard, usa
     `PageBreadcrumb` (`src/components/shell/PageBreadcrumb.tsx`, sobre o `Breadcrumb` do shadcn)
-    imediatamente acima do `<h1>`.** Decidido com o Rogério em 2026-08-13, ajustado no mesmo dia.
-    Regras do trail:
-    - **Nunca repete "Dashboard"** — o trail começa direto na seção (Dashboard, sendo a raiz, não
-      tem breadcrumb nenhum).
-    - **Página de nível único na sidebar (Vagões, Caixa) não leva breadcrumb algum** — um trail de
-      um item só só repetiria o texto do `<h1>` logo abaixo (bug corrigido em 2026-08-13: existia
-      `<PageBreadcrumb items={[{ label: "Vagões" }]} />` nessas páginas, redundante com o h1
-      "Vagões" na linha seguinte). `PageBreadcrumb` só entra quando o trail tem 2+ itens de
-      verdade.
+    imediatamente acima do `<h1>`, sempre começando com `{ label: "Dashboard", href: "/" }`.**
+    Decidido com o Rogério em 2026-08-13, revisto no mesmo dia — **revoga a versão anterior desta
+    regra**, que dizia "nunca repete Dashboard" e isentava página de nível único (Vagões, Caixa)
+    de ter breadcrumb. Na prática isso deixava metade das páginas sem nenhum breadcrumb, o que
+    pareceu mais inconsistente do que o "Dashboard" repetido no início de todo trail. Regras do
+    trail agora:
+    - **Sempre começa com `{ label: "Dashboard", href: "/" }`** — inclusive em página de nível
+      único na sidebar (Vagões, Caixa), que agora leva um trail de 2 itens
+      (`Dashboard → Vagões`) em vez de nenhum.
     - Página dentro de um grupo da sidebar sem rota própria (Cadastro → Pessoas/Turmas,
-      Configurações → Mensagens) usa o rótulo do grupo como primeiro item, **sem `href`** (texto
+      Configurações → Mensagens) usa o rótulo do grupo como item do meio, **sem `href`** (texto
       simples, não clicável — não existe `/cadastro` nem `/configuracoes` como rota). Controle de
-      acessos e Sincronizar com a Wix também usam "Configurações" como primeiro item por
-      pertencerem ao mesmo grupo conceitual, mesmo ainda não linkados na sidebar (ver "Perguntas e
-      premissas em aberto").
+      acessos e Sincronizar com a Wix também usam "Configurações" nessa posição por pertencerem
+      ao mesmo grupo conceitual, mesmo ainda não linkados na sidebar (ver "Perguntas e premissas
+      em aberto").
     - Rota aninhada (`/pessoas/[id]`, `/pessoas/importar`) inclui o nível intermediário como link
       de volta (`{ label: "Pessoas", href: "/pessoas" }`) antes do item atual — isso substitui
       qualquer link manual de "← Voltar para X" que a página tivesse antes.
+    - Único caso sem `PageBreadcrumb`: o próprio Dashboard (`/`), por ser a raiz — um trail de um
+      item só ("Dashboard") repetiria o `<h1>` logo abaixo.
     Copie exatamente (exemplo de rota aninhada):
     ```tsx
     <PageBreadcrumb
-      items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: pessoa.nome }]}
+      items={[
+        { label: "Dashboard", href: "/" },
+        { label: "Cadastro" },
+        { label: "Pessoas", href: "/pessoas" },
+        { label: pessoa.nome },
+      ]}
     />
     ```
 13. **`AbaAtivosArquivados` (segmented control Ativos/Arquivados) é sempre alinhado à esquerda**,
     igual em toda página que o usa (Pessoas, Turmas) — nunca `flex justify-end`. Bug corrigido em
     2026-08-13: a página de Turmas envolvia o componente num `<div className="mb-4 flex
-    justify-end">`, jogando-o pra direita, enquanto Pessoas usa só `<div className="mb-4">`
-    (alinhamento natural à esquerda). Copie exatamente:
+    justify-end">`, jogando-o pra direita, enquanto Pessoas usa só `<div className="mb-6">`
+    (alinhamento natural à esquerda; o valor de margem passou de `mb-4` pra `mb-6` na
+    padronização de ritmo vertical — ver regra 16). Copie exatamente:
     ```tsx
-    <div className="mb-4">
+    <div className="mb-6">
       <AbaAtivosArquivados />
     </div>
     ```
@@ -373,6 +381,151 @@ desta conversa:
     {/* Cabeçalho de tabela — com uppercase */}
     <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
     ```
+15. **Toda página interna segue a mesma ordem de header: Breadcrumb → H1+busca+CTA → Tabs →
+    Filtros → Conteúdo.** Decidido com o Rogério em 2026-08-13. Existia como convenção implícita
+    desde a página de Pessoas (`PessoasListagem.tsx`), replicada em Turmas por analogia, mas nunca
+    tinha sido escrita — o que já causou divergência real (filtro na linha do H1 em Vagões, CTA
+    fora de lugar em Caixa, quatro espaçamentos diferentes pro wrapper do H1 entre páginas). A
+    ordem, de cima pra baixo:
+    1. `PageBreadcrumb` — regra 12 acima, sem mudança (sempre presente, exceto no Dashboard).
+    2. Bloco H1 — só o `<h1>` (regra 6), **sem subtítulo estático abaixo** (ver regra 17); coluna
+       direita com `CopilotoInput` (busca — só em páginas de listagem/navegação, não em fluxos de
+       ação única tipo Importar CSV ou Sincronizar Wix) e o(s) CTA(s) (`Dialog`/`Button`). Copie
+       exatamente:
+       ```tsx
+       <div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+         <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Título</h1>
+         <CopilotoInput />
+         <NovaCoisaDialog />
+       </div>
+       ```
+       **Sem CTA, a busca fica centralizada de verdade, não só espremida pelo `justify-between`.**
+       Decidido com o Rogério em 2026-08-13 — caso de hoje: Dashboard (`DashboardHeader.tsx`), que
+       tem `CopilotoInput` mas nenhum `Dialog` de CTA, só a data por extenso do lado direito.
+       `justify-between` sozinho não centraliza a busca de verdade quando os itens das pontas têm
+       larguras diferentes (título vs. texto da data) — a correção é dar `sm:flex-1` pros dois
+       itens das pontas (mesmo quando um deles não é um CTA, é só texto/decorativo), sem
+       `sm:justify-between`, pra que sobre o mesmo espaço dos dois lados e a busca fique
+       exatamente no centro. Copie exatamente:
+       ```tsx
+       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+         <h1 className="text-2xl font-bold text-foreground sm:flex-1 sm:text-3xl">Título</h1>
+         <CopilotoInput />
+         <p className="shrink-0 text-sm text-muted-foreground sm:flex-1 sm:text-right">Texto do lado direito, se houver.</p>
+       </div>
+       ```
+    3. Tabs — regra 7 acima, sem mudança (variante sublinhada, `mt-6`/`mb-6`).
+    4. Filtros — **sempre depois das tabs, nunca na linha do H1**, wrapper
+       `<div className="mb-6 flex flex-wrap items-center gap-3">` imediatamente acima do
+       conteúdo (tabela/board/lista).
+    5. Conteúdo.
+
+    **Caso Caixa — CTA que depende da aba ativa:** `NovoRecebimentoDialog`/`NovoRepasseDialog`
+    ficam no bloco do H1 (item 2), não dentro do `TabsContent` — mas qual dos dois aparece depende
+    de qual aba (Recebimentos/Repasses) está ativa. Como o H1 é renderizado pelo Server Component
+    `page.tsx` e a aba ativa antes vivia só como estado local dentro do Client Component
+    `CaixaTabs`, a aba passou a ser controlada pelo searchParam `aba` (mesmo padrão de
+    `AbaAtivosArquivados`/Ativos-Arquivados) — `page.tsx` lê `searchParams.aba` pra decidir qual
+    CTA renderizar, e `CaixaTabs` vira `<Tabs value={aba} onValueChange={...}>` sincronizado com a
+    mesma URL. Precisa de `export const dynamic = "force-dynamic"` em `page.tsx` (mesma causa raiz
+    documentada em `pessoas/turmas/page.tsx`: trocar searchParam sem isso pode servir cache do
+    Router do Next). O resumo de KPIs (`KpiCardsGrid`) é compartilhado pelas duas abas (não muda
+    com a aba ativa) — por isso fica dentro de `CaixaTabs`, logo abaixo da `TabsList` e fora de
+    qualquer `TabsContent` (senão sumiria ao trocar de aba), não no bloco do H1.
+
+    **Fora da regra:** páginas de detalhe/edição (ex.: `Pessoas/[id]`) são um arquétipo
+    diferente — mantêm `PageBreadcrumb`+`h1` como já estão, sem forçar busca/CTA/tabs/filtro que
+    não fazem sentido nesse contexto.
+16. **Todo espaçamento vertical estrutural da cadeia Breadcrumb → H1 → Tabs → Filtros → Conteúdo
+    usa `mb-6`/`mt-6` (24px), nunca `mb-4` (16px).** Decidido com o Rogério em 2026-08-13 — antes
+    disso o Dashboard (`page.tsx`, `gap-6` entre `DashboardHeader` e as Tabs) já usava 24px
+    enquanto Pessoas/Turmas/Vagões usavam `mb-4` (16px) entre H1/`AbaAtivosArquivados`/filtro,
+    criando um ritmo vertical raso e inconsistente bem na página de referência. Vale
+    especificamente para:
+    - Wrapper do bloco H1 (item 2 da regra 15): `mb-6 mt-2` (o `mt-2` do breadcrumb pro H1
+      continua pequeno de propósito — é uma relação "elemento pequeno + título", não uma
+      separação de seção).
+    - Wrapper de `AbaAtivosArquivados` (regra 13): `mb-6`.
+    - Wrapper de Tabs quando não usa `TabsContent` (ex.: Vagões, só `TabsList`): `mb-6`.
+    - Wrapper de filtros (item 4 da regra 15): `mb-6`.
+    Não muda: o `gap-4` horizontal dentro do bloco H1 (entre título/busca/CTA), o `gap-3` dentro
+    da própria barra de filtros (entre chips), o `mt-6` de `TabsContent` (regra 7, já estava
+    certo) e o `p-4` de padding interno de `Card`/`CardContent` — nenhum desses é um "gap entre
+    seções" da cadeia, são espaçamentos internos de um bloco só.
+17. **Nenhuma página usa texto de descrição estático abaixo do `<h1>`.** Decidido com o Rogério em
+    2026-08-13 — existia em Caixa, Biblioteca de mensagens, Controle de acessos, Importar Pessoas
+    e Sincronizar com a Wix (`<p className="text-sm text-muted-foreground">` logo abaixo do
+    título, ex.: "Recebimentos e repasses financeiros da escola."), removido de todas. O título
+    já basta; se o texto carregava alguma informação de segurança/contexto relevante (ex.: o aviso
+    "somente leitura" de Sincronizar com a Wix), essa informação deve migrar pra dentro do próprio
+    conteúdo da página (painel, formulário), não ficar solta como subtítulo do header.
+    **Não confundir com texto de status dinâmico** (ex.: "3 selecionadas" no header de Pessoas
+    quando há seleção em massa, `PessoasListagem.tsx`) — isso é feedback funcional de uma ação em
+    andamento, não uma descrição decorativa fixa, e continua permitido.
+18. **Badge de status dentro de tabela sempre usa cor indicativa — verde, amarelo, vermelho ou
+    azul — nunca cinza `bg-secondary` genérico.** Decidido com o Rogério em 2026-08-13. Antes
+    disso, a maioria desses badges (Recebimento, Repasse, Matrícula, papel de usuário) usava o
+    mesmo cinza `bg-secondary`/`text-secondary-foreground` pra todo estado, sem diferenciação
+    visual — só `StatusBadge` (`statusAluno`/`statusProfessor`) já tinha cor. Semântica das 4
+    cores (mesmo par `bg-*-100`/`text-*-800` do Tailwind em toda parte, igual ao que já existia
+    pra `matriculado`/`lead`):
+    - **Verde** (`bg-emerald-100 text-emerald-800`) — estado positivo, em curso ou concluído com
+      sucesso: `matriculado`, `ativo` (aluno/professor), `confirmado` (Recebimento), `pago`
+      (Repasse), `ativa` (Matrícula), "Pronta" (linha de importação sem erro).
+    - **Amarelo** (`bg-amber-100 text-amber-800`) — aguardando/pendente, precisa de atenção mas
+      não é um erro: `lead`, `banco_talentos` (o par "ainda não vinculado" de aluno/professor),
+      `pendente` (Recebimento e Repasse), `pendente` (acesso de usuário ainda não liberado),
+      "Possível duplicata" (linha de importação).
+    - **Vermelho** (`bg-red-100 text-red-800`) — negativo, cancelado ou erro: `cancelado`
+      (Recebimento), erro de validação de linha de importação. Deliberadamente **não** usa o
+      token `--destructive`/`Button variant="destructive"` da regra 9 — aquele é reservado pra
+      botão de ação destrutiva, não pra badge informativo; misturar os dois sugeriria que o badge
+      é clicável.
+    - **Azul** (`bg-blue-100 text-blue-800`) — neutro-categórico: nem positivo nem negativo, só
+      uma classificação ou um estado "encerrado" sem ter sido um problema: papel concedido de
+      usuário (`admin`/`financeiro`/`comunicacao`/`educador` — categórico, todos equivalentes em
+      "polaridade"), `encerrada` (Matrícula — terminou o curso, não é uma falha), Turma arquivada
+      na ficha do professor.
+    Forma do badge — copie exatamente (mesmo padrão em toda a tabela, `StatusBadge.tsx` como
+    componente compartilhado pra `statusAluno`/`statusProfessor`, `*_CORES` local em `Record<string,
+    string>` nos demais por não compartilharem o mesmo vocabulário de estados):
+    ```tsx
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CORES[valor] ?? "bg-secondary text-secondary-foreground"}`}>
+      {LABELS[valor]}
+    </span>
+    ```
+    **Fora da regra:** badge que não representa um *status* (estado que muda ao longo do tempo),
+    e sim uma origem/categoria/tag — quando existir um caso assim, não leva cor semântica
+    (`bg-secondary`), porque não há um segundo valor pra contrastar. Exemplo já removido: a
+    tabela de Turmas (`pessoas/turmas/page.tsx`) tinha um badge "Origem: Wix" dentro da célula do
+    nome — tirado em 2026-08-13 porque carregava baixo sinal (aparecia em quase toda turma, já
+    que toda turma nova sempre vem da Wix) e ainda poluía visualmente a coluna que acabara de ser
+    limpa nesta mesma leva de mudanças (ver regra 15 sobre nome de Turma). Se precisar checar a
+    origem de uma turma específica, `wixProductId`/`origem` continuam no documento, só não têm
+    mais representação na listagem.
+19. **Preferir token reutilizável a valor hardcoded, sempre que der.** Pedido pelo Rogério em
+    2026-08-13 como regra geral — **não é retroativa**: código já existente com valor hardcoded
+    (ex.: as classes `slate-*` de `admin/usuarios/page.tsx`, item 9 de "Perguntas e premissas em
+    aberto"; as próprias classes de cor da regra 18, hoje literais repetidas por arquivo) pode ser
+    corrigido depois, quando alguém mexer naquele código por outro motivo — mas todo código
+    **novo**, a partir de agora, já nasce seguindo esta regra. Generaliza a regra 4 (que já dizia
+    "não crie um segundo sistema de tokens, a menos que nenhum slot exista") pra um princípio mais
+    amplo, em duas camadas:
+    - **Primeiro, tente um token/slot que já existe** — `--background`, `--foreground`,
+      `--border`, `--muted-foreground`, `--secondary`, `--destructive`, etc. (ver tabela "Cor" no
+      topo deste arquivo) — em vez de uma cor Tailwind literal (`slate-500`, `emerald-100`) ou um
+      hex arbitrário. Mesma lógica fora de cor: prefira a escala padrão do Tailwind (`text-sm`,
+      `rounded-md`, `gap-4`) a um valor arbitrário (`text-[13px]`, `rounded-[9px]`) — só use
+      arbitrário quando o design pede uma medida específica que a escala não cobre (ver
+      "Checkbox — medida exata" nos tokens acima, que é um caso legítimo disso).
+    - **Se não existe slot que sirva** (caso da regra 18: não há um "sucesso"/"atenção"/"erro"/
+      "informação" pronto no shadcn), o token novo entra do jeito que a regra 4 já manda —
+      variável CSS em `globals.css` + `tailwind.config.ts`, definida **uma vez só** — em vez de
+      repetir a mesma combinação de classes literal (`bg-emerald-100 text-emerald-800`) em vários
+      arquivos. Repetir a mesma classe em N arquivos não é "usar Tailwind", é hardcoding
+      disfarçado: se o tom precisar mudar depois, tem que caçar em todo arquivo em vez de mudar
+      uma variável só. Sinal de que chegou a hora de virar token de verdade: a mesma combinação de
+      classes aparecendo em 2+ arquivos com o mesmo significado.
 
 ---
 
@@ -411,3 +564,8 @@ desta conversa:
    pra "Mensagens" (adicionado em 2026-08-13). Se/quando essas duas telas entrarem no menu, seus
    `PageBreadcrumb` já usam "Configurações" como primeiro item — só falta o item em `NAV_ITEMS`
    (`src/components/shell/AppSidebar.tsx`).
+9. **`/admin/usuarios` tem a tabela inteira em cores hardcoded** (`border-slate-200`, `bg-white`,
+   `bg-slate-50`, `text-slate-900`, `text-slate-500` — só o header da página foi migrado pra
+   tokens na padronização de 2026-08-13, regra 15) em vez de `border-border`/`bg-card`/
+   `text-foreground`/`text-muted-foreground`, usados no resto do app. Página claramente anterior
+   à padronização de tokens — fica como pendência de migração, não foi tocada além do header.

@@ -70,16 +70,18 @@ export function WixSyncPanel(): React.ReactElement {
 							Turmas: {resultado.turmasCriadas} criadas, {resultado.turmasAtualizadas} atualizadas.
 						</p>
 						<p>Recebimentos: {resultado.recebimentosCriados} criados.</p>
+						<p>Matrículas: {resultado.matriculasCriadas} criadas.</p>
 					</div>
 				) : null}
 			</div>
 
 			{preview !== null ? (
 				<div className="space-y-4">
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 						<Contagem label="Pessoas" criar={preview.pessoas?.criar ?? 0} atualizar={preview.pessoas?.atualizar ?? 0} />
 						<Contagem label="Turmas" criar={preview.turmas?.criar ?? 0} atualizar={preview.turmas?.atualizar ?? 0} />
 						<Contagem label="Recebimentos" criar={preview.recebimentos?.criar ?? 0} />
+						<Contagem label="Matrículas" criar={preview.matriculas?.criar ?? 0} />
 					</div>
 
 					{(preview.recebimentos?.avisos ?? 0) > 0 ? (

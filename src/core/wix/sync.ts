@@ -1,4 +1,5 @@
 import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
+import type { TurmaTipo } from "@/core/turmas/schema";
 import type { WixContact, WixOrder, WixProduct } from "@/core/wix/types";
 
 /**
@@ -74,16 +75,109 @@ export function planejarPessoas(
 export interface TurmaPlanoCriar {
 	wixProductId: string;
 	nome: string;
+	tipo: TurmaTipo | null;
+	dataInicio: string | null;
 	mensalidadeCentavos: number;
 }
 
-export interface TurmaPlanoAtualizar extends TurmaPlanoCriar {
+/**
+ * Turma já existente (casada por `wixProductId`) só recebe `mensalidadeCentavos`/`origem` num
+ * re-sync — `nome`/`tipo`/`dataInicio` são tratados só na criação (`TurmaPlanoCriar`). Antes essa
+ * interface herdava de `TurmaPlanoCriar` e o `nome` cru da Wix era regravado a cada sync,
+ * desfazendo qualquer limpeza manual feita pela tela de editar — bug corrigido em 2026-08-13
+ * (round de limpeza de dados de Turmas).
+ */
+export interface TurmaPlanoAtualizar {
 	turmaId: string;
+	wixProductId: string;
+	mensalidadeCentavos: number;
 }
 
 export interface PlanoTurmas {
 	criar: TurmaPlanoCriar[];
 	atualizar: TurmaPlanoAtualizar[];
+}
+
+const MESES_ABREVIADOS: Record<string, string> = {
+	JAN: "01",
+	FEV: "02",
+	MAR: "03",
+	ABR: "04",
+	MAI: "05",
+	JUN: "06",
+	JUL: "07",
+	AGO: "08",
+	SET: "09",
+	OUT: "10",
+	NOV: "11",
+	DEZ: "12",
+};
+
+/** Ano fixo pra data extraída do nome da Wix (que nunca inclui ano) — decisão do Rogério em 2026-08-13. */
+const ANO_PADRAO_DATA_TURMA = 2026;
+
+const PALAVRAS_MINUSCULAS = new Set(["de", "da", "do", "das", "dos", "em", "e", "a", "o", "com", "para"]);
+
+function paraTituloCase(texto: string): string {
+	return texto
+		.toLowerCase()
+		.split(" ")
+		.map((palavra, indice) => {
+			if (palavra === "") {
+				return palavra;
+			}
+			if (indice > 0 && PALAVRAS_MINUSCULAS.has(palavra)) {
+				return palavra;
+			}
+			return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+		})
+		.join(" ");
+}
+
+export interface TurmaNomeLimpo {
+	tipo: TurmaTipo | null;
+	dataInicio: string | null;
+	nome: string;
+}
+
+/**
+ * O nome de produto da Wix mistura até 3 informações numa string só: data da sessão
+ * ("12/SET"), tipo de atividade ("CURSO"/"OFICINA") e só então o título de verdade — ex.:
+ * "12/SET - OFICINA Jogo, Palavra e Presença: Ferramentas para Contação de história". Essa
+ * função reconhece o prefixo de data e de tipo (com ou sem "-"/":"/"DE" entre eles, os produtos
+ * da Wix não seguem um separador único) e devolve os três já separados. Quando o nome não bate
+ * em nenhum padrão reconhecido, devolve o nome original intacto (tipo/data `null`) — sem
+ * regressão em relação ao comportamento anterior a essa função existir.
+ */
+export function limparNomeTurmaWix(nomeCru: string): TurmaNomeLimpo {
+	let resto = nomeCru.trim();
+	let dataInicio: string | null = null;
+
+	const dataMatch = /^(\d{1,2})\/([A-ZÇ]{3})\.?\s*-?\s*/i.exec(resto);
+	const dia = dataMatch?.[1];
+	const mesAbreviado = dataMatch?.[2];
+	if (dataMatch && dia !== undefined && mesAbreviado !== undefined) {
+		const mes = MESES_ABREVIADOS[mesAbreviado.toUpperCase()];
+		if (mes !== undefined) {
+			dataInicio = `${ANO_PADRAO_DATA_TURMA}-${mes}-${dia.padStart(2, "0")}`;
+			resto = resto.slice(dataMatch[0].length).trim();
+		}
+	}
+
+	let tipo: TurmaTipo | null = null;
+	const tipoMatch = /^(CURSO|OFICINA)\b\s*:?\s*(DE\s+)?-?\s*/i.exec(resto);
+	const tipoTexto = tipoMatch?.[1];
+	if (tipoMatch && tipoTexto !== undefined) {
+		tipo = tipoTexto.toUpperCase() === "CURSO" ? "curso" : "oficina";
+		resto = resto.slice(tipoMatch[0].length).trim();
+	}
+
+	// Convenção observada nos dados reais: só o nome dos "CURSO ..." sem data vem gravado em
+	// caixa alta inteira na Wix — os com data (todos "OFICINA") já vêm em caixa mista de
+	// verdade, não mexe nesses pra não estragar um título que já está certo.
+	const nome = dataInicio === null && tipo !== null && resto === resto.toUpperCase() ? paraTituloCase(resto) : resto;
+
+	return { tipo, dataInicio, nome: nome.trim() || nomeCru };
 }
 
 /**
@@ -100,9 +194,16 @@ export function planejarTurmas(products: WixProduct[], turmaIdExistentePorWixPro
 		const mensalidadeCentavos = Math.round((product.price?.price ?? 0) * 100);
 		const turmaIdExistente = turmaIdExistentePorWixProductId.get(product.id);
 		if (turmaIdExistente !== undefined) {
-			atualizar.push({ turmaId: turmaIdExistente, wixProductId: product.id, nome: product.name, mensalidadeCentavos });
+			atualizar.push({ turmaId: turmaIdExistente, wixProductId: product.id, mensalidadeCentavos });
 		} else {
-			criar.push({ wixProductId: product.id, nome: product.name, mensalidadeCentavos });
+			const limpo = limparNomeTurmaWix(product.name);
+			criar.push({
+				wixProductId: product.id,
+				nome: limpo.nome,
+				tipo: limpo.tipo,
+				dataInicio: limpo.dataInicio,
+				mensalidadeCentavos,
+			});
 		}
 	}
 
@@ -217,4 +318,54 @@ export function planejarRecebimentos(
 	}
 
 	return { criar, pulados, avisos };
+}
+
+export interface RecebimentoParaMatricula {
+	pessoaId: string;
+	turmaId: string | null;
+	valorCentavos: number;
+	status: RecebimentoStatus;
+	dataRecebimento: string;
+}
+
+export interface MatriculaCandidata {
+	pessoaId: string;
+	turmaId: string;
+	dataMatricula: string;
+	mensalidadeCombinadaCentavos: number;
+}
+
+/**
+ * "Se pagou, está matriculado": pra cada par (pessoaId, turmaId) com pelo menos um recebimento
+ * "confirmado", devolve uma matrícula candidata com a data e o valor do recebimento confirmado
+ * mais antigo do par (snapshot do que foi realmente pago, não a mensalidade atual da turma).
+ * Puro e sem I/O — usado tanto pelo sync em tempo real (Fase B, a partir do plano de
+ * Recebimentos recém-calculado) quanto pelo script de correção retroativa (Fase A, a partir dos
+ * Recebimentos já persistidos no Firestore).
+ */
+export function planejarMatriculasRetroativas(recebimentos: readonly RecebimentoParaMatricula[]): MatriculaCandidata[] {
+	const recebimentosConfirmadosPorPar = new Map<string, RecebimentoParaMatricula[]>();
+	for (const recebimento of recebimentos) {
+		if (recebimento.status !== "confirmado" || recebimento.turmaId === null) {
+			continue;
+		}
+		const chave = `${recebimento.pessoaId}:${recebimento.turmaId}`;
+		const lista = recebimentosConfirmadosPorPar.get(chave) ?? [];
+		lista.push(recebimento);
+		recebimentosConfirmadosPorPar.set(chave, lista);
+	}
+
+	const candidatas: MatriculaCandidata[] = [];
+	recebimentosConfirmadosPorPar.forEach((lista) => {
+		const maisAntigo = lista.reduce((a, b) => (a.dataRecebimento <= b.dataRecebimento ? a : b));
+		candidatas.push({
+			pessoaId: maisAntigo.pessoaId,
+			// turmaId nunca é null aqui — filtrado na montagem do Map acima.
+			turmaId: maisAntigo.turmaId as string,
+			dataMatricula: maisAntigo.dataRecebimento,
+			mensalidadeCombinadaCentavos: maisAntigo.valorCentavos,
+		});
+	});
+
+	return candidatas;
 }

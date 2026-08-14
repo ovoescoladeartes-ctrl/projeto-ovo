@@ -34,13 +34,13 @@ export function AbaAtivosArquivados(): React.ReactElement {
 					value="ativos"
 					className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 				>
-					Ativos
+					Ativas
 				</TabsTrigger>
 				<TabsTrigger
 					value="arquivados"
 					className="ml-6 rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 				>
-					Arquivados
+					Arquivadas
 				</TabsTrigger>
 			</TabsList>
 		</Tabs>

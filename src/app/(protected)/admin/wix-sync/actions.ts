@@ -6,11 +6,12 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { recalcularStatusAluno } from "@/core/pessoas/recalcularStatusAluno";
 import { queryContactsByIds } from "@/core/wix/contacts";
 import { WixApiError } from "@/core/wix/errors";
 import { searchApprovedOrders } from "@/core/wix/orders";
 import { queryAllProducts } from "@/core/wix/products";
-import { planejarPessoas, planejarRecebimentos, planejarTurmas } from "@/core/wix/sync";
+import { planejarMatriculasRetroativas, planejarPessoas, planejarRecebimentos, planejarTurmas } from "@/core/wix/sync";
 import type { WixContact, WixOrder, WixProduct } from "@/core/wix/types";
 
 const LIMITE_POR_BATCH = 400;
@@ -21,6 +22,7 @@ export interface PreviewWixResult {
 	pessoas?: { criar: number; atualizar: number };
 	turmas?: { criar: number; atualizar: number };
 	recebimentos?: { criar: number; avisos: number; pulados: { motivo: string; quantidade: number }[] };
+	matriculas?: { criar: number };
 }
 
 export interface ConfirmWixResult {
@@ -31,6 +33,7 @@ export interface ConfirmWixResult {
 	turmasCriadas?: number;
 	turmasAtualizadas?: number;
 	recebimentosCriados?: number;
+	matriculasCriadas?: number;
 }
 
 function mensagemErroWix(error: unknown): string {
@@ -48,30 +51,58 @@ async function buscarDadosWix(): Promise<{ orders: WixOrder[]; contacts: WixCont
 	return { orders, contacts, products };
 }
 
+/**
+ * Data do pedido mais antigo de cada contato, entre os orders já buscados neste sync — usada
+ * como `criadoEm` real da Pessoa em vez da hora em que o sync rodou (`FieldValue.serverTimestamp()`
+ * mascarava a data real de entrada do aluno no sistema da Wix).
+ */
+function calcularDataMaisAntigaPorContactId(orders: WixOrder[]): Map<string, string> {
+	const dataMaisAntigaPorContactId = new Map<string, string>();
+	orders.forEach((order) => {
+		const contactId = order.buyerInfo?.contactId;
+		if (contactId === undefined) {
+			return;
+		}
+		const data = order.createdDate ?? new Date().toISOString();
+		const atual = dataMaisAntigaPorContactId.get(contactId);
+		if (atual === undefined || data < atual) {
+			dataMaisAntigaPorContactId.set(contactId, data);
+		}
+	});
+	return dataMaisAntigaPorContactId;
+}
+
 interface ExistentesWix {
 	pessoaIdPorWixContactId: Map<string, string>;
 	turmaIdPorWixProductId: Map<string, string>;
 	recebimentosExistentes: Set<string>;
+	matriculasExistentes: Set<string>;
+	numeroMatriculaAlunoPorPessoaId: Map<string, string | null>;
 }
 
 /**
- * Busca as 3 coleções inteiras (mesmo padrão de caixa/page.tsx e do import CSV —
- * escala de escola pequena) e monta os mapas wix*Id → id do Firestore em memória.
+ * Busca as coleções inteiras (mesmo padrão de caixa/page.tsx e do import CSV — escala de escola
+ * pequena) e monta os mapas wix*Id → id do Firestore em memória. Também traz `matriculas` (pra
+ * não duplicar matrícula num re-sync) e o `numeroMatriculaAluno` atual de cada pessoa (pra saber
+ * quem ainda precisa de um número novo).
  */
 async function carregarExistentes(): Promise<ExistentesWix> {
 	const firestore = getFirebaseAdminFirestore();
-	const [pessoasSnapshot, turmasSnapshot, recebimentosSnapshot] = await Promise.all([
+	const [pessoasSnapshot, turmasSnapshot, recebimentosSnapshot, matriculasSnapshot] = await Promise.all([
 		firestore.collection("pessoas").get(),
 		firestore.collection("turmas").get(),
 		firestore.collection("recebimentos").get(),
+		firestore.collection("matriculas").get(),
 	]);
 
 	const pessoaIdPorWixContactId = new Map<string, string>();
+	const numeroMatriculaAlunoPorPessoaId = new Map<string, string | null>();
 	pessoasSnapshot.docs.forEach((doc) => {
-		const wixContactId = (doc.data() as { wixContactId?: string | null }).wixContactId;
-		if (wixContactId) {
-			pessoaIdPorWixContactId.set(wixContactId, doc.id);
+		const data = doc.data() as { wixContactId?: string | null; numeroMatriculaAluno?: string | null };
+		if (data.wixContactId) {
+			pessoaIdPorWixContactId.set(data.wixContactId, doc.id);
 		}
+		numeroMatriculaAlunoPorPessoaId.set(doc.id, data.numeroMatriculaAluno ?? null);
 	});
 
 	const turmaIdPorWixProductId = new Map<string, string>();
@@ -90,7 +121,19 @@ async function carregarExistentes(): Promise<ExistentesWix> {
 		}
 	});
 
-	return { pessoaIdPorWixContactId, turmaIdPorWixProductId, recebimentosExistentes };
+	const matriculasExistentes = new Set<string>();
+	matriculasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as { pessoaId: string; turmaId: string };
+		matriculasExistentes.add(`${data.pessoaId}:${data.turmaId}`);
+	});
+
+	return {
+		pessoaIdPorWixContactId,
+		turmaIdPorWixProductId,
+		recebimentosExistentes,
+		matriculasExistentes,
+		numeroMatriculaAlunoPorPessoaId,
+	};
 }
 
 export async function previewSincronizacaoWix(): Promise<PreviewWixResult> {
@@ -112,13 +155,17 @@ export async function previewSincronizacaoWix(): Promise<PreviewWixResult> {
 	const planoTurmas = planejarTurmas(products, existentes.turmaIdPorWixProductId);
 
 	// Preview não grava nada — usa um placeholder no lugar do id real só pra contar
-	// quantos recebimentos resolveriam se o sync fosse confirmado agora.
+	// quantos recebimentos (e, a partir deles, matrículas) resolveriam se o sync fosse confirmado agora.
 	const pessoaIdPlaceholder = new Map(existentes.pessoaIdPorWixContactId);
 	planoPessoas.criar.forEach((item) => pessoaIdPlaceholder.set(item.wixContactId, `novo:${item.wixContactId}`));
 	const turmaIdPlaceholder = new Map(existentes.turmaIdPorWixProductId);
 	planoTurmas.criar.forEach((item) => turmaIdPlaceholder.set(item.wixProductId, `novo:${item.wixProductId}`));
 
 	const planoRecebimentos = planejarRecebimentos(orders, pessoaIdPlaceholder, turmaIdPlaceholder, existentes.recebimentosExistentes);
+
+	const matriculasCandidatas = planejarMatriculasRetroativas(planoRecebimentos.criar).filter(
+		(candidata) => !existentes.matriculasExistentes.has(`${candidata.pessoaId}:${candidata.turmaId}`),
+	);
 
 	const puladosPorMotivo = new Map<string, number>();
 	planoRecebimentos.pulados.forEach((pulado) => {
@@ -134,6 +181,7 @@ export async function previewSincronizacaoWix(): Promise<PreviewWixResult> {
 			avisos: planoRecebimentos.avisos.length,
 			pulados: [...puladosPorMotivo.entries()].map(([motivo, quantidade]) => ({ motivo, quantidade })),
 		},
+		matriculas: { criar: matriculasCandidatas.length },
 	};
 }
 
@@ -168,6 +216,27 @@ async function commitEmLotes(firestore: FirebaseFirestore.Firestore, operacoes: 
 	}
 }
 
+/**
+ * Sincroniza o Contato vinculado a uma Pessoa pra `estagio: "convertido"`, se ainda não estiver —
+ * mesma sincronização que `matricular()` faz (`.../pessoas/[id]/actions.ts`), só que fora de
+ * transação porque roda depois do commit em lote do sync, uma vez por pessoa afetada.
+ */
+async function sincronizarContatoConvertido(firestore: FirebaseFirestore.Firestore, pessoaId: string): Promise<void> {
+	const contatoSnapshot = await firestore.collection("contatos").where("pessoaId", "==", pessoaId).limit(1).get();
+	const [contatoDoc] = contatoSnapshot.docs;
+	if (contatoDoc === undefined) {
+		return;
+	}
+	const data = contatoDoc.data() as { estagio: string };
+	if (data.estagio === "convertido") {
+		return;
+	}
+	await contatoDoc.ref.set(
+		{ estagio: "convertido", arquivadoMotivo: null, estagioAtualizadoEm: FieldValue.serverTimestamp() },
+		{ merge: true },
+	);
+}
+
 export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 	const session = await getServerSession();
 	if (session === null || session.role !== "admin") {
@@ -186,6 +255,7 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 
 	const { orders, contacts, products } = wixData;
 	const firestore = getFirebaseAdminFirestore();
+	const dataMaisAntigaPorContactId = calcularDataMaisAntigaPorContactId(orders);
 
 	const planoPessoas = planejarPessoas(orders, contacts, existentes.pessoaIdPorWixContactId);
 	const planoTurmas = planejarTurmas(products, existentes.turmaIdPorWixProductId);
@@ -209,9 +279,18 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 
 	const planoRecebimentos = planejarRecebimentos(orders, pessoaIdPorWixContactId, turmaIdPorWixProductId, existentes.recebimentosExistentes);
 
+	// "Se pagou, está matriculado": resolvido a partir dos próprios Recebimentos que este sync
+	// está prestes a criar — pulando pares que já têm alguma Matrícula (idempotência de re-sync).
+	const matriculasCandidatas = planejarMatriculasRetroativas(planoRecebimentos.criar).filter(
+		(candidata) => !existentes.matriculasExistentes.has(`${candidata.pessoaId}:${candidata.turmaId}`),
+	);
+	const pessoaIdsComMatriculaNova = new Set(matriculasCandidatas.map((candidata) => candidata.pessoaId));
+
 	const operacoes: Operacao[] = [];
 
 	novasPessoasRefs.forEach(({ ref, item }) => {
+		const statusAlunoInicial = pessoaIdsComMatriculaNova.has(ref.id) ? "matriculado" : "lead";
+		const dataMaisAntiga = dataMaisAntigaPorContactId.get(item.wixContactId);
 		operacoes.push({
 			ref,
 			merge: false,
@@ -219,14 +298,14 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 				nome: item.nome,
 				ehAluno: true,
 				ehProfessor: false,
-				statusAluno: "lead",
+				statusAluno: statusAlunoInicial,
 				statusProfessor: null,
 				numeroMatriculaAluno: null,
 				numeroMatriculaProfessor: null,
 				interesses: [],
 				ativo: true,
 				criadoViaContatoId: null,
-				criadoEm: FieldValue.serverTimestamp(),
+				criadoEm: dataMaisAntiga !== undefined ? new Date(dataMaisAntiga) : FieldValue.serverTimestamp(),
 				email: item.email,
 				telefone: item.telefone,
 				wixContactId: item.wixContactId,
@@ -238,7 +317,7 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		operacoes.push({
 			ref: firestore.collection("contatos").doc(),
 			merge: false,
-			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, statusAluno: "lead", ativo: true }),
+			data: contatoInicialDeAluno({ id: ref.id, nome: item.nome, statusAluno: statusAlunoInicial, ativo: true }),
 		});
 	});
 
@@ -256,11 +335,15 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 			merge: false,
 			data: {
 				nome: item.nome,
-				assunto: item.nome,
+				// Assunto nasce em branco (mesmo padrão de dataInicio/educadorPessoaId incompletos até
+				// alguém completar pela tela de editar) — a Wix não tem esse conceito, e adivinhar a
+				// categoria a partir do nome do produto erraria mais do que ajudaria.
+				assunto: "",
+				tipo: item.tipo,
 				mensalidadeCentavos: item.mensalidadeCentavos,
 				repasseTipo: "percentual",
 				repasseValor: 0,
-				dataInicio: null,
+				dataInicio: item.dataInicio !== null ? new Date(item.dataInicio) : null,
 				dataFim: null,
 				educadorPessoaId: null,
 				capacidadeMaxima: null,
@@ -275,7 +358,7 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		operacoes.push({
 			ref: firestore.collection("turmas").doc(item.turmaId),
 			merge: true,
-			data: { nome: item.nome, mensalidadeCentavos: item.mensalidadeCentavos, origem: "wix" },
+			data: { mensalidadeCentavos: item.mensalidadeCentavos, origem: "wix" },
 		});
 	});
 
@@ -299,6 +382,66 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		});
 	});
 
+	// Número de matrícula: atribuído uma única vez por pessoa, usando o ano da matrícula mais
+	// antiga dela nesta leva (mesma regra de `gerarProximoNumeroMatricula`). Como esta função já
+	// não é transacional por registro (é batch, mesmo padrão de baixa concorrência assumido pelo
+	// resto do sync), o contador é lido uma vez e incrementado localmente em memória.
+	const candidatasPorPessoaId = new Map<string, typeof matriculasCandidatas>();
+	matriculasCandidatas.forEach((candidata) => {
+		const lista = candidatasPorPessoaId.get(candidata.pessoaId) ?? [];
+		lista.push(candidata);
+		candidatasPorPessoaId.set(candidata.pessoaId, lista);
+	});
+
+	const pessoaRefPorId = new Map<string, FirebaseFirestore.DocumentReference>();
+	novasPessoasRefs.forEach(({ ref }) => pessoaRefPorId.set(ref.id, ref));
+	candidatasPorPessoaId.forEach((_lista, pessoaId) => {
+		if (!pessoaRefPorId.has(pessoaId)) {
+			pessoaRefPorId.set(pessoaId, firestore.collection("pessoas").doc(pessoaId));
+		}
+	});
+
+	const contadorRef = firestore.collection("contadores").doc("pessoas");
+	let proximoNumero: number | undefined;
+	for (const [pessoaId, lista] of candidatasPorPessoaId) {
+		const numeroAtual = existentes.numeroMatriculaAlunoPorPessoaId.get(pessoaId) ?? null;
+		if (numeroAtual !== null) {
+			continue;
+		}
+		if (proximoNumero === undefined) {
+			const contadorDoc = await contadorRef.get();
+			const dados = contadorDoc.data() ?? {};
+			proximoNumero = (dados.proximoNumeroAluno as number | undefined) ?? (dados.proximoNumero as number | undefined) ?? 1;
+		}
+		const dataMaisAntigaDaPessoa = lista.reduce((a, b) => (a.dataMatricula <= b.dataMatricula ? a : b)).dataMatricula;
+		const ano = new Date(dataMaisAntigaDaPessoa).getFullYear();
+		const ref = pessoaRefPorId.get(pessoaId);
+		if (ref !== undefined) {
+			operacoes.push({ ref, merge: true, data: { numeroMatriculaAluno: `A-${ano}-${String(proximoNumero).padStart(4, "0")}` } });
+		}
+		proximoNumero += 1;
+	}
+	if (proximoNumero !== undefined) {
+		operacoes.push({ ref: contadorRef, merge: true, data: { proximoNumeroAluno: proximoNumero } });
+	}
+
+	matriculasCandidatas.forEach((candidata) => {
+		operacoes.push({
+			ref: firestore.collection("matriculas").doc(),
+			merge: false,
+			data: {
+				pessoaId: candidata.pessoaId,
+				turmaId: candidata.turmaId,
+				dataMatricula: new Date(candidata.dataMatricula),
+				dataEncerramento: null,
+				mensalidadeCombinadaCentavos: candidata.mensalidadeCombinadaCentavos,
+				motivo: "Matrícula criada automaticamente pela sincronização Wix (pedido pago).",
+				status: "ativa",
+				ativo: true,
+			},
+		});
+	});
+
 	try {
 		await commitEmLotes(firestore, operacoes);
 	} catch {
@@ -307,6 +450,17 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 			message: "Falha ao gravar no meio da sincronização. Alguns lotes já processados podem ter sido salvos — rode de novo, é seguro (idempotente).",
 		};
 	}
+
+	// Pessoas recém-criadas já nascem com o statusAluno/estágio de Contato corretos (calculados
+	// acima); esta passagem é o que corrige pessoas já existentes que só agora receberam sua
+	// primeira Matrícula — recalcularStatusAluno/sincronizarContatoConvertido são idempotentes,
+	// então rodar pra todo mundo (inclusive quem acabou de ser criado certo) é seguro.
+	await Promise.all(
+		[...pessoaIdsComMatriculaNova].map(async (pessoaId) => {
+			await recalcularStatusAluno(firestore, pessoaId);
+			await sincronizarContatoConvertido(firestore, pessoaId);
+		}),
+	);
 
 	revalidatePath("/pessoas");
 	revalidatePath("/pessoas/turmas");
@@ -320,5 +474,6 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		turmasCriadas: planoTurmas.criar.length,
 		turmasAtualizadas: planoTurmas.atualizar.length,
 		recebimentosCriados: planoRecebimentos.criar.length,
+		matriculasCriadas: matriculasCandidatas.length,
 	};
 }

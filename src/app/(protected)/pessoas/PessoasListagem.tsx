@@ -135,8 +135,8 @@ export function PessoasListagem({
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Pessoas" }]} />
-			<div className="mb-4 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Pessoas" }]} />
+			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
 					{selecionados.size > 0 ? (
@@ -156,13 +156,13 @@ export function PessoasListagem({
 				<NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />
 			</div>
 
-			<div className="mb-4">
+			<div className="mb-6">
 				<AbaAtivosArquivados />
 			</div>
 
 			<Card>
 				<CardContent className="p-4">
-					<div className="mb-4 flex flex-wrap items-center gap-3">
+					<div className="mb-6 flex flex-wrap items-center gap-3">
 						<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
 					</div>
 

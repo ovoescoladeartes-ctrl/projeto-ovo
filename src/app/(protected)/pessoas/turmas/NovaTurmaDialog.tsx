@@ -16,14 +16,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PessoaBusca } from "@/core/pessoas/actions";
-import type { RepasseTipo } from "@/core/turmas/schema";
+import type { RepasseTipo, TurmaTipo } from "@/core/turmas/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { criarTurma } from "./actions";
 
+const TIPO_SEM_CLASSIFICACAO = "nenhum";
+
 const ESTADO_INICIAL = {
 	nome: "",
 	assunto: "",
+	tipo: TIPO_SEM_CLASSIFICACAO,
 	mensalidade: "",
 	repasseTipo: "percentual" as RepasseTipo,
 	repasseValor: "",
@@ -70,6 +73,7 @@ export function NovaTurmaDialog(): React.ReactElement {
 			const result = await criarTurma({
 				nome: form.nome,
 				assunto: form.assunto,
+				tipo: form.tipo === TIPO_SEM_CLASSIFICACAO ? null : (form.tipo as TurmaTipo),
 				mensalidadeCentavos,
 				repasseTipo: form.repasseTipo,
 				repasseValor,
@@ -119,6 +123,20 @@ export function NovaTurmaDialog(): React.ReactElement {
 							onChange={(event) => setForm({ ...form, assunto: event.target.value })}
 							disabled={isPending}
 						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor="turma-tipo">Tipo (opcional)</Label>
+						<Select value={form.tipo} onValueChange={(value) => setForm({ ...form, tipo: value })} disabled={isPending}>
+							<SelectTrigger id="turma-tipo">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={TIPO_SEM_CLASSIFICACAO}>Não classificado</SelectItem>
+								<SelectItem value="curso">Curso</SelectItem>
+								<SelectItem value="oficina">Oficina</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="space-y-1.5">
