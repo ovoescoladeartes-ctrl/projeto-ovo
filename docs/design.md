@@ -314,11 +314,23 @@ desta conversa:
     estrago:**
     - **Leve** (`AlertDialog` simples, só "Cancelar"/confirmar, sem digitar nada) — pra ações
       reversíveis que merecem uma pausa, mas não risco de perda de dado: Arquivar pessoa,
-      Encerrar matrícula. Ver `PessoaArquivarButton.tsx`, `MatriculaEncerrarButton.tsx`.
+      Encerrar matrícula. Ver `PessoaArquivarMenuItem.tsx`, `MatriculaEncerrarMenuItem.tsx`.
     - **Pesada** (`AlertDialog` exigindo digitar o nome exato) — reservada só pra exclusão
-      permanente (irreversível de verdade). Ver `PessoaExcluirButton.tsx`.
+      permanente (irreversível de verdade). Ver `PessoaExcluirMenuItem.tsx`.
     Ações totalmente reversíveis na hora (Desarquivar pessoa, Restaurar matrícula) não precisam
     de nenhuma confirmação — o próprio desfazer já é a rede de segurança.
+    - **Confirmação leve que pode ser recusada pelo servidor (não é só "Cancelar" vs. "Confirmar",
+      existe um motivo de bloqueio de verdade) usa o mesmo fluxo de duas fases da confirmação
+      pesada, não o fluxo de uma fase.** Corrigido em 2026-08-14: `PessoaArquivarMenuItem` mostrava
+      direto "Arquivar {nome}? A pessoa some da lista..." e só depois de clicar em "Arquivar" é que
+      aparecia (numa linha de erro pequena, com os botões "Cancelar"/"Arquivar" ainda ativos, como
+      se fosse pra tentar de novo) a real explicação de bloqueio ("Essa pessoa tem matrícula ativa
+      em X...") — confuso, porque o título/descrição prometiam uma ação leve e reversível que na
+      verdade não ia acontecer. Agora checa o bloqueio (`verificarBloqueioArquivarPessoa`, mesmo
+      padrão de `verificarBloqueioExclusaoPessoa`) **antes** de mostrar a confirmação: fase
+      "Verificando..." → ou "Não é possível arquivar {nome}" (só motivo + "Entendi", sem botão de
+      ação) ou "Arquivar {nome}?" (confirmação normal, já sabendo que vai funcionar). Vale pra
+      qualquer ação leve futura que tenha uma checagem de bloqueio no servidor.
 12. **Toda página interna (dentro do `(protected)`), exceto o próprio Dashboard, usa
     `PageBreadcrumb` (`src/components/shell/PageBreadcrumb.tsx`, sobre o `Breadcrumb` do shadcn)
     imediatamente acima do `<h1>`, sempre começando com `{ label: "Dashboard", href: "/" }`.**
@@ -570,6 +582,150 @@ desta conversa:
       `pessoas/turmas/page.tsx`, `vagoes/page.tsx`) envolvendo componentes client sem dado
       assíncrono — são inertes hoje (nunca suspendem de verdade) e não fazem parte deste
       mecanismo; não confundir os dois.
+21. **Célula de ações de linha de tabela mostra no máximo 1 botão secundário/terciário visível —
+    a partir da 2ª ação, tudo entra num menu kebab** (`DropdownMenu` do shadcn, trigger
+    `Button variant="ghost" size="icon"` com ícone `MoreVertical` de `lucide-react`,
+    `DropdownMenuContent align="end"`). Decidido em 2026-08-14. Referência de implementação:
+    célula de ações de `PessoasListagem.tsx` (botão "Ver" + kebab com Arquivar/Desarquivar).
+    - Ação que abre `Dialog`/`AlertDialog`/`Sheet` **a partir de dentro do menu** usa o truque
+      `<XxxTrigger asChild><DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+      rótulo</DropdownMenuItem></XxxTrigger>` — sem o `preventDefault` no `onSelect`, o Radix
+      fecha o `DropdownMenu` antes do diálogo abrir. Ver `PessoaArquivarMenuItem.tsx`.
+    - Ação instantânea sem confirmação usa `DropdownMenuItem` com `onClick` direto (mesmo truque
+      de `onSelect` só pra manter o menu aberto se der erro). Ver `PessoaDesarquivarMenuItem.tsx`.
+    - Item de menu que representa ação destrutiva/de arquivamento usa `className="text-danger
+      focus:text-danger"` — mesmo token da regra 9, nunca cor hardcoded.
+    - Item de menu usa rótulo em texto (ex. "Arquivar pessoa"), nunca ícone sozinho.
+    - **O botão secundário visível (fora do kebab) sempre leva ícone + texto juntos — nunca só
+      ícone.** Revisado em 2026-08-14 (revoga a exceção anterior que permitia `size="icon"` sem
+      rótulo quando o contexto da coluna já deixava óbvio). `Button size="sm"` com o ícone antes
+      do texto (`<Pencil className="h-4 w-4" />Editar`, por exemplo). Ver `MatriculaEditDialog.tsx`,
+      `TurmaEditDialog.tsx`, `MensagemEditDialog.tsx`, `RoleEditDialog.tsx` (ícone `Pencil`) e
+      `PessoasListagem.tsx` (botão "Ver", ícone `Eye`).
+22. **Todo formulário (`Dialog`, `Sheet` ou página) usa um campo por linha — nunca dois campos
+    lado a lado (`grid-cols-2`/`flex` com dois pares `Label`+`Input`/`Select`).** Vale pra
+    desktop e mobile, sem breakpoint que reintroduza a grade em telas largas. Decidido em
+    2026-08-14 — revoga o uso de `grid grid-cols-2 gap-3` nos formulários de Turma, Pessoa,
+    Recebimento, Repasse e no `Sheet` de filtros avançados de Turmas. Cada bloco `Label`+campo
+    ocupa a largura cheia do formulário, empilhado com `space-y-4`.
+23. **`DialogContent` (`src/components/ui/dialog.tsx`) tem altura máxima e rola verticalmente —
+    `max-h-[90vh] overflow-y-auto`, junto do `max-w-lg` que já existia.** Bug corrigido
+    retroativamente em 2026-08-14 (mesmo tipo de correção retroativa das regras 10 e 20): sem
+    limite de altura, um formulário empilhado (regra 22 empurrou tudo pra uma coluna só, o que
+    aumentou a altura de formulários com muitos campos — ex. Editar turma) ultrapassava a viewport
+    e não tinha como rolar até o rodapé (`DialogFooter`/botão "Salvar"). Vale pro app inteiro,
+    automaticamente, em qualquer `Dialog` — não precisa passar `className` de scroll em cada
+    formulário. Não reintroduza `DialogContent` sem `max-h`/`overflow-y-auto` numa edição futura
+    do arquivo. `Sheet` (`src/components/ui/sheet.tsx`) tinha a mesma lacuna estrutural (`h-full`
+    sem `overflow-y-auto`) — **corrigida em 2026-08-14** (mesmo dia, depois de aparecer na prática
+    no `TurmaMatriculasSheet` com muitos alunos matriculados): `overflow-y-auto` adicionado direto
+    em `sheetVariants`, vale pra qualquer `Sheet` do app. Diferente do `Dialog`, não precisou de
+    `max-h` explícito — a variante `right` (única usada no app) já tinha `h-full` limitando a
+    altura a 100vh; só faltava a rolagem dentro desse limite.
+24. **Todo modal de edição tem "Cancelar" ao lado de "Salvar" no `DialogFooter`.** Decidido em
+    2026-08-14. `<DialogClose asChild><Button type="button" variant="outline" disabled={isPending}>
+    Cancelar</Button></DialogClose>` — usa o `DialogClose` já exportado por `dialog.tsx` (fecha o
+    modal sozinho, sem precisar de handler local), **antes** do botão "Salvar" no JSX (o
+    `DialogFooter` usa `flex-col-reverse` no mobile, então essa ordem faz "Salvar" aparecer em
+    cima e "Cancelar" embaixo no mobile, e "Cancelar" à esquerda de "Salvar" no desktop). Ver
+    `MatriculaEditDialog.tsx`, `TurmaEditDialog.tsx`, `MensagemEditDialog.tsx`,
+    `PessoaEditDialog.tsx`, `RoleEditDialog.tsx`.
+25. **Ação secundária tipo "Arquivar"/"Excluir" dentro de um modal de edição também vai pra kebab
+    — nunca fica solta como botão no `DialogFooter`.** Decidido em 2026-08-14, extensão da regra
+    21 (que já cobria célula de ação de tabela) pro contexto de modal. Mesmo componente
+    `DropdownMenu`/`MoreVertical`. **Posição no rodapé: à direita, depois do botão primário** —
+    revisado em 2026-08-14 (versão anterior desta regra colocava o kebab à esquerda com `mr-auto`;
+    corrigido porque o kebab é uma ação de apoio, não deve disputar o lado oposto do rodapé com
+    "Cancelar"/"Salvar"). Ordem no JSX: `Cancelar`, `Salvar`, kebab por último — sem `mr-auto`, o
+    `DialogFooter` (`flex-row justify-end`) já empurra o grupo inteiro pra direita mantendo essa
+    ordem, então o kebab fica o mais à direita de todos no desktop.
+    `DropdownMenuContent align="end"` (agora sim igual à regra 21, porque o trigger está na borda
+    direita, não mais na esquerda). No mobile, o mesmo `flex-col-reverse` da regra 24 empilha o
+    kebab no topo (acima de "Salvar") — não é uma escolha deliberada de hierarquia mobile, é
+    consequência do mesmo mecanismo de inversão de ordem; ainda não foi pedido um comportamento
+    mobile específico pro kebab, então não foi feito override com `order-*`. O item de menu recebe
+    um callback opcional (`onArquivado`, `onExcluido`) pra fechar o `Dialog` pai depois de uma ação
+    bem-sucedida — sem isso o modal ficaria aberto editando um registro que acabou de ser
+    arquivado/excluído. Ver `PessoaArquivarMenuItem.tsx`/`PessoaExcluirMenuItem.tsx` (usados tanto
+    no kebab da tabela de Pessoas quanto no kebab do `PessoaEditDialog`, com e sem o callback) e
+    `TurmaArquivarMenuItem.tsx` (usado só dentro de `TurmaEditDialog`).
+26. **Hierarquia de `Button` — só 3 níveis + destrutivo, nunca `variant="secondary"` nem
+    `variant="link"`.** Auditado e padronizado em 2026-08-14 (o app já convergia pra isso, com
+    duas exceções corrigidas nesta auditoria — ver abaixo). O `Button` do shadcn tem 6 variantes
+    possíveis, mas este projeto usa só 4:
+    - **Primário (`variant="default"`, o padrão — não precisa escrever)**: a única ação que
+      avança o fluxo, no máximo uma visível por contexto. "Salvar" em todo `Dialog` (regra 24) e
+      o CTA de criação **de página inteira** ("Nova pessoa", "Nova turma", "Nova mensagem", "Novo
+      recebimento", "Novo repasse", "Novo contato").
+    - **Secundário (`variant="outline"`)**: ação relevante mas que não é o avanço principal do
+      fluxo — ainda precisa de contorno visível pra não se confundir com texto/ícone decorativo.
+      Cobre três casos: (1) o único botão de ação visível fora do kebab numa linha de tabela
+      (regra 21) — "Editar" (`TurmaEditDialog`, `MensagemEditDialog`, `RoleEditDialog`,
+      `MatriculaEditDialog`), "Ver" (`PessoasListagem`), "Marcar pago"
+      (`MarcarPagoButton`); (2) "Cancelar" ao lado de "Salvar" (regra 24); (3) CTA de criação
+      **de seção dentro de uma página que já tem outro foco principal** — "Matricular"
+      (`MatricularDialog`, dentro da página de detalhe de Pessoa) é `outline`, não `default`,
+      precisamente por não ser o CTA da página, diferente das "Nova X" do item acima. Trigger de
+      `Sheet` de filtro (`FiltrosAvancadosSheet`, `TurmasFiltrosAvancadosSheet`) também entra
+      aqui.
+    - **Terciário (`variant="ghost"`)**: menor ênfase possível — reservado a ícone sozinho (kebab
+      `MoreVertical`, regra 21/25) e ações inline dentro de uma lista/picker onde o item já
+      carrega o contexto (ex. "Copiar" em `MensagemPickerSheet`). **Nunca** o único botão visível
+      de uma linha de tabela — esse é sempre `outline` (ver item acima).
+    - **Destrutivo (`variant="destructive"`)**: eixo à parte, não faz parte da escala de ênfase —
+      só no botão de confirmação dentro do `AlertDialog` (regra 9), nunca num trigger.
+    - **Corrigido nesta auditoria**: `MatriculaEditDialog.tsx` ("Editar" estava `ghost`, virou
+      `outline`) e `PessoasListagem.tsx` ("Ver" estava `ghost`, virou `outline`) — os dois eram o
+      único botão visível da linha e deviam seguir o mesmo padrão de "Editar" nas outras tabelas.
+27. **`Pessoa.statusAluno` tem um 3º valor, `"ex_aluno"`** (`ALUNO_STATUS` em
+    `src/core/pessoas/schema.ts`), além de `"lead"`/`"matriculado"`. Decidido em 2026-08-14, junto
+    com um fechamento de laço bidirecional com o Contato de Vagões (que já tinha o conceito
+    `arquivadoMotivo: "ex_aluno"` isolado, sem refletir em Cadastro — ver item 1 de "Perguntas em
+    aberto" abaixo).
+    - **Regra de cálculo** (`recalcularStatusAluno.ts`): sem matrícula ativa, `"ex_aluno"` se a
+      pessoa já teve alguma Matrícula algum dia (ativa ou encerrada); `"lead"` só se nunca teve
+      nenhuma. Antes só existia `"lead"` pros dois casos — alguém que completou/saiu do curso
+      voltava a aparecer como se nunca tivesse se matriculado.
+    - **Sincronização Pessoa → Contato**: `encerrarMatricula` (`pessoas/[id]/actions.ts`), ao
+      virar `"ex_aluno"`, arquiva o Contato vinculado (`estagio: "arquivado", arquivadoMotivo:
+      "ex_aluno"`), se existir. `restaurarMatricula` desfaz — volta o Contato pra `"convertido"`
+      quando o status volta a `"matriculado"`. Ambas usam o helper `sincronizarContatoDaPessoa`
+      (mesmo arquivo), idempotente (só escreve se o `estagio` do Contato for diferente do
+      esperado). `matricular()` **não precisou de mudança** — já tinha essa sincronização (volta
+      pra `"convertido"` sempre que `estagio !== "convertido"`, qualquer que fosse o estágio
+      anterior).
+    - **Sincronização Contato → Pessoa**: `moverEstagioContato` (`vagoes/actions.ts`), ao mover um
+      card pra `arquivado`/`ex_aluno` no board, também marca `Pessoa.statusAluno = "ex_aluno"` —
+      **só quando isso não contradiz uma matrícula ativa de verdade** (não sobrescreve
+      `"matriculado"`; a Matrícula é a fonte de verdade sobre estar matriculado, o board é só o
+      funil de comunicação). Único sentido tratado — mover um Contato de volta de `arquivado` pra
+      outro estágio continua sem efeito em Pessoa, mesmo comportamento (deliberado) que já existia
+      pra "voltar de convertido" (comentário "decisão fase 4" em `moverEstagioContato`).
+    - **Lacuna conhecida, não tratada**: um Contato que nunca foi `"convertido"` (nunca gerou
+      Matrícula de verdade) mas já tem `pessoaId` vinculado (todo Aluno cadastrado ganha um Contato
+      desde a criação, ver `contatoInicialDeAluno`) pode em tese ser arquivado direto como
+      `"ex_aluno"` no board sem nunca ter sido aluno de fato — nesse caso a Pessoa vira
+      `"ex_aluno"` mesmo sem histórico de Matrícula. Cenário raro (exige mover o card fora da
+      sequência normal do funil); não bloqueado porque exigiria uma query extra só pra esse caso
+      de uso incomum.
+    - **`StatusBadge.tsx`**: `"ex_aluno"` usa azul (`bg-blue-100 text-blue-800`, regra 18) — mesma
+      semântica de `"encerrada"` na Matrícula, terminou sem ter sido uma falha.
+    - Refletido também em `EXPORT_STATUS_LABELS` (`pessoas/actions.ts`) e no filtro de Status
+      (`FiltrosAvancadosSheet.tsx` + `pessoas/page.tsx`) — nesse filtro, `"ex_aluno"` é exclusivo
+      de Aluno, Professor não tem status equivalente.
+28. **`atualizarPessoa` sincroniza `nome` com o Contato vinculado, se existir.** Bug corrigido em
+    2026-08-14, achado na prática: `Contato.nome` é copiado do Pessoa só na criação
+    (`contatoInicialDeAluno`) — editar o nome pela tela de Pessoas depois disso nunca propagava,
+    então o card do board de Vagões ficava preso no nome antigo pra sempre, mesmo a página de
+    detalhe da Pessoa já mostrando o nome novo (dois documentos Firestore diferentes,
+    `pessoas/{id}.nome` e `contatos/{id}.nome`, sem vínculo automático depois do primeiro grava).
+    Mesma categoria de lacuna que motivou a regra 27 (sincronização Pessoa↔Contato), só que em
+    `nome` em vez de `estagio`/`statusAluno`. Só escreve quando o nome muda de verdade
+    (`parsed.data.nome !== atual.nome`), evitando write desnecessário a cada salvamento. **Não
+    corrige retroativamente Contatos que já ficaram com nome desatualizado antes dessa correção**
+    — só corrige na próxima vez que o nome dessa Pessoa for editado de novo; não foi escrito um
+    script de backfill porque não há como distinguir em massa quais Contatos já divergiram sem
+    comparar todos contra a Pessoa vinculada.
 
 ---
 
@@ -581,11 +737,17 @@ desta conversa:
    → convertido, + arquivar). **Decisão confirmada com o usuário**: "Ex-aluno" e "Não
    convertido" são tratados como **sub-estados/motivos de "arquivado"**, não estágios
    novos do board — os 5 estágios do PRD permanecem como fonte de verdade estrutural.
+   **Atualização 2026-08-14**: até aqui "Ex-aluno" existia só dentro de Vagões, sem refletir em
+   Cadastro — fechado pela regra 27 (`Pessoa.statusAluno = "ex_aluno"`, sincronizado nos dois
+   sentidos). "Não convertido" continua isolado em Vagões — não tem equivalente em Pessoa porque,
+   por definição, quem nunca converteu não tem Pessoa nenhuma pra sincronizar.
 2. Cores, tipografia e espaçamentos exatos precisam de validação contra o Figma real
    assim que o acesso via MCP for restabelecido.
 3. Mapeamento ícone → rota da sidebar (home, workflow/Vagões, pessoas, wallet/Caixa,
    configurações) foi inferido pela forma dos ícones nas capturas, não confirmado no
-   Figma.
+   Figma. **Exceção**: o ícone de "Cadastro" foi trocado deliberadamente de `Users` para
+   `GraduationCap` em 2026-08-14 — `Users` ficava ambíguo porque o grupo já engloba Turmas,
+   não só Pessoas; essa troca não depende de confirmação com o Figma.
 4. O chevron de toggle da sidebar não tem um estado "expandido" desenhado nas capturas —
    tratado como decorativo/desabilitado até haver um design para esse estado.
 5. **Candidata a regra MANDATÓRIA, ainda não confirmada com o Rogério**: as duas alturas de

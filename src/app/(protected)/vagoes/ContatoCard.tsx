@@ -1,11 +1,17 @@
 "use client";
 
-import { MessageSquareText, MoveRight } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import Link from "next/link";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
 
@@ -36,7 +42,7 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 	const subtitulo = curso === "" ? dias : `${curso} - ${dias}`;
 
 	const conteudo = (
-		<div className="flex items-start justify-between gap-2">
+		<div className="flex items-center justify-between gap-2">
 			<div className="flex min-w-0 flex-col gap-1">
 				<div className="flex min-w-0 items-center gap-3">
 					<Avatar className="shrink-0">
@@ -47,34 +53,26 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 				<p className="truncate text-xs text-muted-foreground">{subtitulo}</p>
 			</div>
 
-			{/* Só existe no mobile: lá não tem drag, então esse é o único jeito de mover ou
-			    abrir a biblioteca. No desktop os ícones ficam de fora — drag cobre o "mover"
-			    e o hover do card (acima) já basta como feedback, sem gastar espaço da coluna.
-			    stopPropagation aqui evita que um clique nesses botões dispare a navegação do
-			    card pra página da pessoa. */}
-			<div className="flex shrink-0 items-center gap-0.5 md:hidden" onClick={(event) => event.stopPropagation()}>
-				<button
-					type="button"
-					aria-label="Biblioteca de mensagens"
-					onClick={onAbrirBiblioteca}
-					onPointerDown={(event) => event.stopPropagation()}
-					className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-				>
-					<MessageSquareText className="h-4 w-4" />
-				</button>
-
+			{/* Só existe no mobile: lá não tem drag, então esse kebab é o único jeito de mover ou
+			    abrir a biblioteca. No desktop ele fica de fora — drag cobre o "mover" e o hover
+			    do card (acima) já basta como feedback, sem gastar espaço da coluna. stopPropagation
+			    aqui evita que um clique no kebab dispare a navegação do card pra página da pessoa. */}
+			<div className="shrink-0 md:hidden" onClick={(event) => event.stopPropagation()}>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<button
 							type="button"
-							aria-label="Mover para"
+							aria-label="Mais ações"
 							onPointerDown={(event) => event.stopPropagation()}
 							className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 						>
-							<MoveRight className="h-4 w-4" />
+							<MoreVertical className="h-4 w-4" />
 						</button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
+						<DropdownMenuItem onSelect={onAbrirBiblioteca}>Biblioteca de mensagens</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuLabel>Mover para:</DropdownMenuLabel>
 						{outrosBuckets.map((bucket) => (
 							<DropdownMenuItem key={bucket.key} onSelect={() => onMoverPara(bucket)}>
 								{bucket.label}
@@ -83,16 +81,6 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-
-			{contato.interesses.length > 0 ? (
-				<div className="mt-2 flex flex-wrap gap-1">
-					{contato.interesses.map((interesse) => (
-						<Badge key={interesse} variant="secondary" className="text-[10px]">
-							{interesse}
-						</Badge>
-					))}
-				</div>
-			) : null}
 		</div>
 	);
 

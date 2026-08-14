@@ -151,45 +151,63 @@ export function TurmasFiltrosAvancadosSheet({ opcoesAssunto }: TurmasFiltrosAvan
 
 					<div className="space-y-1.5">
 						<Label>Mensalidade (R$)</Label>
-						<div className="grid grid-cols-2 gap-3">
-							<Input
-								inputMode="decimal"
-								placeholder="Mínimo"
-								value={mensalidadeMin}
-								onChange={(event) => setMensalidadeMin(event.target.value)}
-							/>
-							<Input
-								inputMode="decimal"
-								placeholder="Máximo"
-								value={mensalidadeMax}
-								onChange={(event) => setMensalidadeMax(event.target.value)}
-							/>
+						<div className="space-y-2">
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">Mínimo</Label>
+								<Input
+									inputMode="decimal"
+									placeholder="Mínimo"
+									value={mensalidadeMin}
+									onChange={(event) => setMensalidadeMin(event.target.value)}
+								/>
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">Máximo</Label>
+								<Input
+									inputMode="decimal"
+									placeholder="Máximo"
+									value={mensalidadeMax}
+									onChange={(event) => setMensalidadeMax(event.target.value)}
+								/>
+							</div>
 						</div>
 					</div>
 
 					<div className="space-y-1.5">
 						<Label>Início</Label>
-						<div className="grid grid-cols-2 gap-3">
-							<Input type="date" value={inicioDe} onChange={(event) => setInicioDe(event.target.value)} />
-							<Input type="date" value={inicioAte} onChange={(event) => setInicioAte(event.target.value)} />
+						<div className="space-y-2">
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">De</Label>
+								<Input type="date" value={inicioDe} onChange={(event) => setInicioDe(event.target.value)} />
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">Até</Label>
+								<Input type="date" value={inicioAte} onChange={(event) => setInicioAte(event.target.value)} />
+							</div>
 						</div>
 					</div>
 
 					<div className="space-y-1.5">
 						<Label>Vagas ocupadas</Label>
-						<div className="grid grid-cols-2 gap-3">
-							<Input
-								inputMode="numeric"
-								placeholder="Mínimo"
-								value={vagasMin}
-								onChange={(event) => setVagasMin(event.target.value)}
-							/>
-							<Input
-								inputMode="numeric"
-								placeholder="Máximo"
-								value={vagasMax}
-								onChange={(event) => setVagasMax(event.target.value)}
-							/>
+						<div className="space-y-2">
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">Mínimo</Label>
+								<Input
+									inputMode="numeric"
+									placeholder="Mínimo"
+									value={vagasMin}
+									onChange={(event) => setVagasMin(event.target.value)}
+								/>
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs font-normal text-muted-foreground">Máximo</Label>
+								<Input
+									inputMode="numeric"
+									placeholder="Máximo"
+									value={vagasMax}
+									onChange={(event) => setVagasMax(event.target.value)}
+								/>
+							</div>
 						</div>
 					</div>
 				</div>

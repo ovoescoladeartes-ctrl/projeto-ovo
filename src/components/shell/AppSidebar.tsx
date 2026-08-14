@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, Home, Settings, Users, Wallet, Workflow } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Home, Settings, Wallet, Workflow } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -59,7 +59,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
 	{
 		label: "Cadastro",
-		icon: Users,
+		icon: GraduationCap,
 		href: null,
 		roles: ["admin", "comunicacao", "financeiro"],
 		children: [

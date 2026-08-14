@@ -2,17 +2,17 @@
 
 import { useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { restaurarMatricula } from "./actions";
 
-interface MatriculaRestaurarButtonProps {
+interface MatriculaRestaurarMenuItemProps {
 	id: string;
 	pessoaId: string;
 }
 
 /** Desfaz um "Encerrar" por engano — reversível na hora, sem confirmação (pode encerrar de novo se for o caso). */
-export function MatriculaRestaurarButton({ id, pessoaId }: MatriculaRestaurarButtonProps): React.ReactElement {
+export function MatriculaRestaurarMenuItem({ id, pessoaId }: MatriculaRestaurarMenuItemProps): React.ReactElement {
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
@@ -27,11 +27,8 @@ export function MatriculaRestaurarButton({ id, pessoaId }: MatriculaRestaurarBut
 	}
 
 	return (
-		<div className="flex flex-col items-end gap-1">
-			<Button type="button" variant="ghost" size="sm" onClick={handleRestaurar} disabled={isPending}>
-				{isPending ? "Restaurando..." : "Restaurar"}
-			</Button>
-			{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
-		</div>
+		<DropdownMenuItem onSelect={(event) => event.preventDefault()} onClick={handleRestaurar} disabled={isPending}>
+			{erro ?? "Restaurar matrícula"}
+		</DropdownMenuItem>
 	);
 }

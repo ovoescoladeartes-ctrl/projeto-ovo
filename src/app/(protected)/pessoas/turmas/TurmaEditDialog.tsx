@@ -1,27 +1,20 @@
 "use client";
 
+import { MoreVertical, Pencil } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { PessoaCombobox } from "@/components/PessoaCombobox";
-import {
-	AlertDialog,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,7 +22,8 @@ import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { RepasseTipo, Turma, TurmaTipo } from "@/core/turmas/schema";
 import { parseCentavosInput } from "@/lib/currency";
 
-import { atualizarTurma, inativarTurma } from "./actions";
+import { atualizarTurma } from "./actions";
+import { TurmaArquivarMenuItem } from "./TurmaArquivarMenuItem";
 
 const TIPO_SEM_CLASSIFICACAO = "nenhum";
 
@@ -65,23 +59,6 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 	);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
-
-	const [arquivarOpen, setArquivarOpen] = useState(false);
-	const [arquivarErro, setArquivarErro] = useState<string | null>(null);
-	const [isArquivando, startArquivarTransition] = useTransition();
-
-	function handleArquivar(): void {
-		setArquivarErro(null);
-		startArquivarTransition(async () => {
-			const result = await inativarTurma(turma.id);
-			if (result.status === "error") {
-				setArquivarErro(result.message ?? "Não foi possível arquivar.");
-				return;
-			}
-			setArquivarOpen(false);
-			setOpen(false);
-		});
-	}
 
 	function handleSalvar(): void {
 		setErro(null);
@@ -136,6 +113,7 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				<Button type="button" variant="outline" size="sm">
+					<Pencil className="h-4 w-4" />
 					Editar
 				</Button>
 			</DialogTrigger>
@@ -190,62 +168,58 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 						/>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor={`turma-repasse-tipo-${turma.id}`}>Tipo de repasse</Label>
-							<Select
-								value={repasseTipo}
-								onValueChange={(value) => {
-									setRepasseTipo(value as RepasseTipo);
-									setRepasseValor("");
-								}}
-								disabled={isPending}
-							>
-								<SelectTrigger id={`turma-repasse-tipo-${turma.id}`}>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="percentual">Percentual</SelectItem>
-									<SelectItem value="fixo">Fixo</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-1.5">
-							<Label htmlFor={`turma-repasse-valor-${turma.id}`}>
-								{repasseTipo === "percentual" ? "Repasse (%)" : "Repasse (R$)"}
-							</Label>
-							<Input
-								id={`turma-repasse-valor-${turma.id}`}
-								inputMode="decimal"
-								value={repasseValor}
-								onChange={(event) => setRepasseValor(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-repasse-tipo-${turma.id}`}>Tipo de repasse</Label>
+						<Select
+							value={repasseTipo}
+							onValueChange={(value) => {
+								setRepasseTipo(value as RepasseTipo);
+								setRepasseValor("");
+							}}
+							disabled={isPending}
+						>
+							<SelectTrigger id={`turma-repasse-tipo-${turma.id}`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="percentual">Percentual</SelectItem>
+								<SelectItem value="fixo">Fixo</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor={`turma-data-inicio-${turma.id}`}>Início</Label>
-							<Input
-								id={`turma-data-inicio-${turma.id}`}
-								type="date"
-								value={dataInicio}
-								onChange={(event) => setDataInicio(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor={`turma-data-fim-${turma.id}`}>Fim (opcional)</Label>
-							<Input
-								id={`turma-data-fim-${turma.id}`}
-								type="date"
-								value={dataFim}
-								onChange={(event) => setDataFim(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-repasse-valor-${turma.id}`}>
+							{repasseTipo === "percentual" ? "Repasse (%)" : "Repasse (R$)"}
+						</Label>
+						<Input
+							id={`turma-repasse-valor-${turma.id}`}
+							inputMode="decimal"
+							value={repasseValor}
+							onChange={(event) => setRepasseValor(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-data-inicio-${turma.id}`}>Início</Label>
+						<Input
+							id={`turma-data-inicio-${turma.id}`}
+							type="date"
+							value={dataInicio}
+							onChange={(event) => setDataInicio(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor={`turma-data-fim-${turma.id}`}>Fim (opcional)</Label>
+						<Input
+							id={`turma-data-fim-${turma.id}`}
+							type="date"
+							value={dataFim}
+							onChange={(event) => setDataFim(event.target.value)}
+							disabled={isPending}
+						/>
 					</div>
 
 					<div className="space-y-1.5">
@@ -279,30 +253,11 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 				</div>
 
 				<DialogFooter>
-					{turma.ativo ? (
-						<AlertDialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
-							<AlertDialogTrigger asChild>
-								<Button type="button" variant="ghost" className="mr-auto text-muted-foreground">
-									Arquivar
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Arquivar {turma.nome}?</AlertDialogTitle>
-									<AlertDialogDescription>
-										As matrículas ativas dessa turma serão encerradas junto.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								{arquivarErro !== null ? <p className="text-xs text-destructive">{arquivarErro}</p> : null}
-								<AlertDialogFooter>
-									<AlertDialogCancel disabled={isArquivando}>Cancelar</AlertDialogCancel>
-									<Button type="button" variant="destructive" onClick={handleArquivar} disabled={isArquivando}>
-										{isArquivando ? "Arquivando..." : "Arquivar"}
-									</Button>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
-					) : null}
+					<DialogClose asChild>
+						<Button type="button" variant="outline" disabled={isPending}>
+							Cancelar
+						</Button>
+					</DialogClose>
 					<Button
 						type="button"
 						onClick={handleSalvar}
@@ -310,6 +265,18 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 					>
 						{isPending ? "Salvando..." : "Salvar"}
 					</Button>
+					{turma.ativo ? (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+									<MoreVertical className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<TurmaArquivarMenuItem id={turma.id} nome={turma.nome} onArquivado={() => setOpen(false)} />
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : null}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

@@ -158,28 +158,26 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="repasse-valor">Valor (R$)</Label>
-							<Input
-								id="repasse-valor"
-								inputMode="decimal"
-								placeholder="45,00"
-								value={valor}
-								onChange={(event) => setValor(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="repasse-vencimento">Vencimento</Label>
-							<Input
-								id="repasse-vencimento"
-								type="date"
-								value={vencimento}
-								onChange={(event) => setVencimento(event.target.value)}
-								disabled={isPending}
-							/>
-						</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="repasse-valor">Valor (R$)</Label>
+						<Input
+							id="repasse-valor"
+							inputMode="decimal"
+							placeholder="45,00"
+							value={valor}
+							onChange={(event) => setValor(event.target.value)}
+							disabled={isPending}
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="repasse-vencimento">Vencimento</Label>
+						<Input
+							id="repasse-vencimento"
+							type="date"
+							value={vencimento}
+							onChange={(event) => setVencimento(event.target.value)}
+							disabled={isPending}
+						/>
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
