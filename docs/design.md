@@ -527,6 +527,50 @@ desta conversa:
       uma variável só. Sinal de que chegou a hora de virar token de verdade: a mesma combinação de
       classes aparecendo em 2+ arquivos com o mesmo significado.
 
+20. **Toda rota que busca dados no servidor (`(protected)/**`) precisa de um `loading.tsx` no
+    mesmo segmento**, usando os esqueletos de `src/components/skeletons/` — nunca deixar a
+    navegação mostrar tela em branco enquanto o Server Component busca dados no Firestore.
+    Decidido em 2026-08-14, depois de a Katlin reportar carregamento lento sem nenhum indicador
+    visual. Motivo estrutural: as páginas de conteúdo (`(protected)/page.tsx`, `pessoas/page.tsx`,
+    `vagoes/page.tsx`, `caixa/page.tsx`, `pessoas/turmas/page.tsx`) são **Server Components async**
+    que buscam direto no Firestore Admin SDK antes de montar o JSX — não há fetch client-side, então
+    um `<Suspense fallback={null}>` colocado *dentro* do componente que a página retorna não ajuda:
+    o `await` já terminou antes desse JSX existir. O mecanismo certo é o `loading.tsx` do App
+    Router, que o Next envolve automaticamente num Suspense boundary em volta do `page.tsx` inteiro
+    e mostra enquanto a busca de dados roda no servidor.
+    - **Componentes disponíveis** (`src/components/skeletons/`, compostos a partir do primitivo
+      `Skeleton` de `src/components/ui/skeleton.tsx`):
+      - `PageHeaderSkeleton` — cabeçalho padrão da regra 15 (Breadcrumb → H1+busca+CTA →
+        Tabs → Filtros). Props `breadcrumb` (default `true`, desligar só no Dashboard — regra 12),
+        `tabs` e `filtros` (default `false`) ligam as linhas correspondentes.
+      - `CardGridSkeleton` — grade de `Card`, para o lugar de `KpiCardsGrid`/`FunnelStageRow`.
+        Recebe `count`, `colsClassName` (classes completas de `grid-cols-*`, copiadas do grid real
+        — **nunca** combine com um `grid-cols-*` sem prefixo já default no componente, é a mesma
+        armadilha de ordem não determinística de `className` da nota acima) e `variant`
+        (`"kpi"` | `"funil"`).
+      - `TableSkeleton` — para qualquer listagem em tabela (Pessoas, Turmas, Caixa). Props
+        `columns` e `rows` (default 8).
+      - `CardListSkeleton` — para o lugar de `PendenciasList`. Prop `rows` (default 3).
+      - `BoardSkeleton` — para o board kanban de Vagões (6 colunas desktop / 1 coluna mobile,
+        lido de `BUCKETS`).
+    - **`src/components/ui/skeleton.tsx` usa `bg-border`, não o `bg-primary/10` default do
+      shadcn.** Bug corrigido em 2026-08-14: com `--primary` deste projeto sendo quase preto
+      (`oklch(0.205 0 0)`, ver tabela de Cor), `bg-primary/10` sobre um `Card` branco já nasce
+      pouco visível — e o `animate-pulse` (que oscila a opacidade do elemento entre 100% e 50% a
+      cada ciclo) reduz ainda mais o contraste na metade do tempo, a ponto de o skeleton parecer
+      "abrir com fundo branco" em vez de mostrar barrinhas cinza. `--border` (a mesma cor de borda
+      de card/tabela) é sólido e claramente visível mesmo no vale do pulse — não reintroduza
+      `bg-primary/10` neste componente.
+    - Ao criar uma rota nova com busca de dados no servidor, monte o `loading.tsx` compondo esses
+      blocos na mesma ordem visual da página real — não precisa ser pixel-perfect (o skeleton some
+      assim que os dados chegam), só precisa ter a forma geral certa para não "pular" o layout.
+      Só crie um esqueleto novo em `src/components/skeletons/` se nenhum dos cinco acima servir
+      pro formato de conteúdo da rota nova.
+    - Continuam existindo `<Suspense fallback={null}>` em alguns pontos (`pessoas/page.tsx`,
+      `pessoas/turmas/page.tsx`, `vagoes/page.tsx`) envolvendo componentes client sem dado
+      assíncrono — são inertes hoje (nunca suspendem de verdade) e não fazem parte deste
+      mecanismo; não confundir os dois.
+
 ---
 
 ## Perguntas e premissas em aberto
