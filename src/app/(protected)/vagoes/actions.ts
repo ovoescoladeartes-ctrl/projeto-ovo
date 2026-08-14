@@ -32,22 +32,49 @@ export async function criarContato(input: unknown): Promise<ActionResult> {
 	}
 
 	try {
-		await getFirebaseAdminFirestore()
-			.collection("contatos")
-			.add({
-				...parsed.data,
-				estagio: "novo",
-				arquivadoMotivo: null,
-				pessoaId: null,
-				estagioAtualizadoEm: FieldValue.serverTimestamp(),
-				criadoEm: FieldValue.serverTimestamp(),
-				ativo: true,
-			});
+		const firestore = getFirebaseAdminFirestore();
+		const contatoRef = firestore.collection("contatos").doc();
+		const pessoaRef = firestore.collection("pessoas").doc();
+		const batch = firestore.batch();
+
+		// Todo contato de Vagões já nasce com sua Pessoa (papel Aluno, status "lead") — mesma
+		// garantia que `criarPessoa` dá no caminho inverso, pra "Pessoas" ser sempre a lista
+		// completa de quem já passou por algum funil, não só quem convenceu até "convertido".
+		batch.set(pessoaRef, {
+			nome: parsed.data.nome,
+			ehAluno: true,
+			ehProfessor: false,
+			statusAluno: "lead",
+			statusProfessor: null,
+			numeroMatriculaAluno: null,
+			numeroMatriculaProfessor: null,
+			interesses: parsed.data.interesses,
+			email: null,
+			telefone: null,
+			ativo: true,
+			criadoViaContatoId: contatoRef.id,
+			criadoEm: FieldValue.serverTimestamp(),
+			wixContactId: null,
+			origem: "manual",
+		});
+
+		batch.set(contatoRef, {
+			...parsed.data,
+			estagio: "novo",
+			arquivadoMotivo: null,
+			pessoaId: pessoaRef.id,
+			estagioAtualizadoEm: FieldValue.serverTimestamp(),
+			criadoEm: FieldValue.serverTimestamp(),
+			ativo: true,
+		});
+
+		await batch.commit();
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
 	revalidatePath("/vagoes");
+	revalidatePath("/pessoas");
 	return { status: "ok" };
 }
 
