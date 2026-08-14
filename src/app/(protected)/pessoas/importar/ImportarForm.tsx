@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 
+import { StatusBadge } from "../StatusBadge";
 import { confirmarImportacaoCsv, previewImportacaoCsv, type LinhaPreview } from "./actions";
 
 export function ImportarForm(): React.ReactElement {
@@ -124,14 +125,22 @@ export function ImportarForm(): React.ReactElement {
 										<td className="px-4 py-3 text-foreground">{linha.nome}</td>
 										<td className="px-4 py-3 text-muted-foreground">{linha.tipo}</td>
 										<td className="px-4 py-3 text-muted-foreground">{linha.turma || "—"}</td>
-										<td className="px-4 py-3 text-muted-foreground">{linha.status}</td>
+										<td className="px-4 py-3">
+											{linha.status !== "" ? <StatusBadge status={linha.status} /> : <span className="text-muted-foreground">—</span>}
+										</td>
 										<td className="px-4 py-3">
 											{linha.erro !== null ? (
-												<span className="text-xs font-medium text-destructive">{linha.erro}</span>
+												<span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+													{linha.erro}
+												</span>
 											) : linha.duplicataProvavel ? (
-												<span className="text-xs font-medium text-amber-600">Possível duplicata</span>
+												<span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+													Possível duplicata
+												</span>
 											) : (
-												<span className="text-xs text-muted-foreground">Pronta</span>
+												<span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+													Pronta
+												</span>
 											)}
 										</td>
 									</tr>

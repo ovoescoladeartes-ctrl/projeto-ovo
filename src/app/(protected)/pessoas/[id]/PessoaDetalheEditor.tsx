@@ -36,6 +36,13 @@ const MATRICULA_STATUS_LABELS: Record<string, string> = {
 	encerrada: "Encerrada",
 };
 
+// Cores indicativas de status (regra 18 do design.md): verde=ativa, azul=encerrada (fechada sem
+// ser uma falha/cancelamento — não é "vermelho").
+const MATRICULA_STATUS_CORES: Record<string, string> = {
+	ativa: "bg-emerald-100 text-emerald-800",
+	encerrada: "bg-blue-100 text-blue-800",
+};
+
 function centavosParaInput(centavos: number): string {
 	return (centavos / 100).toFixed(2).replace(".", ",");
 }
@@ -201,7 +208,12 @@ export function PessoaDetalheEditor({
 	return (
 		<div>
 			<PageBreadcrumb
-				items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: pessoa.nome }]}
+				items={[
+					{ label: "Dashboard", href: "/" },
+					{ label: "Cadastro" },
+					{ label: "Pessoas", href: "/pessoas" },
+					{ label: pessoa.nome },
+				]}
 			/>
 
 			<div className="mt-3 mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -364,7 +376,9 @@ export function PessoaDetalheEditor({
 										<tr key={matricula.id} className="border-b border-border last:border-0">
 											<td className="px-4 py-3 text-foreground">{turmaNome}</td>
 											<td className="px-4 py-3">
-												<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+												<span
+													className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${MATRICULA_STATUS_CORES[matricula.status] ?? "bg-secondary text-secondary-foreground"}`}
+												>
 													{MATRICULA_STATUS_LABELS[matricula.status] ?? matricula.status}
 												</span>
 											</td>
@@ -450,9 +464,9 @@ export function PessoaDetalheEditor({
 										<td className="px-4 py-3 text-foreground">
 											{turma.nome}
 											{turma.ativo ? null : (
-												<Badge variant="outline" className="ml-2 text-muted-foreground">
+												<span className="ml-2 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
 													Arquivada
-												</Badge>
+												</span>
 											)}
 										</td>
 									</tr>

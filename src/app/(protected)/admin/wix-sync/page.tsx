@@ -16,16 +16,11 @@ export default async function WixSyncPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Configurações" }, { label: "Sincronizar com a Wix" }]} />
+			<PageBreadcrumb
+				items={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Sincronizar com a Wix" }]}
+			/>
 
-			<div className="mt-3 mb-6">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Sincronizar com a Wix</h1>
-				<p className="text-sm text-muted-foreground">
-					Importa alunos que compraram (via Contacts), cursos do catálogo (Store Products) e pagamentos aprovados
-					(Orders) do site da Ovo. Somente leitura — nada é escrito de volta na Wix. Confira a prévia antes de
-					confirmar.
-				</p>
-			</div>
+			<h1 className="mb-6 mt-2 text-2xl font-bold text-foreground sm:text-3xl">Sincronizar com a Wix</h1>
 
 			<WixSyncPanel />
 		</div>

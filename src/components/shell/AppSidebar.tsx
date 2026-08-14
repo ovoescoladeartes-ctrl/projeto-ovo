@@ -7,6 +7,13 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
@@ -113,6 +120,19 @@ function SidebarToggleButton(): React.ReactElement {
 
 export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 	const pathname = usePathname();
+	const { state, isMobile, setOpenMobile } = useSidebar();
+	// No mobile a sidebar é sempre o drawer expandido (ver SidebarToggleButton) — só o rail
+	// desktop colapsado esconde `SidebarMenuSub` (`group-data-[collapsible=icon]:hidden` em
+	// ui/sidebar.tsx), tornando "Cadastro"/"Configurações" inclicáveis nesse estado.
+	const railColapsado = state === "collapsed" && !isMobile;
+
+	// No mobile a sidebar é um drawer (Sheet) sobre o conteúdo — sem isso, navegar deixava o
+	// drawer aberto por cima da página nova, escondendo o resultado do clique.
+	function fecharDrawerNoMobile(): void {
+		if (isMobile) {
+			setOpenMobile(false);
+		}
+	}
 	const [gruposAbertos, setGruposAbertos] = useState<ReadonlySet<string>>(() => {
 		const grupo = grupoDaRota(pathname);
 		return grupo !== null ? new Set([grupo]) : new Set();
@@ -158,6 +178,38 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 						if (item.children !== undefined) {
 							const childAtivoHref = childMaisEspecificoAtivo(item.children, pathname);
 							const grupoAtivo = childAtivoHref !== null;
+
+							// Rail colapsado: `SidebarMenuSub` fica sempre `hidden` nesse estado (é o rail de
+							// ícones), então expandir o grupo inline não mostraria nada — em vez disso, o clique
+							// abre um flyout (mesmo padrão de `UserMenu`, `DropdownMenu` com `side="right"`) com
+							// os links, sem forçar a sidebar inteira a expandir.
+							if (railColapsado) {
+								return (
+									<SidebarMenuItem key={item.label}>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<SidebarMenuButton
+													isActive={grupoAtivo}
+													aria-label={item.label}
+													className={grupoAtivo ? "gap-3 font-semibold" : "gap-3"}
+												>
+													<item.icon className="h-5 w-5" />
+													<span>{item.label}</span>
+												</SidebarMenuButton>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent side="right" align="start" className="w-48">
+												<DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+												{item.children.map((child) => (
+													<DropdownMenuItem key={child.href} asChild>
+														<Link href={child.href}>{child.label}</Link>
+													</DropdownMenuItem>
+												))}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</SidebarMenuItem>
+								);
+							}
+
 							const aberto = gruposAbertos.has(item.label);
 
 							return (
@@ -188,7 +240,9 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 												return (
 													<SidebarMenuSubItem key={child.href}>
 														<SidebarMenuSubButton asChild isActive={childActive}>
-															<Link href={child.href}>{child.label}</Link>
+															<Link href={child.href} onClick={fecharDrawerNoMobile}>
+																{child.label}
+															</Link>
 														</SidebarMenuSubButton>
 													</SidebarMenuSubItem>
 												);
@@ -221,7 +275,7 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 										tooltip={item.label}
 										className={isActive ? "gap-3 font-semibold" : "gap-3"}
 									>
-										<Link href={item.href}>
+										<Link href={item.href} onClick={fecharDrawerNoMobile}>
 											<item.icon className="h-5 w-5" />
 											<span>{item.label}</span>
 										</Link>

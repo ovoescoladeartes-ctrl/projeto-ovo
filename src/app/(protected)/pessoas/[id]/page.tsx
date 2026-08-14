@@ -72,6 +72,13 @@ const RECEBIMENTO_STATUS_LABELS: Record<string, string> = {
 	cancelado: "Cancelado",
 };
 
+// Cores indicativas de status (regra 18 do design.md): verde=confirmado, amarelo=pendente, vermelho=cancelado.
+const RECEBIMENTO_STATUS_CORES: Record<string, string> = {
+	confirmado: "bg-emerald-100 text-emerald-800",
+	pendente: "bg-amber-100 text-amber-800",
+	cancelado: "bg-red-100 text-red-800",
+};
+
 const ORIGEM_LABELS: Record<string, string> = { wix: "Wix", manual: "Manual" };
 
 const FORMA_LABELS: Record<string, string> = {
@@ -225,10 +232,14 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 							{recebimentos.map((recebimento) => (
 								<tr key={recebimento.id} className="border-b border-border last:border-0">
 									<td className="px-4 py-3 text-foreground">{formatCentavos(recebimento.valorCentavos)}</td>
-									<td className="px-4 py-3 text-muted-foreground">{FORMA_LABELS[recebimento.formaPagamento]}</td>
+									<td className="px-4 py-3 text-muted-foreground">
+										{recebimento.origem === "wix" ? "—" : FORMA_LABELS[recebimento.formaPagamento]}
+									</td>
 									<td className="px-4 py-3 text-muted-foreground">{ORIGEM_LABELS[recebimento.origem]}</td>
 									<td className="px-4 py-3">
-										<span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+										<span
+											className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${RECEBIMENTO_STATUS_CORES[recebimento.status] ?? "bg-secondary text-secondary-foreground"}`}
+										>
 											{RECEBIMENTO_STATUS_LABELS[recebimento.status]}
 										</span>
 									</td>

@@ -16,14 +16,16 @@ export default async function ImportarPessoasPage(): Promise<React.ReactElement>
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Pessoas", href: "/pessoas" }, { label: "Importar" }]} />
+			<PageBreadcrumb
+				items={[
+					{ label: "Dashboard", href: "/" },
+					{ label: "Cadastro" },
+					{ label: "Pessoas", href: "/pessoas" },
+					{ label: "Importar" },
+				]}
+			/>
 
-			<div className="mt-3 mb-6">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Importar Pessoas (CSV)</h1>
-				<p className="text-sm text-muted-foreground">
-					Carga inicial única — não é a integração contínua com o Wix.
-				</p>
-			</div>
+			<h1 className="mb-6 mt-2 text-2xl font-bold text-foreground sm:text-3xl">Importar Pessoas (CSV)</h1>
 
 			<ImportarForm />
 		</div>

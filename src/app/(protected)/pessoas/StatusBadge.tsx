@@ -8,14 +8,15 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * Cores provisórias (seção 10 da spec de redesign de Cadastro) — só "Matriculado = verde" está
- * validado com o Rogério; o resto é proposta, fácil de trocar depois sem tocar em outro lugar.
+ * Cores indicativas de status (regra 18 do design.md): verde=ativo/matriculado (estado positivo
+ * em curso), amarelo=lead/banco_talentos (aguardando — o par "pendente" de aluno e professor,
+ * ainda não vinculado a uma matrícula/turma ativa).
  */
 const STATUS_CORES: Record<string, string> = {
 	matriculado: "bg-emerald-100 text-emerald-800",
 	ativo: "bg-emerald-100 text-emerald-800",
 	lead: "bg-amber-100 text-amber-800",
-	banco_talentos: "bg-secondary text-secondary-foreground",
+	banco_talentos: "bg-amber-100 text-amber-800",
 };
 
 interface StatusBadgeProps {

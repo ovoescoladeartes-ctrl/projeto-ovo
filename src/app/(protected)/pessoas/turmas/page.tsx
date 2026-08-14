@@ -1,4 +1,6 @@
 import type { Timestamp } from "firebase-admin/firestore";
+import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -11,18 +13,26 @@ import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { Turma } from "@/core/turmas/schema";
 import { toIso } from "@/core/shared/serialize";
-import { formatCentavos } from "@/lib/currency";
+import { formatCentavos, parseCentavosInput } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 import { NovaTurmaDialog } from "./NovaTurmaDialog";
 import { TurmaEditDialog } from "./TurmaEditDialog";
 import { TurmaExcluirButton } from "./TurmaExcluirButton";
 import { TurmaMatriculasSheet } from "./TurmaMatriculasSheet";
+import { TurmasFiltroBar } from "./TurmasFiltroBar";
+
+// Sem isso, trocar só o searchParam `arquivados` na mesma rota pode servir uma resposta em
+// cache do Router do Next em vez de buscar dados frescos no servidor (mesma causa raiz corrigida
+// em pessoas/page.tsx).
+export const dynamic = "force-dynamic";
 
 const TURMAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 
 interface TurmaDoc {
 	nome: string;
 	assunto?: string;
+	tipo?: Turma["tipo"];
 	mensalidadeCentavos: number;
 	repasseTipo: string;
 	repasseValor: number;
@@ -59,8 +69,85 @@ function formatarRepasse(turma: Turma): string {
 	return turma.repasseTipo === "percentual" ? `${turma.repasseValor}%` : formatCentavos(turma.repasseValor);
 }
 
+const TIPO_LABELS: Record<string, string> = { curso: "Curso", oficina: "Oficina" };
+
+type CampoOrdenar = "nome" | "tipo" | "assunto" | "mensalidade" | "repasse" | "periodo" | "vagas";
+
+interface TurmasSearchParams {
+	arquivados?: string;
+	busca?: string;
+	tipo?: string;
+	assunto?: string;
+	repasseTipo?: string;
+	mensalidadeMin?: string;
+	mensalidadeMax?: string;
+	inicioDe?: string;
+	inicioAte?: string;
+	vagasMin?: string;
+	vagasMax?: string;
+	ordenar?: string;
+}
+
+/**
+ * Constrói a URL de ordenação preservando todo filtro já aplicado — mesma lógica de
+ * `hrefOrdenar`/`iconeOrdenar` em `PessoasListagem.tsx`, só que como função pura (sem
+ * `useSearchParams`) porque esta página nunca precisou de um Client Component próprio: os
+ * `searchParams` já chegam prontos no Server Component, e um `<Link>` com `href` fixo não precisa
+ * de hook nenhum pra funcionar.
+ */
+function hrefOrdenarTurmas(filtros: TurmasSearchParams, campo: CampoOrdenar): string {
+	const atual = filtros.ordenar ?? "nome_asc";
+	const [campoAtual, direcaoAtual] = atual.split("_");
+	const novaDirecao = campoAtual === campo && direcaoAtual === "asc" ? "desc" : "asc";
+
+	const params = new URLSearchParams();
+	Object.entries(filtros).forEach(([chave, valor]) => {
+		if (valor !== undefined && chave !== "ordenar") {
+			params.set(chave, valor);
+		}
+	});
+	params.set("ordenar", `${campo}_${novaDirecao}`);
+
+	const query = params.toString();
+	return query.length > 0 ? `/pessoas/turmas?${query}` : "/pessoas/turmas";
+}
+
+function IconeOrdenarTurmas({ filtros, campo }: { filtros: TurmasSearchParams; campo: CampoOrdenar }): React.ReactElement {
+	const atual = filtros.ordenar ?? "nome_asc";
+	const [campoAtual, direcaoAtual] = atual.split("_");
+	const ativo = campoAtual === campo;
+	return (
+		<ChevronDown
+			className={cn(
+				"h-3.5 w-3.5 transition-transform",
+				ativo ? "text-foreground" : "text-muted-foreground/50",
+				ativo && direcaoAtual === "asc" ? "rotate-180" : "",
+			)}
+		/>
+	);
+}
+
+function CabecalhoOrdenavel({
+	filtros,
+	campo,
+	label,
+}: {
+	filtros: TurmasSearchParams;
+	campo: CampoOrdenar;
+	label: string;
+}): React.ReactElement {
+	return (
+		<th className="px-4 py-3 font-medium">
+			<Link href={hrefOrdenarTurmas(filtros, campo)} className="inline-flex items-center gap-1 hover:text-foreground">
+				{label}
+				<IconeOrdenarTurmas filtros={filtros} campo={campo} />
+			</Link>
+		</th>
+	);
+}
+
 interface TurmasPageProps {
-	searchParams: Promise<{ arquivados?: string }>;
+	searchParams: Promise<TurmasSearchParams>;
 }
 
 export default async function TurmasPage({ searchParams }: TurmasPageProps): Promise<React.ReactElement> {
@@ -75,9 +162,8 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 	const mostrarArquivados = filtros.arquivados === "1";
 
 	const firestore = getFirebaseAdminFirestore();
-	const turmasQuery = mostrarArquivados
-		? firestore.collection("turmas")
-		: firestore.collection("turmas").where("ativo", "==", true);
+	// Arquivadas mostra só ativo===false, nunca "todo mundo" (mesmo bug já corrigido em pessoas/page.tsx).
+	const turmasQuery = firestore.collection("turmas").where("ativo", "==", !mostrarArquivados);
 	const [turmasSnapshot, pessoasSnapshot, matriculasAtivasSnapshot] = await Promise.all([
 		turmasQuery.get(),
 		firestore.collection("pessoas").get(),
@@ -110,12 +196,13 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		matriculasPorTurma.set(data.turmaId, lista);
 	});
 
-	const turmas: Turma[] = turmasSnapshot.docs.map((doc) => {
+	const todasTurmas: Turma[] = turmasSnapshot.docs.map((doc) => {
 		const data = doc.data() as TurmaDoc;
 		return {
 			id: doc.id,
 			nome: data.nome,
 			assunto: data.assunto ?? "",
+			tipo: data.tipo ?? null,
 			mensalidadeCentavos: data.mensalidadeCentavos,
 			repasseTipo: data.repasseTipo as Turma["repasseTipo"],
 			repasseValor: data.repasseValor,
@@ -129,20 +216,100 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		};
 	});
 
-	turmas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+	// Opções dos Selects de filtro vêm dos dados reais (mesmo padrão de `opcoesInteresse`/
+	// `opcoesTurma` em pessoas/page.tsx) — só oferece filtrar por um Assunto que alguma turma
+	// realmente tem.
+	const opcoesAssunto = Array.from(new Set(todasTurmas.map((turma) => turma.assunto).filter((assunto) => assunto !== "")))
+		.sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+	function vagasOcupadas(turmaId: string): number {
+		return matriculasPorTurma.get(turmaId)?.length ?? 0;
+	}
+
+	let turmas = todasTurmas;
+
+	if (filtros.busca !== undefined && filtros.busca.trim() !== "") {
+		const buscaNormalizada = filtros.busca.trim().toLowerCase();
+		turmas = turmas.filter((turma) => turma.nome.toLowerCase().includes(buscaNormalizada));
+	}
+	if (filtros.tipo === "curso" || filtros.tipo === "oficina") {
+		turmas = turmas.filter((turma) => turma.tipo === filtros.tipo);
+	}
+	if (filtros.assunto !== undefined && filtros.assunto !== "") {
+		turmas = turmas.filter((turma) => turma.assunto === filtros.assunto);
+	}
+	if (filtros.repasseTipo === "percentual" || filtros.repasseTipo === "fixo") {
+		turmas = turmas.filter((turma) => turma.repasseTipo === filtros.repasseTipo);
+	}
+	const mensalidadeMinCentavos = filtros.mensalidadeMin ? parseCentavosInput(filtros.mensalidadeMin) : null;
+	if (mensalidadeMinCentavos !== null) {
+		turmas = turmas.filter((turma) => turma.mensalidadeCentavos >= mensalidadeMinCentavos);
+	}
+	const mensalidadeMaxCentavos = filtros.mensalidadeMax ? parseCentavosInput(filtros.mensalidadeMax) : null;
+	if (mensalidadeMaxCentavos !== null) {
+		turmas = turmas.filter((turma) => turma.mensalidadeCentavos <= mensalidadeMaxCentavos);
+	}
+	if (filtros.inicioDe !== undefined && filtros.inicioDe !== "") {
+		turmas = turmas.filter((turma) => turma.dataInicio !== null && turma.dataInicio.slice(0, 10) >= filtros.inicioDe!);
+	}
+	if (filtros.inicioAte !== undefined && filtros.inicioAte !== "") {
+		turmas = turmas.filter((turma) => turma.dataInicio !== null && turma.dataInicio.slice(0, 10) <= filtros.inicioAte!);
+	}
+	const vagasMin = filtros.vagasMin !== undefined ? Number.parseInt(filtros.vagasMin, 10) : null;
+	if (vagasMin !== null && Number.isFinite(vagasMin)) {
+		turmas = turmas.filter((turma) => vagasOcupadas(turma.id) >= vagasMin);
+	}
+	const vagasMax = filtros.vagasMax !== undefined ? Number.parseInt(filtros.vagasMax, 10) : null;
+	if (vagasMax !== null && Number.isFinite(vagasMax)) {
+		turmas = turmas.filter((turma) => vagasOcupadas(turma.id) <= vagasMax);
+	}
+
+	const [campoOrdenar, direcaoOrdenar] = (filtros.ordenar ?? "nome_asc").split("_") as [CampoOrdenar, string];
+	turmas = [...turmas].sort((a, b) => {
+		let comparacao: number;
+		switch (campoOrdenar) {
+			case "tipo":
+				comparacao = (a.tipo ?? "").localeCompare(b.tipo ?? "");
+				break;
+			case "assunto":
+				comparacao = (a.assunto || "").localeCompare(b.assunto || "", "pt-BR");
+				break;
+			case "mensalidade":
+				comparacao = a.mensalidadeCentavos - b.mensalidadeCentavos;
+				break;
+			case "repasse":
+				comparacao = a.repasseValor - b.repasseValor;
+				break;
+			case "periodo":
+				comparacao = (a.dataInicio ?? "9999").localeCompare(b.dataInicio ?? "9999");
+				break;
+			case "vagas":
+				comparacao = vagasOcupadas(a.id) - vagasOcupadas(b.id);
+				break;
+			default:
+				comparacao = a.nome.localeCompare(b.nome, "pt-BR");
+		}
+		return direcaoOrdenar === "desc" ? -comparacao : comparacao;
+	});
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Cadastro" }, { label: "Turmas" }]} />
-			<div className="mb-4 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Turmas" }]} />
+			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
 				<CopilotoInput />
 				<NovaTurmaDialog />
 			</div>
 
-			<div className="mb-4">
+			<div className="mb-6">
 				<Suspense fallback={null}>
 					<AbaAtivosArquivados />
+				</Suspense>
+			</div>
+
+			<div className="mb-6">
+				<Suspense fallback={null}>
+					<TurmasFiltroBar opcoesAssunto={opcoesAssunto} />
 				</Suspense>
 			</div>
 
@@ -150,12 +317,13 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 				<table className="w-full text-left text-sm">
 					<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
 						<tr>
-							<th className="px-4 py-3 font-medium">Nome</th>
-							<th className="px-4 py-3 font-medium">Assunto</th>
-							<th className="px-4 py-3 font-medium">Mensalidade</th>
-							<th className="px-4 py-3 font-medium">Repasse</th>
-							<th className="px-4 py-3 font-medium">Período</th>
-							<th className="px-4 py-3 font-medium">Vagas</th>
+							<CabecalhoOrdenavel filtros={filtros} campo="nome" label="Nome" />
+							<CabecalhoOrdenavel filtros={filtros} campo="tipo" label="Tipo" />
+							<CabecalhoOrdenavel filtros={filtros} campo="assunto" label="Assunto" />
+							<CabecalhoOrdenavel filtros={filtros} campo="mensalidade" label="Mensalidade" />
+							<CabecalhoOrdenavel filtros={filtros} campo="repasse" label="Repasse" />
+							<CabecalhoOrdenavel filtros={filtros} campo="periodo" label="Período" />
+							<CabecalhoOrdenavel filtros={filtros} campo="vagas" label="Vagas" />
 							<th className="px-4 py-3 font-medium" />
 						</tr>
 					</thead>
@@ -164,15 +332,9 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 							const alunos = matriculasPorTurma.get(turma.id) ?? [];
 							return (
 								<tr key={turma.id} className="border-b border-border last:border-0">
-									<td className="px-4 py-3 text-foreground">
-										<div className="flex items-center gap-2">
-											{turma.nome}
-											{turma.wixProductId !== null ? (
-												<span className="inline-block shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-													Origem: Wix
-												</span>
-											) : null}
-										</div>
+									<td className="px-4 py-3 text-foreground">{turma.nome}</td>
+									<td className="px-4 py-3 text-muted-foreground">
+										{turma.tipo !== null ? (TIPO_LABELS[turma.tipo] ?? turma.tipo) : "—"}
 									</td>
 									<td className="px-4 py-3 text-muted-foreground">{turma.assunto || "—"}</td>
 									<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
@@ -202,8 +364,8 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 						})}
 						{turmas.length === 0 ? (
 							<tr>
-								<td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-									Nenhuma turma cadastrada ainda.
+								<td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
+									{todasTurmas.length === 0 ? "Nenhuma turma cadastrada ainda." : "Nenhuma turma bate com os filtros."}
 								</td>
 							</tr>
 						) : null}

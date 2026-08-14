@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
@@ -136,15 +137,11 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} />
+			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
 				<CopilotoInput />
-				<div className="flex shrink-0 items-center gap-2">
-					<Suspense fallback={null}>
-						<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
-					</Suspense>
-					<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
-				</div>
+				<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
 			</div>
 
 			<Tabs defaultValue="comunicacao" className="mb-6">
@@ -169,6 +166,12 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 					</TabsTrigger>
 				</TabsList>
 			</Tabs>
+
+			<div className="mb-6 flex flex-wrap items-center gap-3">
+				<Suspense fallback={null}>
+					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+				</Suspense>
+			</div>
 
 			<div className="min-h-0 flex-1">
 				<Board contatos={contatosComCurso} mensagens={mensagens} />

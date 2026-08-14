@@ -1,7 +1,8 @@
 import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
 
-import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
+import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { KpiCardData } from "@/core/dashboard/types";
@@ -13,6 +14,13 @@ import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
 import { CaixaTabs } from "./CaixaTabs";
+import { NovoRecebimentoDialog } from "./NovoRecebimentoDialog";
+import { NovoRepasseDialog } from "./NovoRepasseDialog";
+
+// Sem isso, trocar só o searchParam `aba` na mesma rota pode servir uma resposta em cache do
+// Router do Next em vez de buscar dados frescos no servidor (mesma causa raiz corrigida em
+// pessoas/turmas/page.tsx).
+export const dynamic = "force-dynamic";
 
 const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
@@ -41,13 +49,20 @@ interface RepasseDoc {
 	ativo: boolean;
 }
 
-export default async function CaixaPage(): Promise<React.ReactElement> {
+interface CaixaPageProps {
+	searchParams: Promise<{ aba?: string }>;
+}
+
+export default async function CaixaPage({ searchParams }: CaixaPageProps): Promise<React.ReactElement> {
 	const session = await getServerSession();
 
 	// Autorização checada de novo aqui (não só na sidebar) — cada rota protege a si mesma.
 	if (session === null || !CAIXA_ROLES.includes(session.role)) {
 		redirect("/");
 	}
+
+	const filtros = await searchParams;
+	const aba = filtros.aba === "repasses" ? "repasses" : "recebimentos";
 
 	const firestore = getFirebaseAdminFirestore();
 
@@ -125,21 +140,23 @@ export default async function CaixaPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<div className="mb-6">
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa" }]} />
+			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Caixa</h1>
-				<p className="text-sm text-muted-foreground">Recebimentos e repasses financeiros da escola.</p>
-			</div>
-
-			<div className="mb-6">
-				<KpiCardsGrid items={kpis} />
+				<CopilotoInput />
+				{aba === "recebimentos" ? (
+					<NovoRecebimentoDialog turmas={turmasAtivas} />
+				) : (
+					<NovoRepasseDialog turmas={turmasAtivas} />
+				)}
 			</div>
 
 			<CaixaTabs
+				kpis={kpis}
 				recebimentos={recebimentos}
 				repasses={repasses}
 				pessoasNomes={pessoasNomes}
 				turmasNomes={turmasNomes}
-				turmasAtivas={turmasAtivas}
 			/>
 		</div>
 	);
