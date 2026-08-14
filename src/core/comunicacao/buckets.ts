@@ -13,7 +13,7 @@ export interface Bucket {
  * `arquivadoMotivo`, lado a lado com as 4 colunas ativas.
  */
 export const BUCKETS: readonly Bucket[] = [
-	{ key: "novo", label: "Lead novo", estagio: "novo", arquivadoMotivo: null },
+	{ key: "novo", label: "Leads", estagio: "novo", arquivadoMotivo: null },
 	{ key: "em_conversa", label: "Em conversa", estagio: "em_conversa", arquivadoMotivo: null },
 	{ key: "experimental", label: "Experimental", estagio: "experimental", arquivadoMotivo: null },
 	{ key: "convertido", label: "Matriculado", estagio: "convertido", arquivadoMotivo: null },

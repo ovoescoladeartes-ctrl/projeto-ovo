@@ -14,11 +14,13 @@ interface UsuarioRow {
 	role: string;
 }
 
+// Cores indicativas de status (regra 18 do design.md): amarelo=pendente (acesso incompleto),
+// azul=papel concedido (admin/financeiro/comunicacao/educador — categórico, não é bom nem ruim).
 function badgeClassName(role: string): string {
 	if (role === PENDING_ACCESS) {
 		return "bg-amber-100 text-amber-800";
 	}
-	return "bg-slate-100 text-slate-700";
+	return "bg-blue-100 text-blue-800";
 }
 
 export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
@@ -47,12 +49,10 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Configurações" }, { label: "Controle de acessos" }]} />
-			<h1 className="mb-1 mt-2 text-2xl font-bold text-foreground sm:text-3xl">Controle de acessos</h1>
-			<p className="mb-6 text-sm text-slate-500">
-				Defina o papel de cada pessoa cadastrada. Quem ainda não tem papel fica com acesso
-				pendente e não entra em nenhum módulo.
-			</p>
+			<PageBreadcrumb
+				items={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Controle de acessos" }]}
+			/>
+			<h1 className="mb-6 mt-2 text-2xl font-bold text-foreground sm:text-3xl">Controle de acessos</h1>
 
 			<div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
 				<table className="w-full text-left text-sm">
