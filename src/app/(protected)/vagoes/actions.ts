@@ -34,35 +34,52 @@ export async function criarContato(input: unknown): Promise<ActionResult> {
 	try {
 		const firestore = getFirebaseAdminFirestore();
 		const contatoRef = firestore.collection("contatos").doc();
-		const pessoaRef = firestore.collection("pessoas").doc();
 		const batch = firestore.batch();
 
-		// Todo contato de Vagões já nasce com sua Pessoa (papel Aluno, status "lead") — mesma
-		// garantia que `criarPessoa` dá no caminho inverso, pra "Pessoas" ser sempre a lista
-		// completa de quem já passou por algum funil, não só quem convenceu até "convertido".
-		batch.set(pessoaRef, {
-			nome: parsed.data.nome,
-			ehAluno: true,
-			ehProfessor: false,
-			statusAluno: "lead",
-			statusProfessor: null,
-			numeroMatriculaAluno: null,
-			numeroMatriculaProfessor: null,
-			interesses: parsed.data.interesses,
-			email: null,
-			telefone: null,
-			ativo: true,
-			criadoViaContatoId: contatoRef.id,
-			criadoEm: FieldValue.serverTimestamp(),
-			wixContactId: null,
-			origem: "manual",
-		});
+		let pessoaId: string;
+
+		if (parsed.data.pessoaId !== null) {
+			// Reengajamento: contato de alguém que já está cadastrado (ex-aluno, lead antigo etc.)
+			// — não cria uma segunda Pessoa, só vincula, mesma regra que `converterContatoEmPessoa`
+			// já aplica quando o contato chega em "convertido" já com pessoaId.
+			const pessoaSnap = await firestore.collection("pessoas").doc(parsed.data.pessoaId).get();
+			if (!pessoaSnap.exists || pessoaSnap.data()?.ativo !== true) {
+				return { status: "error", message: "Pessoa selecionada não encontrada. Tente novamente." };
+			}
+			pessoaId = parsed.data.pessoaId;
+		} else {
+			// Todo contato de Vagões já nasce com sua Pessoa (papel Aluno, status "lead") — mesma
+			// garantia que `criarPessoa` dá no caminho inverso, pra "Pessoas" ser sempre a lista
+			// completa de quem já passou por algum funil, não só quem convenceu até "convertido".
+			const pessoaRef = firestore.collection("pessoas").doc();
+			batch.set(pessoaRef, {
+				nome: parsed.data.nome,
+				ehAluno: true,
+				ehProfessor: false,
+				statusAluno: "lead",
+				statusProfessor: null,
+				numeroMatriculaAluno: null,
+				numeroMatriculaProfessor: null,
+				interesses: parsed.data.interesses,
+				email: null,
+				telefone: null,
+				ativo: true,
+				criadoViaContatoId: contatoRef.id,
+				criadoEm: FieldValue.serverTimestamp(),
+				wixContactId: null,
+				origem: "manual",
+			});
+			pessoaId = pessoaRef.id;
+		}
 
 		batch.set(contatoRef, {
-			...parsed.data,
+			nome: parsed.data.nome,
+			canal: parsed.data.canal,
+			interesseInicial: parsed.data.interesseInicial,
+			interesses: parsed.data.interesses,
 			estagio: "novo",
 			arquivadoMotivo: null,
-			pessoaId: pessoaRef.id,
+			pessoaId,
 			estagioAtualizadoEm: FieldValue.serverTimestamp(),
 			criadoEm: FieldValue.serverTimestamp(),
 			ativo: true,
