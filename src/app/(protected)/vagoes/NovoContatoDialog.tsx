@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
+import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { CANAIS, type Canal } from "@/core/comunicacao/contatos/schema";
 
 import { criarContato } from "./actions";
@@ -38,13 +39,14 @@ export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): 
 	const [open, setOpen] = useState(false);
 	const [form, setForm] = useState(ESTADO_INICIAL);
 	const [interesses, setInteresses] = useState<string[]>([]);
+	const [pessoaId, setPessoaId] = useState<string | null>(null);
 	const [erro, setErro] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
 	function handleSalvar(): void {
 		setErro(null);
 		startTransition(async () => {
-			const result = await criarContato({ ...form, interesses });
+			const result = await criarContato({ ...form, interesses, pessoaId });
 			if (result.status === "error") {
 				setErro(result.message ?? "Não foi possível salvar.");
 				return;
@@ -52,6 +54,7 @@ export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): 
 			setOpen(false);
 			setForm(ESTADO_INICIAL);
 			setInteresses([]);
+			setPessoaId(null);
 		});
 	}
 
@@ -66,6 +69,22 @@ export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): 
 				</DialogHeader>
 
 				<div className="space-y-4">
+					<div className="space-y-1.5">
+						<Label>Pessoa já cadastrada (opcional)</Label>
+						<PessoaCombobox
+							value={pessoaId}
+							onChange={(pessoa) => {
+								setPessoaId(pessoa?.id ?? null);
+								if (pessoa !== null) {
+									setForm((f) => ({ ...f, nome: pessoa.nome }));
+								}
+							}}
+							papel="aluno"
+							placeholder="Buscar pessoa existente..."
+							disabled={isPending}
+						/>
+					</div>
+
 					<div className="space-y-1.5">
 						<Label htmlFor="contato-nome">Nome</Label>
 						<Input

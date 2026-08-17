@@ -14,6 +14,7 @@ export const novoContatoInputSchema = z.object({
 	canal: z.enum(CANAIS),
 	interesseInicial: z.string().trim().min(1, "Conte o que a pessoa perguntou."),
 	interesses: z.array(z.string()).default([]),
+	pessoaId: z.string().nullable().default(null),
 });
 
 export type NovoContatoInput = z.infer<typeof novoContatoInputSchema>;
