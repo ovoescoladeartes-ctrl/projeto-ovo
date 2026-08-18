@@ -4,6 +4,11 @@ export function formatCentavos(valorCentavos: number): string {
 	return (valorCentavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Versão compacta pra eixo de gráfico (ex.: "R$ 1,2 mil") — nunca usada pra valor exibido em destaque. */
+export function formatCentavosCompacto(valorCentavos: number): string {
+	return (valorCentavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", notation: "compact" });
+}
+
 /** Aceita "150", "150,50" ou "1.234,56" (formato BR). Retorna `null` se inválido. */
 export function parseCentavosInput(valor: string): number | null {
 	const bruto = valor.trim();
