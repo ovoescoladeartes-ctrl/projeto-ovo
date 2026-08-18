@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BUCKETS, bucketKeyDe, type Bucket } from "@/core/comunicacao/buckets";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
+import { calcularUrgencia, type NivelUrgencia } from "@/core/comunicacao/urgencia";
+import { cn } from "@/lib/utils";
 
 function iniciais(nome: string): string {
 	const partes = nome.trim().split(/\s+/);
@@ -29,6 +31,15 @@ function diasDesde(iso: string | null): number {
 	return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
 }
 
+// Mesma semântica de 3 das 4 cores da regra 18 de docs/design.md: verde=dentro do esperado,
+// amarelo=precisa de atenção, vermelho=crítico. Limiares vêm de calcularUrgencia (provisórios,
+// a validar com a Katlin — não é escopo deste componente).
+const URGENCIA_CORES: Record<NivelUrgencia, string> = {
+	recente: "bg-emerald-100 text-emerald-800",
+	atencao: "bg-amber-100 text-amber-800",
+	urgente: "bg-red-100 text-red-800",
+};
+
 interface ContatoCardProps {
 	contato: Contato;
 	onMoverPara: (bucket: Bucket) => void;
@@ -39,7 +50,7 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 	const outrosBuckets = BUCKETS.filter((bucket) => bucket.key !== bucketKeyDe(contato));
 	const curso = contato.interesseInicial.slice(0, 24);
 	const dias = `${diasDesde(contato.estagioAtualizadoEm)}d`;
-	const subtitulo = curso === "" ? dias : `${curso} - ${dias}`;
+	const urgencia = calcularUrgencia(contato.estagioAtualizadoEm);
 
 	const conteudo = (
 		<div className="flex items-center justify-between gap-2">
@@ -50,7 +61,17 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 					</Avatar>
 					<p className="truncate text-sm font-semibold text-foreground">{contato.nome}</p>
 				</div>
-				<p className="truncate text-xs text-muted-foreground">{subtitulo}</p>
+				<div className="flex min-w-0 items-center gap-2">
+					{curso !== "" && <p className="truncate text-xs text-muted-foreground">{curso}</p>}
+					<span
+						className={cn(
+							"inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+							URGENCIA_CORES[urgencia],
+						)}
+					>
+						{dias}
+					</span>
+				</div>
 			</div>
 
 			{/* Só existe no mobile: lá não tem drag, então esse kebab é o único jeito de mover ou
