@@ -29,11 +29,15 @@
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
     --column: #f5f5f5;
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* Rampa de cinza (nunca hue) pra todo gráfico do app — ver regra 29 do design.md.
+       --chart-1 (mais escuro) = série única; ranking/composição usa a rampa inteira em ordem,
+       mais escuro pro maior valor, mais claro pro menor/"Outras". */
+    --chart-1: #262626;
+    --chart-2: #404040;
+    --chart-3: #595959;
+    --chart-4: #737373;
+    --chart-5: #8c8c8c;
+    --chart-6: #a3a3a3;
     --radius: 0.75rem;
     --sidebar: oklch(1 0 0); /* #ffffff */
     --sidebar-foreground: oklch(0.145 0 0);
@@ -65,11 +69,12 @@
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
     --column: oklch(0.18 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --chart-1: #e6e6e6;
+    --chart-2: #cccccc;
+    --chart-3: #b3b3b3;
+    --chart-4: #999999;
+    --chart-5: #808080;
+    --chart-6: #666666;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);

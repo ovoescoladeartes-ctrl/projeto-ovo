@@ -726,6 +726,42 @@ desta conversa:
     — só corrige na próxima vez que o nome dessa Pessoa for editado de novo; não foi escrito um
     script de backfill porque não há como distinguir em massa quais Contatos já divergiram sem
     comparar todos contra a Pessoa vinculada.
+29. **Todo gráfico (chart) do app usa só preto/branco/tons de cinza — nunca cor.** Decidido com o
+    Rogério em 2026-08-17, ao revisar a primeira leva de gráficos da aba Geral do Dashboard. Vale
+    pra qualquer gráfico futuro (barra, linha, rosca/pizza, o que vier), não só os já implementados.
+    - Os tokens `--chart-1` a `--chart-6` (`globals.css`) são uma rampa de cinza, do mais escuro
+      (`--chart-1`) ao mais claro (`--chart-6`) — nunca hues categóricos (azul/laranja/verde/etc.).
+      Série única (barra/linha de tendência, ex.: "Sazonalidade de matrículas") sempre usa
+      `--chart-1`. Ranking/composição com categorias ordenáveis por magnitude (ex.: fatias de um
+      gráfico de rosca, maior pro menor) usa a rampa inteira em ordem — mais escuro pro maior valor,
+      mais claro pro menor/"Outras" —, nunca uma cor sorteada ou ciclada por categoria.
+    - Identidade de categoria (o que é o quê) nunca depende só da cor nesse cinza baixo-contraste —
+      todo gráfico com 2+ séries/fatias precisa de rótulo direto (legenda por extenso ao lado/abaixo
+      do gráfico, texto nos tokens normais `text-foreground`/`text-muted-foreground`, nunca a cor da
+      série), não só do tom de cinza pra diferenciar.
+    - Motivo: identidade visual do produto é deliberadamente monocromática (ver tokens de Cor no
+      topo deste arquivo — o app inteiro já é preto/branco/cinza fora dos badges de status
+      semânticos da regra 18, que são a única exceção documentada a cor no produto). Gráfico
+      colorido destoaria desse restante do produto.
+30. **A aba Geral do Dashboard é só saúde operacional da escola — nunca dado financeiro nem de
+    comunicação/funil.** Decidido com o Rogério em 2026-08-17. É uma regra de arquitetura da
+    informação, não só de conteúdo: cada aba do Dashboard (Financeiro, Comunicação, Geral) tem um
+    escopo exclusivo, sem sobreposição — dado financeiro mora só na aba Financeiro, dado de
+    funil/lead mora só na aba Comunicação. A aba Geral existe pra outra pergunta ("como a escola
+    está indo, operacionalmente?"): alunos, turmas/cursos, matrículas, professores — e, se algum
+    dia entrar, oficinas/eventos. Nunca receita, saldo, recebimento/repasse (isso é Financeiro) nem
+    lead/estágio de funil (isso é Comunicação).
+    - **Consequência de permissão, não só de conteúdo**: como a aba Geral nunca mostra dado
+      sensível (dinheiro, funil de vendas), ela não precisa do gate restrito de Financeiro
+      (`CAIXA_ROLES`) nem de Comunicação (`VAGOES_ROLES`) — usa `GERAL_ROLES`
+      (`src/core/dashboard/consultas.ts`), hoje todos os 4 papéis (`admin`/`financeiro`/
+      `comunicacao`/`educador`). É a única aba do Dashboard visível pro papel `educador`, que antes
+      não tinha nenhuma.
+    - Cada highlight/gráfico novo da aba Geral precisa passar nesse teste antes de entrar: "isso é
+      sobre gente/turma/matrícula, ou é sobre dinheiro/funil?" — se for a segunda opção, pertence à
+      aba Financeiro ou Comunicação, não ao Geral, mesmo que o dado já esteja disponível ali.
+    - Exemplo do que já foi tirado por violar a regra: um KPI "Recebido no mês" e um ranking
+      "Turmas com mais receita" (ambos dinheiro) que estavam na primeira versão da aba Geral.
 
 ---
 
