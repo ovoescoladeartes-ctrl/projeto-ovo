@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { DatePicker } from "@/components/DatePicker";
 
 const TODOS = "__todos__";
 
@@ -178,11 +179,11 @@ export function TurmasFiltrosAvancadosSheet({ opcoesAssunto }: TurmasFiltrosAvan
 						<div className="space-y-2">
 							<div className="space-y-1">
 								<Label className="text-xs font-normal text-muted-foreground">De</Label>
-								<Input type="date" value={inicioDe} onChange={(event) => setInicioDe(event.target.value)} />
+								<DatePicker value={inicioDe} onChange={setInicioDe} />
 							</div>
 							<div className="space-y-1">
 								<Label className="text-xs font-normal text-muted-foreground">Até</Label>
-								<Input type="date" value={inicioAte} onChange={(event) => setInicioAte(event.target.value)} />
+								<DatePicker value={inicioAte} onChange={setInicioAte} />
 							</div>
 						</div>
 					</div>

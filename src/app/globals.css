@@ -101,3 +101,23 @@
 [hidden] {
   display: none !important;
 }
+
+@layer utilities {
+  /* Expande a área de toque real para pelo menos 44x44px sem mudar o tamanho visual do
+     elemento — ver regra de touch target do design.md. Funciona com `asChild`/`Slot` do Radix
+     porque não depende do nome da tag, só de `position: relative` no elemento que recebe a
+     classe. `max(100%, 44px)` só cresce a dimensão que já é menor que 44px — um botão de texto
+     largo (ex. "Salvar") não ganha faixa extra nas laterais, só na altura. */
+  .tap-target-44 {
+    position: relative;
+  }
+  .tap-target-44::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}

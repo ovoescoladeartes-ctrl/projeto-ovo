@@ -85,7 +85,7 @@ export function ContatoCard({ contato, onMoverPara, onAbrirBiblioteca }: Contato
 							type="button"
 							aria-label="Mais ações"
 							onPointerDown={(event) => event.stopPropagation()}
-							className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+							className="tap-target-44 rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 						>
 							<MoreVertical className="h-4 w-4" />
 						</button>

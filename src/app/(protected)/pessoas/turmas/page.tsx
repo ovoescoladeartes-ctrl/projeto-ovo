@@ -294,13 +294,18 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		return direcaoOrdenar === "desc" ? -comparacao : comparacao;
 	});
 
+	const novaTurmaCta = <NovaTurmaDialog />;
+
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Turmas" }]} />
+			<PageBreadcrumb
+				items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Turmas" }]}
+				cta={novaTurmaCta}
+			/>
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
 				<CopilotoInput />
-				<NovaTurmaDialog />
+				<div className="hidden md:inline-flex">{novaTurmaCta}</div>
 			</div>
 
 			<div className="mb-6">

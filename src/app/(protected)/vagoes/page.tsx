@@ -135,13 +135,15 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		};
 	});
 
+	const novoContatoCta = <NovoContatoDialog opcoesInteresse={opcoesInteresse} />;
+
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} />
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} cta={novoContatoCta} />
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
 				<CopilotoInput />
-				<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
+				<div className="hidden md:inline-flex">{novoContatoCta}</div>
 			</div>
 
 			<Tabs defaultValue="comunicacao" className="mb-6">

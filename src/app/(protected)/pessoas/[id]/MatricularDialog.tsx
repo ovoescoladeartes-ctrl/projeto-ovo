@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/DatePicker";
 import { parseCentavosInput } from "@/lib/currency";
 
 import { matricular } from "./actions";
@@ -108,13 +109,7 @@ export function MatricularDialog({ pessoaId, turmas }: MatricularDialogProps): R
 
 					<div className="space-y-1.5">
 						<Label htmlFor="matricula-data">Data da matrícula</Label>
-						<Input
-							id="matricula-data"
-							type="date"
-							value={dataMatricula}
-							onChange={(event) => setDataMatricula(event.target.value)}
-							disabled={isPending}
-						/>
+						<DatePicker id="matricula-data" value={dataMatricula} onChange={setDataMatricula} disabled={isPending} />
 					</div>
 
 					<div className="space-y-1.5">

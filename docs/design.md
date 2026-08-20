@@ -640,10 +640,14 @@ desta conversa:
     `DialogFooter` (`flex-row justify-end`) já empurra o grupo inteiro pra direita mantendo essa
     ordem, então o kebab fica o mais à direita de todos no desktop.
     `DropdownMenuContent align="end"` (agora sim igual à regra 21, porque o trigger está na borda
-    direita, não mais na esquerda). No mobile, o mesmo `flex-col-reverse` da regra 24 empilha o
-    kebab no topo (acima de "Salvar") — não é uma escolha deliberada de hierarquia mobile, é
-    consequência do mesmo mecanismo de inversão de ordem; ainda não foi pedido um comportamento
-    mobile específico pro kebab, então não foi feito override com `order-*`. O item de menu recebe
+    direita, não mais na esquerda). **No mobile, o kebab leva `className="ml-auto sm:ml-0"` no
+    próprio `Button` do trigger** — decidido em 2026-08-19 (revisão de UX mobile encontrou os 3
+    botões do rodapé praticamente colados, e o kebab "flutuando" sem alinhamento claro no topo da
+    pilha). `flex-col-reverse` da regra 24 continua empilhando o kebab no topo (acima de "Salvar"),
+    mas agora com `ml-auto` ele fica alinhado à borda direita nesse topo — lê como um menu de
+    contexto no canto, um padrão comum de app mobile, em vez de flutuar à esquerda sem relação
+    aparente com o resto do rodapé. `sm:ml-0` neutraliza a margem automática no desktop, onde o
+    kebab já fica colado a "Salvar" por `justify-end` (regra 25 original, inalterada). O item de menu recebe
     um callback opcional (`onArquivado`, `onExcluido`) pra fechar o `Dialog` pai depois de uma ação
     bem-sucedida — sem isso o modal ficaria aberto editando um registro que acabou de ser
     arquivado/excluído. Ver `PessoaArquivarMenuItem.tsx`/`PessoaExcluirMenuItem.tsx` (usados tanto
@@ -762,6 +766,171 @@ desta conversa:
       aba Financeiro ou Comunicação, não ao Geral, mesmo que o dado já esteja disponível ali.
     - Exemplo do que já foi tirado por violar a regra: um KPI "Recebido no mês" e um ranking
       "Turmas com mais receita" (ambos dinheiro) que estavam na primeira versão da aba Geral.
+31. **Todo elemento interativo (botão, ícone clicável, aba, item de menu) tem uma área de toque
+    real de pelo menos 44×44px em qualquer viewport, mesmo quando o tamanho VISUAL do controle é
+    menor por decisão de hierarquia.** Decidido em 2026-08-19, a partir de uma revisão de UX
+    mobile — kebabs de tabela (36px), botão fechar do Copiloto (28px) e outros ícones pequenos
+    eram difíceis de tocar com precisão em tela pequena. **Não muda a hierarquia de alturas já
+    validada com o Figma** (as duas alturas de 36px/30px de Cadastro, seção "Altura de
+    controles" acima, continuam do mesmo tamanho visual em qualquer tela) — a técnica expande só
+    a área CLICÁVEL, via um pseudo-elemento invisível, nunca `h-`/`w-`/padding visível do próprio
+    controle.
+    - Classe utilitária `.tap-target-44` (`src/app/globals.css`, `@layer utilities`):
+      `position: relative` no elemento + `::after` absoluto centralizado com
+      `width`/`height: max(100%, 44px)`. Funciona com `asChild`/`Slot` do Radix porque não
+      depende do nome da tag renderizada, só da classe estar no elemento final. Um botão de
+      texto largo (ex. "Salvar") não ganha faixa extra nas laterais — `max()` só cresce a
+      dimensão que já é menor que 44px.
+    - Aplicada direto na string-base de `buttonVariants` (`src/components/ui/button.tsx`) e de
+      `TabsTrigger` (`src/components/ui/tabs.tsx`) — **todo** `Button`/`TabsTrigger` do app herda
+      automaticamente, mesmo com `size`/`className` customizados (ex. `SidebarTrigger`,
+      `CopilotoDrawer`, `AlertBanner`, o botão de colapsar da `AppSidebar` — todos usam `<Button>`
+      por baixo, nenhum precisou de edição própria). Não reaplique a classe manualmente em cada
+      consumidor.
+32. **`src/app/layout.tsx` define `export const viewport` explícito** (`{ width:
+    "device-width", initialScale: 1 }`, tipo `Viewport` de `"next"`), em vez de depender só do
+    default implícito do App Router. Decidido em 2026-08-19, motivado por relato de "o app abre
+    parecendo com zoom" na revisão de UX mobile — o Next.js aplica um viewport padrão quando
+    nenhum é exportado, mas isso não estava explícito em nenhum lugar do código. Não reintroduza
+    o viewport só dentro de `metadata` (formato antigo, depreciado no Next 13+) — precisa ser um
+    `export const viewport` separado.
+33. **Header mobile (`md:hidden`, `SidebarShell.tsx`) só mostra hambúrguer na Dashboard — toda
+    outra página (inclusive raiz de sidebar como Vagões/Caixa/Pessoas) mostra só "Voltar" (ícone +
+    texto) + CTA da página, sem nenhum título no header.** Decidido em 2026-08-19, revisado
+    várias vezes no mesmo dia a partir de wireframes do usuário — motivado por: dificuldade de
+    achar o menu (a barra ficava sempre igual, "Trilho" + hambúrguer, em toda página) e falta de
+    sensação de navegação tipo app nativo (usuária não sabia "onde estava" nem como voltar sem
+    abrir a sidebar inteira).
+    - **Regra final**: a Dashboard (`items === null`, único caso sem `PageBreadcrumb` — regra 12)
+      é a única página com hambúrguer; qualquer outra página mostra "Voltar", mesmo quando não tem
+      um pai navegável "de verdade" na hierarquia do breadcrumb (nesse caso volta pra `/`).
+    - **O header NÃO mostra o título da página — nem centralizado, nem à esquerda.** Passou por
+      duas revisões no mesmo dia (centralizado via grid → alinhado à esquerda → removido de vez)
+      até o usuário decidir que o `<h1>` de cada página (sempre visível, regra 6) já é a fonte do
+      título; repeti-lo no header, em qualquer alinhamento, era redundante. Em página interna, o
+      espaço onde o título ficava agora é só o `BotaoVoltar` (ícone `ChevronLeft` + texto
+      "Voltar", `variant="ghost"`, sem `size="icon"` — precisa da largura extra pro texto). Na
+      Dashboard, o texto "Trilho" continua ao lado do hambúrguer (não é título de página, é marca
+      do app na tela raiz).
+    - Tamanhos aumentados nesta revisão: botão do hambúrguer `h-12 w-12` (48px) com ícone
+      `!size-6` (24px, precisa do `!` pela armadilha de especificidade de `[&_svg]:size-4`
+      documentada no topo deste arquivo).
+    - **Botão voltar usa `router.back()` de verdade, não só o `href` do pai lógico do
+      breadcrumb** — revisão importante: a primeira versão desta regra evitava
+      `router.back()`/`history.back()` por medo de sair do app sem histórico, mas o usuário pediu
+      explicitamente "voltar pra última página navegada". Resolvido com `canGoBack`
+      (`PageHeaderProvider`): um `useEffect` com `usePathname()` marca `canGoBack = true` assim
+      que a **primeira** troca de rota client-side acontece depois do app carregar — antes disso
+      (primeiro carregamento, refresh, link externo), `canGoBack` continua `false` e o botão volta
+      a usar o `href` calculado (pai do breadcrumb, ou `/`) como fallback seguro. Ou seja:
+      `router.back()` só roda quando já existe histórico de navegação real dentro do app nesta
+      aba; caso contrário, cai no fallback antigo. Ver `BotaoVoltar` em `SidebarShell.tsx`.
+    - **CTA no header** (à direita, único elemento do lado oposto ao "Voltar"): `PageBreadcrumb`
+      aceita uma prop opcional `cta?: React.ReactNode` — a página declara o elemento uma vez (ex.
+      `const novaPessoaCta = <NovaPessoaDialog .../>`), passa pro `PageBreadcrumb` **e** renderiza
+      a mesma variável de novo no bloco H1 com `className="hidden md:inline-flex"` (o header
+      mobile já cobre esse espaço abaixo de `md`, então a cópia inline só aparece a partir de `md`,
+      quando o header mobile nem existe). Monta duas instâncias reais do componente (uma no
+      header, outra na página, cada uma com seu próprio estado de `Dialog` aberto/fechado) —
+      inofensivo porque só uma fica visível por vez via CSS, mesmo padrão já usado pelo
+      `ExportarDropdown` na regra 36. Aplicado em toda página com CTA principal de página inteira
+      (regra 26): `PessoasListagem.tsx` (Nova pessoa), `pessoas/turmas/page.tsx` (Nova turma),
+      `vagoes/page.tsx` (Novo contato), `mensagens/page.tsx` (Nova mensagem), `caixa/page.tsx`
+      (Novo recebimento/repasse, alterna com a aba ativa — `caixaCta` calculado antes do
+      `PageBreadcrumb` pra usar o mesmo valor nos dois lugares). Páginas de detalhe/edição
+      (`/pessoas/[id]`) não têm CTA de página inteira, ficam de fora por não se aplicar, não por
+      pendência.
+    - **`<h1>` de página (regra 6) NÃO esconde mais em nenhuma rota, em nenhuma largura de tela.**
+      Chegou a existir uma versão `hidden md:block` (o título vivia só no header mobile), revertida
+      no mesmo dia: sem título nenhum no header (ver acima), esconder o `<h1>` deixaria a página
+      sem título visível nenhum abaixo de `md`. `<h1>` de toda página é sempre visível agora,
+      mobile e desktop — nenhuma exceção (nem a Dashboard, que nunca chegou a ter essa classe
+      revertida de fato removida do `DashboardHeader.tsx`).
+    - **`UserAvatarMenu`** (`src/components/shell/UserMenu.tsx`) é a versão compacta do `UserMenu`
+      já existente (rodapé da sidebar) — mesmo avatar + dropdown de logout, só sem o layout de
+      linha inteira (nome + email + chevron) que só cabe no rodapé largo da sidebar. As duas
+      compartilham a lógica de logout via um hook interno (`useLogout`), não duplicada.
+    - **`PageBreadcrumb` (o trail visual, `Breadcrumb`/`BreadcrumbList`/etc. do shadcn) fica
+      `hidden md:block` abaixo de `md`** — o registro no `PageHeaderProvider` continua rodando
+      sempre (é o que alimenta o header mobile), só a lista de links por extenso some, porque
+      duplicaria a mesma informação que o header mobile já mostra como título.
+34. **O menu (hambúrguer) abre `MobileNavSheet` — uma tela cheia exclusiva do mobile, não o
+    drawer parcial (`w-3/4`/`sm:max-w-sm`) do `Sidebar`/rail do shadcn usado no desktop.**
+    Decidido em 2026-08-19, a partir do wireframe "Menu aberto" do usuário: painel próprio com
+    "Menu" + X pra fechar no topo, lista de itens preenchendo a tela toda, sem avatar (o atalho de
+    conta já vive no header da Dashboard).
+    - `src/components/shell/MobileNavSheet.tsx`: `Sheet` do shadcn com `className` sobrescrevendo
+      `sheetVariants` pra `w-screen max-w-none h-dvh border-none` (cobre a tela inteira, não os
+      `w-3/4`/`sm:max-w-sm` default) — mesmo truque de esconder o `X` default (`[&>button]:hidden`)
+      e montar um cabeçalho próprio que já existe em `CopilotoDrawer.tsx`, aplicado aqui de novo.
+    - **Fonte de navegação compartilhada**: `NAV_ITEMS`/`rotaAtiva`/`childMaisEspecificoAtivo`/
+      `grupoDaRota`, extraídos de dentro de `AppSidebar.tsx` pra `src/components/shell/navItems.ts`
+      — `AppSidebar` (desktop) e `MobileNavSheet` (mobile) importam da mesma fonte, **nunca
+      duplique a lista de navegação entre os dois**. Editar item de menu, role, ou grupo
+      expansível é sempre em `navItems.ts`, nunca dentro de `AppSidebar.tsx`/`MobileNavSheet.tsx`
+      diretamente.
+    - Linhas de item bem maiores que a sidebar desktop (`py-4 text-base`, ~56px de altura) —
+      "os itens do menu devem preencher a tela toda", pedido do usuário; não precisou de
+      `.tap-target-44` porque o tamanho visual já passa de 44px sozinho.
+    - `Sidebar`/rail do shadcn (`AppSidebar.tsx`) continua existindo do jeito que sempre esteve —
+      no mobile, sem nada mais chamando `toggleSidebar()`/`setOpenMobile(true)`, ele nunca abre
+      (Sheet interno permanece fechado) e não ocupa espaço nenhum (rail desktop já é `hidden
+      md:block`) — pegada zero abaixo de `md`, `MobileNavSheet` é o único menu mobile de verdade.
+35. **Nenhum formulário usa `<input type="date">` nativo — todo campo de data usa
+    `src/components/DatePicker.tsx`** (`Calendar` do shadcn dentro de `Popover`, mesmo componente
+    em todo breakpoint — decidido não usar `Drawer`/bottom-sheet no mobile, pra não adicionar a
+    dependência `vaul` e um segundo padrão de overlay). Decidido em 2026-08-19, motivado por
+    revisão de UX mobile — o picker nativo de data varia muito entre iOS/Android/desktop.
+    - Componente instalado via `pnpm dlx shadcn@latest add calendar` (`popover` já existia).
+      Traz `react-day-picker` e `date-fns` como dependências novas do projeto.
+    - **Fica em `src/components/DatePicker.tsx` (PascalCase), não em `src/components/ui/`** —
+      não é um componente puro do registry shadcn (é uma composição própria de `Calendar` +
+      `Popover` + `Button`), então não se aplica a regra 3 (arquivos gerenciados pelo CLI); segue
+      a mesma convenção de `PessoaCombobox.tsx`/`InteresseTagsInput.tsx`, componentes
+      compartilhados fora de `ui/`.
+    - **Contrato de props espelha `Input`**: `value: string` (ISO `yyyy-MM-dd`, `""` quando
+      vazio) + `onChange: (value: string) => void` — troca de `<Input type="date" value={x}
+      onChange={(e) => setX(e.target.value)} />` pra `<DatePicker value={x} onChange={setX} />` é
+      mecânica em qualquer formulário novo.
+    - **Usa `parseISO`/`format` do `date-fns`, nunca `new Date(string)`**, pra evitar a armadilha
+      de `new Date("yyyy-MM-dd")` interpretar a string como UTC (diferente de uma string com hora,
+      que o JS interpreta como fuso local) — engine que já forçou o workaround `timeZone: "UTC"`
+      em `formatarData`/funções parecidas noutros lugares do app. `DatePicker` nunca sai do fuso
+      local, então não precisa desse workaround.
+    - Ver `src/app/(protected)/pessoas/NovaPessoaDialog.tsx` (campo "Data da matrícula") como
+      referência de uso; substituído em 7 arquivos ao todo (Pessoa, Matrícula, Turma × 2, Filtros
+      avançados de Turmas, Recebimento, Repasse).
+36. **Toda página de listagem com `<table>` esconde a tabela abaixo de `md` (`hidden md:block` no
+    wrapper) e mostra em vez dela uma lista de cards empilhados (`md:hidden`)** — mesmos
+    dados/ações da linha, reaproveitados sem duplicar fetch/lógica de seleção/ordenação, só a
+    apresentação muda. Decidido em 2026-08-19, motivado por revisão de UX mobile: tabela com 6+
+    colunas força scroll horizontal em mobile.
+    - **Piloto**: `src/app/(protected)/pessoas/PessoasListagem.tsx` (tabela) +
+      `PessoaCard.tsx` (card), com `MAX_TURMAS_VISIVEIS`/`formatarData` exportados de
+      `PessoasListagem.tsx` pro card reusar em vez de duplicar. Referência visual do card:
+      `ContatoCard.tsx` (board de Vagões), adaptado de "card arrastável" pra "item de lista".
+      **Ainda não replicado nas demais listagens com tabela** (Turmas, Caixa, Mensagens,
+      Admin/Usuários) — próxima rodada.
+    - **Seleção em massa e `ExportarDropdown` continuam funcionando no card**: cada `PessoaCard`
+      recebe `selecionado`/`onToggleSelecionado` do mesmo `Set<string>` que a tabela usa. Como o
+      `ExportarDropdown` normalmente vive só no cabeçalho da tabela (escondido no mobile junto com
+      ela), uma segunda instância (`md:hidden`) aparece ao lado de "Cancelar seleção" assim que
+      `selecionados.size > 0` — sem isso, exportar ficaria inacessível no mobile depois de
+      selecionar pelos cards. Não existe "selecionar todos" no card ainda (só na tabela) — cada
+      pessoa é selecionada individualmente no mobile.
+    - Card não é o card inteiro clicável tipo `ContatoCard`: o **nome** é o link de navegação
+      (`tap-target-44` pra compensar ser só texto), kebab (`MoreVertical`) cobre
+      Arquivar/Desarquivar — decisão específica de Pessoas por já ter um `Checkbox` de seleção no
+      card (elemento interativo aninhado dentro de um `<a>` inteiro seria inválido/ambíguo pra
+      clique). Página de listagem sem seleção em massa pode seguir o padrão de `ContatoCard`
+      (card inteiro como link) quando chegar a vez dela.
+37. **`DialogFooter`/`AlertDialogFooter`/`SheetFooter` usam `gap-2` (não `sm:space-x-2`) entre os
+    botões.** Bug corrigido em 2026-08-19, achado na revisão de UX mobile: `sm:space-x-2` só
+    aplica espaçamento na direção `row` (`sm:` pra cima) — no mobile, onde o rodapé empilha em
+    `flex-col-reverse` (regra 24), não havia **nenhum** espaçamento entre os botões, que ficavam
+    colados. `gap` funciona nas duas direções (`column`/`row`), então cobre mobile e desktop com
+    uma classe só. Vale pros três primitivos (`src/components/ui/dialog.tsx`,
+    `alert-dialog.tsx`, `sheet.tsx`) — mesmo padrão de rodapé, mesmo bug, mesma correção.
 
 ---
 

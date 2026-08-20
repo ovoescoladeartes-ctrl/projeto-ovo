@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/DatePicker";
 import { InteresseTagsInput } from "@/components/InteresseTagsInput";
 import { buscarPessoas, type PessoaBusca } from "@/core/pessoas/actions";
 import { parseCentavosInput } from "@/lib/currency";
@@ -262,13 +263,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 						<>
 							<div className="space-y-1.5">
 								<Label htmlFor="pessoa-data-matricula">Data da matrícula</Label>
-								<Input
-									id="pessoa-data-matricula"
-									type="date"
-									value={dataMatricula}
-									onChange={(event) => setDataMatricula(event.target.value)}
-									disabled={isPending}
-								/>
+								<DatePicker id="pessoa-data-matricula" value={dataMatricula} onChange={setDataMatricula} disabled={isPending} />
 							</div>
 							<div className="space-y-1.5">
 								<Label htmlFor="pessoa-mensalidade">Mensalidade combinada (R$)</Label>
