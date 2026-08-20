@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,13 +155,7 @@ export function NovoRecebimentoDialog({ turmas }: NovoRecebimentoDialogProps): R
 					</div>
 					<div className="space-y-1.5">
 						<Label htmlFor="recebimento-data">Data</Label>
-						<Input
-							id="recebimento-data"
-							type="date"
-							value={dataRecebimento}
-							onChange={(event) => setDataRecebimento(event.target.value)}
-							disabled={isPending}
-						/>
+						<DatePicker id="recebimento-data" value={dataRecebimento} onChange={setDataRecebimento} disabled={isPending} />
 					</div>
 
 					<div className="space-y-1.5">

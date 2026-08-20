@@ -3,6 +3,7 @@
 import { MoreVertical, Pencil } from "lucide-react";
 import { useState, useTransition } from "react";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -203,21 +204,19 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 
 					<div className="space-y-1.5">
 						<Label htmlFor={`turma-data-inicio-${turma.id}`}>Início</Label>
-						<Input
+						<DatePicker
 							id={`turma-data-inicio-${turma.id}`}
-							type="date"
 							value={dataInicio}
-							onChange={(event) => setDataInicio(event.target.value)}
+							onChange={setDataInicio}
 							disabled={isPending}
 						/>
 					</div>
 					<div className="space-y-1.5">
 						<Label htmlFor={`turma-data-fim-${turma.id}`}>Fim (opcional)</Label>
-						<Input
+						<DatePicker
 							id={`turma-data-fim-${turma.id}`}
-							type="date"
 							value={dataFim}
-							onChange={(event) => setDataFim(event.target.value)}
+							onChange={setDataFim}
 							disabled={isPending}
 						/>
 					</div>
@@ -268,7 +267,14 @@ export function TurmaEditDialog({ turma, educadorInicial, matriculasAtivasCount 
 					{turma.ativo ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									title="Mais ações"
+									aria-label="Mais ações"
+									className="ml-auto sm:ml-0"
+								>
 									<MoreVertical className="h-4 w-4" />
 								</Button>
 							</DropdownMenuTrigger>

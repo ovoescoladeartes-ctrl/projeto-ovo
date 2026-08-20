@@ -155,7 +155,14 @@ export function PessoaEditDialog({
 					{temAcoesExtras ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									title="Mais ações"
+									aria-label="Mais ações"
+									className="ml-auto sm:ml-0"
+								>
 									<MoreVertical className="h-4 w-4" />
 								</Button>
 							</DropdownMenuTrigger>

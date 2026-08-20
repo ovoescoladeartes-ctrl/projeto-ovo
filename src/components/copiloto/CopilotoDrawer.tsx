@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { CopilotoComposer } from "./CopilotoComposer";
 import { CopilotoMessageBubble } from "./CopilotoMessageBubble";
@@ -17,6 +18,7 @@ export function CopilotoDrawer(): React.ReactElement {
 	const { messages, isDrawerOpen, isThinking, closeDrawer, submitQuestion } = useCopiloto();
 	const scrollAnchorRef = useRef<HTMLDivElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
+	const isMobile = useIsMobile();
 
 	useEffect(() => {
 		scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,7 +32,13 @@ export function CopilotoDrawer(): React.ReactElement {
 				className="flex w-full flex-col gap-0 p-0 sm:max-w-sm [&>button]:hidden"
 				onOpenAutoFocus={(event) => {
 					event.preventDefault();
-					contentRef.current?.querySelector("input")?.focus();
+					// No mobile, focar o input abre o teclado virtual junto com a animação do drawer — já
+					// foi apontado como o drawer "abrindo maior que a tela" (o teclado reduz a altura
+					// visível sem que `h-full`/100vh do Sheet reaja). Sem correção equivalente em
+					// `sheet.tsx` (pendente de teste em device real), evitar isso é não focar automático.
+					if (!isMobile) {
+						contentRef.current?.querySelector("input")?.focus();
+					}
 				}}
 			>
 				<div className="flex items-center gap-2 px-4 py-3">

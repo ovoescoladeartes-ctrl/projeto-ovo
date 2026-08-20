@@ -138,17 +138,16 @@ export default async function CaixaPage({ searchParams }: CaixaPageProps): Promi
 		{ label: "Repasses pendentes", value: String(contarRepassesPendentes(repasses)), subtitle: "Aguardando pagamento" },
 	];
 
+	const caixaCta =
+		aba === "recebimentos" ? <NovoRecebimentoDialog turmas={turmasAtivas} /> : <NovoRepasseDialog turmas={turmasAtivas} />;
+
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa" }]} />
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa" }]} cta={caixaCta} />
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Caixa</h1>
 				<CopilotoInput />
-				{aba === "recebimentos" ? (
-					<NovoRecebimentoDialog turmas={turmasAtivas} />
-				) : (
-					<NovoRepasseDialog turmas={turmasAtivas} />
-				)}
+				<div className="hidden md:inline-flex">{caixaCta}</div>
 			</div>
 
 			<CaixaTabs

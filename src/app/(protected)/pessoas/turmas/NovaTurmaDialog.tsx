@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -184,21 +185,19 @@ export function NovaTurmaDialog(): React.ReactElement {
 
 					<div className="space-y-1.5">
 						<Label htmlFor="turma-data-inicio">Início</Label>
-						<Input
+						<DatePicker
 							id="turma-data-inicio"
-							type="date"
 							value={form.dataInicio}
-							onChange={(event) => setForm({ ...form, dataInicio: event.target.value })}
+							onChange={(value) => setForm({ ...form, dataInicio: value })}
 							disabled={isPending}
 						/>
 					</div>
 					<div className="space-y-1.5">
 						<Label htmlFor="turma-data-fim">Fim (opcional)</Label>
-						<Input
+						<DatePicker
 							id="turma-data-fim"
-							type="date"
 							value={form.dataFim}
-							onChange={(event) => setForm({ ...form, dataFim: event.target.value })}
+							onChange={(value) => setForm({ ...form, dataFim: value })}
 							disabled={isPending}
 						/>
 					</div>

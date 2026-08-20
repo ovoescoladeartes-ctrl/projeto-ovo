@@ -16,13 +16,14 @@ import { cn } from "@/lib/utils";
 
 import { ExportarDropdown } from "./ExportarDropdown";
 import { NovaPessoaDialog } from "./NovaPessoaDialog";
+import { PessoaCard } from "./PessoaCard";
 import { PessoaArquivarMenuItem } from "./PessoaArquivarMenuItem";
 import { PessoaDesarquivarMenuItem } from "./PessoaDesarquivarMenuItem";
 import { PessoasFiltroBar } from "./PessoasFiltroBar";
 import { PessoasPaginacao } from "./PessoasPaginacao";
 import { StatusBadge } from "./StatusBadge";
 
-const MAX_TURMAS_VISIVEIS = 2;
+export const MAX_TURMAS_VISIVEIS = 2;
 
 export interface PessoaListagemRow {
 	id: string;
@@ -53,7 +54,7 @@ interface PessoasListagemProps {
 	turmasAtivas: TurmaOpcao[];
 }
 
-function formatarData(iso: string | null): string {
+export function formatarData(iso: string | null): string {
 	if (iso === null) {
 		return "—";
 	}
@@ -134,27 +135,41 @@ export function PessoasListagem({
 		);
 	}
 
+	const novaPessoaCta = <NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />;
+
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Pessoas" }]} />
+			<PageBreadcrumb
+				items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Pessoas" }]}
+				cta={novaPessoaCta}
+			/>
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
 					{selecionados.size > 0 ? (
-						<p className="text-sm text-muted-foreground">
-							<span className="font-bold text-foreground">{selecionados.size} selecionadas</span>{" "}
-							<button
-								type="button"
-								onClick={() => setSelecionados(new Set())}
-								className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-							>
-								Cancelar seleção
-							</button>
-						</p>
+						<div className="flex flex-wrap items-center gap-3">
+							<p className="text-sm text-muted-foreground">
+								<span className="font-bold text-foreground">{selecionados.size} selecionadas</span>{" "}
+								<button
+									type="button"
+									onClick={() => setSelecionados(new Set())}
+									className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+								>
+									Cancelar seleção
+								</button>
+							</p>
+							{/* No desktop o Exportar já vive no cabeçalho da tabela — aqui só aparece abaixo de
+							    `md`, onde a tabela (e esse cabeçalho) fica escondida em troca dos cards. */}
+							<div className="md:hidden">
+								<ExportarDropdown pessoaIds={Array.from(selecionados)} />
+							</div>
+						</div>
 					) : null}
 				</div>
 				<CopilotoInput />
-				<NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />
+				{/* No mobile o CTA já vive no header fixo (registrado via `cta` acima) — aqui só aparece
+				    a partir de `md`, onde não existe header mobile pra duplicar o botão. */}
+				<div className="hidden md:inline-flex">{novaPessoaCta}</div>
 			</div>
 
 			<div className="mb-6">
@@ -167,7 +182,7 @@ export function PessoasListagem({
 
 			<Card>
 				<CardContent className="p-4">
-					<div className="overflow-x-auto rounded-lg border border-border">
+					<div className="hidden overflow-x-auto rounded-lg border border-border md:block">
 						<table className="w-full text-left text-sm">
 							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
 								<tr>
@@ -272,6 +287,21 @@ export function PessoasListagem({
 								) : null}
 							</tbody>
 						</table>
+					</div>
+
+					<div className="flex flex-col gap-3 md:hidden">
+						{pessoas.length === 0 ? (
+							<p className="py-6 text-center text-sm text-muted-foreground">Nenhuma pessoa encontrada.</p>
+						) : (
+							pessoas.map((pessoa) => (
+								<PessoaCard
+									key={pessoa.id}
+									pessoa={pessoa}
+									selecionado={selecionados.has(pessoa.id)}
+									onToggleSelecionado={(marcado) => alternarUm(pessoa.id, marcado)}
+								/>
+							))
+						)}
 					</div>
 
 					<div className="mt-4">

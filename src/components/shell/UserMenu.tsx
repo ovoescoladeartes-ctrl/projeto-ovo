@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -29,7 +30,8 @@ function getInitials(displayName: string): string {
 	return (first + last).toUpperCase();
 }
 
-export function UserMenu({ displayName, email }: UserMenuProps): React.ReactElement {
+/** Compartilhado por `UserMenu` (rodapé da sidebar) e `UserAvatarMenu` (header mobile). */
+function useLogout(): { saindo: boolean; handleLogout: () => Promise<void> } {
 	const router = useRouter();
 	const [saindo, setSaindo] = useState(false);
 
@@ -42,6 +44,46 @@ export function UserMenu({ displayName, email }: UserMenuProps): React.ReactElem
 			router.push("/login");
 		}
 	}
+
+	return { saindo, handleLogout };
+}
+
+/**
+ * Versão compacta do `UserMenu` pro header mobile da Dashboard (ver regra do design.md sobre
+ * header mobile) — só o avatar como trigger, mesmo dropdown de logout, sem o layout de linha
+ * inteira (nome + email + chevron) que só faz sentido no rodapé largo da sidebar.
+ */
+export function UserAvatarMenu({ displayName, email }: UserMenuProps): React.ReactElement {
+	const { saindo, handleLogout } = useLogout();
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button type="button" variant="ghost" className="h-11 gap-1 px-1.5" aria-label="Menu do usuário">
+					<Avatar className="h-8 w-8 rounded-full">
+						<AvatarFallback className="rounded-full bg-primary text-sm font-medium text-primary-foreground">
+							{getInitials(displayName)}
+						</AvatarFallback>
+					</Avatar>
+					<ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="w-56">
+				<div className="px-2 py-1.5 text-sm">
+					<p className="truncate font-medium">{displayName || "Usuária"}</p>
+					<p className="truncate text-xs text-muted-foreground">{email}</p>
+				</div>
+				<DropdownMenuItem onSelect={handleLogout} disabled={saindo}>
+					<LogOut className="h-4 w-4" />
+					{saindo ? "Saindo..." : "Sair"}
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+export function UserMenu({ displayName, email }: UserMenuProps): React.ReactElement {
+	const { saindo, handleLogout } = useLogout();
 
 	return (
 		<SidebarMenu>

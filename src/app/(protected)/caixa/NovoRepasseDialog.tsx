@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PessoaCombobox } from "@/components/PessoaCombobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -171,13 +172,7 @@ export function NovoRepasseDialog({ turmas }: NovoRepasseDialogProps): React.Rea
 					</div>
 					<div className="space-y-1.5">
 						<Label htmlFor="repasse-vencimento">Vencimento</Label>
-						<Input
-							id="repasse-vencimento"
-							type="date"
-							value={vencimento}
-							onChange={(event) => setVencimento(event.target.value)}
-							disabled={isPending}
-						/>
+						<DatePicker id="repasse-vencimento" value={vencimento} onChange={setVencimento} disabled={isPending} />
 					</div>
 
 					{erro !== null ? <p className="text-xs text-destructive">{erro}</p> : null}
