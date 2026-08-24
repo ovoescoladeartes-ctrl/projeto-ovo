@@ -1,31 +1,42 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RitualChecklistItemData } from "@/core/dashboard/types";
+import type { RitualItemEstado } from "@/core/financeiro/ritual/schema";
 
 import { RitualChecklistItem } from "./RitualChecklistItem";
 
+const ITENS_VISIVEIS_NO_CARD = 2;
+
 interface RitualChecklistProps {
-	items: RitualChecklistItemData[];
+	itens: RitualItemEstado[];
+	semana: string;
+	dataLabel: string;
 }
 
-export function RitualChecklist({ items }: RitualChecklistProps): React.ReactElement {
-	const concluidos = items.filter((item) => item.concluido).length;
+export function RitualChecklist({ itens, semana, dataLabel }: RitualChecklistProps): React.ReactElement {
+	const pendentes = itens.filter((item) => !item.concluido);
 
 	return (
 		<Card>
 			<CardHeader className="flex-row items-center gap-2 space-y-0">
-				<CardTitle className="text-base">Ritual de segunda</CardTitle>
+				<CardTitle className="text-base">Ritual de Segunda — {dataLabel}</CardTitle>
 				<Badge variant="secondary">
-					{concluidos}/{items.length} concluídos
-				</Badge>
-				<Badge variant="outline" className="text-muted-foreground">
-					em breve
+					{pendentes.length} de {itens.length} pendentes
 				</Badge>
 			</CardHeader>
 			<CardContent className="pt-0">
-				{items.map((item) => (
-					<RitualChecklistItem key={item.id} label={item.label} concluido={item.concluido} />
+				{pendentes.slice(0, ITENS_VISIVEIS_NO_CARD).map((item) => (
+					<RitualChecklistItem key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
 				))}
+				<Button variant="link" size="sm" asChild className="mt-1 h-auto px-0">
+					<Link href="/caixa/checklist">
+						Ver checklist completo
+						<ArrowRight className="h-3.5 w-3.5" />
+					</Link>
+				</Button>
 			</CardContent>
 		</Card>
 	);
