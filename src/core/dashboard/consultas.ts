@@ -176,14 +176,26 @@ export async function montarKpisEPendenciasFinanceiro(
 	const totalRepassesAVencer = repassesAVencerTodos.reduce((soma, repasse) => soma + repasse.valorCentavos, 0);
 
 	const kpis: KpiCardData[] = [
-		{ label: "Recebido no mês", value: formatCentavos(calcularRecebidoNoMes(recebimentos)), subtitle: "Recebimentos confirmados" },
-		{ label: "Saldo vivo", value: formatCentavos(calcularSaldoVivo(recebimentos, repasses)), subtitle: "Confirmado − repasses pagos" },
 		{
+			icon: "recebido",
+			label: "Recebido no mês",
+			value: formatCentavos(calcularRecebidoNoMes(recebimentos)),
+			subtitle: "Recebimentos confirmados",
+		},
+		{
+			icon: "saldo",
+			label: "Saldo vivo",
+			value: formatCentavos(calcularSaldoVivo(recebimentos, repasses)),
+			subtitle: "Confirmado − repasses pagos",
+		},
+		{
+			icon: "repasses",
 			label: "Repasses a vencer",
 			value: formatCentavos(totalRepassesAVencer),
 			subtitle: `${repassesAVencerTodos.length} repasse${repassesAVencerTodos.length === 1 ? "" : "s"} em ${REPASSES_JANELA_DIAS} dias`,
 		},
 		{
+			icon: "pendentes",
 			label: "Recebimentos pendentes",
 			value: formatCentavos(totalRecebimentosPendentes),
 			subtitle: `${recebimentosPendentesTodos.length} aguardando confirmação`,
@@ -267,8 +279,8 @@ export async function montarKpisEPendenciasComunicacao(
 	);
 
 	const kpis: KpiCardData[] = [
-		{ label: "Leads da semana", value: String(leadsDaSemana.length), subtitle: `${leadsSemResposta.length} sem resposta` },
-		{ label: "Convertidos no mês", value: String(convertidosNoMes.length), subtitle: "Viraram aluno" },
+		{ icon: "leads", label: "Leads da semana", value: String(leadsDaSemana.length), subtitle: `${leadsSemResposta.length} sem resposta` },
+		{ icon: "convertidos", label: "Convertidos no mês", value: String(convertidosNoMes.length), subtitle: "Viraram aluno" },
 	];
 
 	const pendencias: PendenciaItem[] = contatos
