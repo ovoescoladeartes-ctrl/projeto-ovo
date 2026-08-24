@@ -1,4 +1,13 @@
+/**
+ * Chave semântica do ícone de um KPI — opcional (nem todo consumidor de
+ * KpiCardData quer ícone, ex.: a página Caixa reusa o mesmo componente sem
+ * badge). O mapeamento pra um ícone real (lucide-react) fica no componente
+ * de apresentação, não aqui.
+ */
+export type KpiIcon = "recebido" | "saldo" | "repasses" | "pendentes" | "leads" | "convertidos";
+
 export interface KpiCardData {
+	icon?: KpiIcon;
 	label: string;
 	value: string;
 	subtitle: string;
