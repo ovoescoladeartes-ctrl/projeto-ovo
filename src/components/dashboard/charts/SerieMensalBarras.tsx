@@ -29,9 +29,16 @@ export function SerieMensalBarras({
 	nomeSerie,
 	cor = "var(--chart-1)",
 }: SerieMensalBarrasProps): React.ReactElement {
+	// Abaixo de `sm` (celular), sem largura mínima forçada — o gráfico compacta pra caber na
+	// tela toda, sem rolagem horizontal. A partir de `sm` a largura mínima por ponto garante
+	// legibilidade e, quando a coluna disponível for menor que isso, o próprio `overflow-x-auto`
+	// permite rolar (comportamento esperado em telas maiores com muitos pontos).
 	return (
 		<div className="overflow-x-auto">
-			<div style={{ minWidth: Math.max(dados.length * 44, 280) }}>
+			<div
+				className="sm:min-w-[var(--chart-min-w)]"
+				style={{ "--chart-min-w": `${Math.max(dados.length * 44, 280)}px` } as React.CSSProperties}
+			>
 				<ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
 					<BarChart data={dados} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
 						<CartesianGrid vertical={false} stroke="var(--border)" />

@@ -1,6 +1,7 @@
 "use client";
 
-import { Copy } from "lucide-react";
+import { Copy, Settings2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,16 @@ export function MensagemPickerSheet({ open, onOpenChange, mensagens }: MensagemP
 				<SheetHeader>
 					<SheetTitle>Biblioteca de mensagens</SheetTitle>
 				</SheetHeader>
+
+				{/* "Mensagens" saiu do menu lateral — esse é o único caminho até o CRUD completo
+				    (mensagens/page.tsx), que continua existindo como rota, só não linkada na sidebar. */}
+				<Link
+					href="/mensagens"
+					className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+				>
+					<Settings2 className="h-3.5 w-3.5" />
+					Gerenciar modelos
+				</Link>
 
 				<Tabs defaultValue={MENSAGEM_CATEGORIAS[0]} className="mt-4">
 					<TabsList className="grid w-full grid-cols-4">
