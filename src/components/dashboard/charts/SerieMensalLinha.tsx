@@ -22,9 +22,14 @@ interface SerieMensalLinhaProps {
 
 /** Linha mensal genérica — curva acumulada (ex.: alunos ativos por período), diferente da barra usada pra totais discretos por mês. */
 export function SerieMensalLinha({ dados, formatarValor, nomeSerie, cor = "var(--chart-1)" }: SerieMensalLinhaProps): React.ReactElement {
+	// Mesma abordagem de SerieMensalBarras — sem largura mínima forçada abaixo de `sm`, pra
+	// evitar rolagem horizontal indesejada em celular.
 	return (
 		<div className="overflow-x-auto">
-			<div style={{ minWidth: Math.max(dados.length * 44, 280) }}>
+			<div
+				className="sm:min-w-[var(--chart-min-w)]"
+				style={{ "--chart-min-w": `${Math.max(dados.length * 44, 280)}px` } as React.CSSProperties}
+			>
 				<ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
 					<LineChart data={dados} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
 						<CartesianGrid vertical={false} stroke="var(--border)" />

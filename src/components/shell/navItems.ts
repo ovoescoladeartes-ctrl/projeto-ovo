@@ -1,4 +1,4 @@
-import { GraduationCap, Home, Settings, Wallet, Workflow } from "lucide-react";
+import { GraduationCap, Home, Wallet, Workflow } from "lucide-react";
 
 import type { Role } from "@/core/auth/Role";
 
@@ -35,13 +35,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
 		],
 	},
 	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
-	{
-		label: "Configurações",
-		icon: Settings,
-		href: null,
-		roles: ["admin", "comunicacao"],
-		children: [{ label: "Mensagens", href: "/mensagens" }],
-	},
 ];
 
 export function rotaAtiva(pathname: string, href: string): boolean {

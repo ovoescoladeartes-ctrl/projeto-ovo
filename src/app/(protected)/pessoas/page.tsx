@@ -90,7 +90,9 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		turmasNomes.set(doc.id, data.nome);
 		turmasAtivas.push({ id: doc.id, nome: data.nome, mensalidadeCentavos: data.mensalidadeCentavos });
 	});
-	const opcoesTurma = Array.from(turmasNomes.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+	// `turmasNomes` é por id — duas turmas com o mesmo nome (IDs diferentes) duplicariam a
+	// opção no filtro (mesmo `key`/`value` no Select), daí o dedupe via `Set` antes de ordenar.
+	const opcoesTurma = Array.from(new Set(turmasNomes.values())).sort((a, b) => a.localeCompare(b, "pt-BR"));
 	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	const turmasPorPessoa = new Map<string, string[]>();

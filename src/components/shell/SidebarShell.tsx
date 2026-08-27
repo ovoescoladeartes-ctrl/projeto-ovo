@@ -98,7 +98,13 @@ function MobileHeader({ user }: { user: SidebarShellProps["user"] }): React.Reac
 					{naDashboard ? <UserAvatarMenu displayName={user.displayName} email={user.email} /> : null}
 				</div>
 			</header>
-			<MobileNavSheet open={menuAberto} onOpenChange={setMenuAberto} role={user.role} />
+			<MobileNavSheet
+				open={menuAberto}
+				onOpenChange={setMenuAberto}
+				role={user.role}
+				displayName={user.displayName}
+				email={user.email}
+			/>
 		</>
 	);
 }

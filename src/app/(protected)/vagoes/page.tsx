@@ -21,6 +21,12 @@ import { VagoesFiltroBar } from "./VagoesFiltroBar";
 
 const VAGOES_ROLES: readonly Role[] = ["admin", "comunicacao"];
 
+interface InteracaoContatoDoc {
+	texto: string;
+	criadoEm: string;
+	autorNome: string;
+}
+
 interface ContatoDoc {
 	nome: string;
 	canal: string;
@@ -32,6 +38,9 @@ interface ContatoDoc {
 	criadoEm?: Timestamp;
 	ativo: boolean;
 	interesses?: string[];
+	linkReferencia?: string | null;
+	observacoes?: string | null;
+	historico?: InteracaoContatoDoc[];
 }
 
 interface MensagemDoc {
@@ -80,6 +89,9 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			criadoEm: toIso(data.criadoEm ?? null),
 			ativo: data.ativo,
 			interesses: data.interesses ?? [],
+			linkReferencia: data.linkReferencia ?? null,
+			observacoes: data.observacoes ?? null,
+			historico: data.historico ?? [],
 		};
 	});
 
@@ -176,7 +188,7 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			</div>
 
 			<div className="min-h-0 flex-1">
-				<Board contatos={contatosComCurso} mensagens={mensagens} />
+				<Board contatos={contatosComCurso} mensagens={mensagens} opcoesInteresse={opcoesInteresse} />
 			</div>
 		</div>
 	);
