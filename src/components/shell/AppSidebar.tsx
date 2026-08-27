@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,12 +24,14 @@ import {
 	SidebarMenuSub,
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
+	SidebarSeparator,
 	useSidebar,
 } from "@/components/ui/sidebar";
 import type { Role } from "@/core/auth/Role";
 import { cn } from "@/lib/utils";
 
 import { childMaisEspecificoAtivo, grupoDaRota, NAV_ITEMS, rotaAtiva } from "./navItems";
+import { SairMenuItem } from "./SairMenuItem";
 import { UserMenu } from "./UserMenu";
 
 interface AppSidebarProps {
@@ -63,7 +65,7 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 	const { state, isMobile, setOpenMobile } = useSidebar();
 	// No mobile a sidebar é sempre o drawer expandido (ver SidebarToggleButton) — só o rail
 	// desktop colapsado esconde `SidebarMenuSub` (`group-data-[collapsible=icon]:hidden` em
-	// ui/sidebar.tsx), tornando "Cadastro"/"Configurações" inclicáveis nesse estado.
+	// ui/sidebar.tsx), tornando "Cadastro" inclicável nesse estado.
 	const railColapsado = state === "collapsed" && !isMobile;
 
 	// No mobile a sidebar é um drawer (Sheet) sobre o conteúdo — sem isso, navegar deixava o
@@ -227,7 +229,25 @@ export function AppSidebar({ user }: AppSidebarProps): React.ReactElement {
 				</SidebarMenu>
 			</SidebarContent>
 
-			<SidebarFooter className="px-4 py-4">
+			{/* `SidebarContent` acima é `flex-1` (primitivo do shadcn) — ele já empurra este
+			    bloco pro fim da sidebar sozinho, sem precisar de spacer manual. Sair + linha +
+			    conta formam um grupo só aqui (mesmo `gap-2` do `SidebarFooter`), não mais dentro
+			    do `SidebarContent` (bug corrigido: lá o `mt-6` só descolava o Sair de "Caixa", mas
+			    o resto do espaço flexível sobrava DEPOIS do Sair, antes da linha/rodapé). */}
+			<SidebarFooter className="gap-2 px-4 py-4">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SairMenuItem>
+							<SidebarMenuButton tooltip="Sair" className="gap-3 text-danger hover:bg-danger/10 hover:text-danger">
+								<LogOut className="h-5 w-5" />
+								<span>Sair</span>
+							</SidebarMenuButton>
+						</SairMenuItem>
+					</SidebarMenuItem>
+				</SidebarMenu>
+
+				<SidebarSeparator className="mx-0" />
+
 				<UserMenu displayName={user.displayName} email={user.email} />
 			</SidebarFooter>
 		</Sidebar>

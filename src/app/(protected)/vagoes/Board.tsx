@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { moverEstagioContato } from "./actions";
 import { ContatoCard } from "./ContatoCard";
+import { ContatoDetalheSheet } from "./ContatoDetalheSheet";
 import { MensagemPickerSheet } from "./MensagemPickerSheet";
 
 interface MoverAction {
@@ -85,12 +86,14 @@ function DraggableCartao({ contato, children }: { contato: Contato; children: Re
 interface BoardProps {
 	contatos: Contato[];
 	mensagens: Mensagem[];
+	opcoesInteresse: string[];
 }
 
-export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
+export function Board({ contatos, mensagens, opcoesInteresse }: BoardProps): React.ReactElement {
 	const [pickerAberto, setPickerAberto] = useState(false);
 	const [estagioMobile, setEstagioMobile] = useState<string>(BUCKETS[0]?.key ?? "novo");
 	const [activeId, setActiveId] = useState<string | null>(null);
+	const [detalheId, setDetalheId] = useState<string | null>(null);
 	const [, startTransition] = useTransition();
 
 	const [contatosOtimistas, moverOtimista] = useOptimistic(contatos, (estado: Contato[], acao: MoverAction) =>
@@ -108,6 +111,7 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 
 	const grupos = useMemo(() => agrupar(contatosOtimistas), [contatosOtimistas]);
 	const activeContato = activeId !== null ? (contatosOtimistas.find((contato) => contato.id === activeId) ?? null) : null;
+	const contatoDetalhe = detalheId !== null ? (contatosOtimistas.find((contato) => contato.id === detalheId) ?? null) : null;
 
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -138,10 +142,19 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<MensagemPickerSheet open={pickerAberto} onOpenChange={setPickerAberto} mensagens={mensagens} />
+			<ContatoDetalheSheet
+				contato={contatoDetalhe}
+				open={contatoDetalhe !== null}
+				onOpenChange={(open) => setDetalheId(open ? detalheId : null)}
+				opcoesInteresse={opcoesInteresse}
+				onAbrirBiblioteca={() => setPickerAberto(true)}
+			/>
 
 			{/* Desktop: 6 colunas lado a lado (Figma node 34:2756), com drag and drop. Cada coluna
 			    preenche a altura toda disponível e rola por conta própria (padrão kanban), em vez
-			    de esticar a página inteira quando uma coluna tem muitos cards. */}
+			    de esticar a página inteira quando uma coluna tem muitos cards. Abaixo de ~1280px as
+			    6 colunas não cabem lado a lado sem espremer o conteúdo — em vez disso o board rola
+			    horizontalmente (padrão Trello), cada coluna com largura mínima fixa. */}
 			<div className="hidden min-h-0 flex-1 md:block">
 				<DndContext
 					sensors={sensors}
@@ -149,11 +162,11 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 					onDragEnd={handleDragEnd}
 					onDragCancel={() => setActiveId(null)}
 				>
-					<div className="grid h-full grid-cols-6 gap-6">
+					<div className="flex h-full gap-6 overflow-x-auto">
 						{BUCKETS.map((bucket) => {
 							const cards = grupos.get(bucket.key) ?? [];
 							return (
-								<div key={bucket.key} className="flex min-w-0 flex-col rounded-lg bg-column p-3">
+								<div key={bucket.key} className="flex w-72 min-w-72 shrink-0 flex-col rounded-lg bg-column p-3">
 									<div className="mb-3 flex items-center gap-2 px-1">
 										<p className="truncate text-base font-semibold text-foreground">{bucket.label}</p>
 										<span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium text-background">
@@ -166,7 +179,7 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 												<ContatoCard
 													contato={contato}
 													onMoverPara={(destino) => moverPara(contato.id, destino)}
-													onAbrirBiblioteca={() => setPickerAberto(true)}
+													onAbrirDetalhes={() => setDetalheId(contato.id)}
 												/>
 											</DraggableCartao>
 										))}
@@ -182,7 +195,7 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 					<DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
 						{activeContato ? (
 							<div className="rotate-2 shadow-xl">
-								<ContatoCard contato={activeContato} onMoverPara={() => {}} onAbrirBiblioteca={() => {}} />
+								<ContatoCard contato={activeContato} onMoverPara={() => {}} onAbrirDetalhes={() => {}} />
 							</div>
 						) : null}
 					</DragOverlay>
@@ -211,7 +224,7 @@ export function Board({ contatos, mensagens }: BoardProps): React.ReactElement {
 							key={contato.id}
 							contato={contato}
 							onMoverPara={(destino) => moverPara(contato.id, destino)}
-							onAbrirBiblioteca={() => setPickerAberto(true)}
+							onAbrirDetalhes={() => setDetalheId(contato.id)}
 						/>
 					))}
 					{(grupos.get(estagioMobile) ?? []).length === 0 ? (
