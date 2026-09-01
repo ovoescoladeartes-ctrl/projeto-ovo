@@ -420,7 +420,7 @@ const EXPORT_STATUS_LABELS: Record<string, string> = {
 	banco_talentos: "Banco de talentos",
 };
 
-const buscarContatosParaExportarInputSchema = z.array(z.string().min(1)).min(1, "Selecione ao menos uma pessoa.");
+const buscarContatosParaExportarInputSchema = z.array(z.string().min(1)).min(1, "Nenhuma pessoa para exportar.");
 
 export interface ContatoParaExportar {
 	id: string;
@@ -434,8 +434,8 @@ export interface ContatoParaExportar {
 }
 
 /**
- * Uma busca só, usada pelas 5 ações do dropdown "Exportar" (planilha, copiar email/telefone,
- * WhatsApp, vCard) — cada ação formata este mesmo retorno do jeito que precisa, no client.
+ * Uma busca só, usada pelas 3 ações do dropdown "Exportar" (baixar planilha, copiar e-mails,
+ * copiar telefones) — cada ação formata este mesmo retorno do jeito que precisa, no client.
  */
 export async function buscarContatosParaExportar(input: unknown): Promise<ContatoParaExportar[]> {
 	const session = await getServerSession();

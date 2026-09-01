@@ -12,7 +12,7 @@ import {
 	PaginationPrevious,
 } from "@/components/ui/pagination";
 
-interface PessoasPaginacaoProps {
+interface ListagemPaginacaoProps {
 	paginaAtual: number;
 	totalPaginas: number;
 	totalItens: number;
@@ -38,13 +38,18 @@ function paginasVisiveis(paginaAtual: number, totalPaginas: number): (number | "
 	return resultado;
 }
 
-/** Paginação numérica ("Mostrando X–Y de N") — a query já traz tudo pra memória, então isso é só um slice do array já filtrado/ordenado (ver pessoas/page.tsx). */
-export function PessoasPaginacao({
+/**
+ * Paginação numérica ("Mostrando X–Y de N") — genérica, compartilhada por toda listagem que traz
+ * a query inteira pra memória e só faz um slice do array já filtrado/ordenado no servidor (ver
+ * `pessoas/page.tsx`/`pessoas/turmas/page.tsx`). Página fora do range nunca é passada aqui — quem
+ * chama já clampa `paginaAtual` entre 1 e `totalPaginas`.
+ */
+export function ListagemPaginacao({
 	paginaAtual,
 	totalPaginas,
 	totalItens,
 	itensPorPagina,
-}: PessoasPaginacaoProps): React.ReactElement | null {
+}: ListagemPaginacaoProps): React.ReactElement | null {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 

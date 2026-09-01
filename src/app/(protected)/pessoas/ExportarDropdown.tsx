@@ -1,34 +1,38 @@
 "use client";
 
-import { Copy, FileDown, MessageCircle, UserPlus } from "lucide-react";
+import { Copy, FileDown } from "lucide-react";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { ExportarConfirmacaoDialog } from "@/components/ExportarConfirmacaoDialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { baixarArquivo } from "@/lib/csv";
 
 import { buscarContatosParaExportar, type ContatoParaExportar } from "./actions";
-import { baixarArquivo, digitosComPais, montarCsv, montarVCard } from "./exportarContatosFormato";
+import { digitosComPais, montarCsv } from "./exportarContatosFormato";
 
 interface ExportarDropdownProps {
+	/** IDs que batem com o filtro/busca atual da listagem — não uma seleção manual. */
 	pessoaIds: string[];
 }
 
 /**
- * Botão de exportar dentro do cabeçalho da tabela — sem seleção fica visível porém apagado (não
- * bloqueado de verdade: clicar só não tem o que exportar, os 5 itens ficam inativos no menu).
- * Cada ação faz uma busca só (`buscarContatosParaExportar`) e formata o resultado do jeito que
- * precisa no client.
+ * Botão secundário no header da página (ao lado de "Nova pessoa"), exporta todo `pessoaIds` — o
+ * filtro/busca atual inteiro. Só fica apagado quando o filtro não bate com ninguém. Cada ação faz
+ * uma busca só (`buscarContatosParaExportar`) e formata o resultado do jeito que precisa no client.
+ * Só "Baixar planilha completa" passa por `ExportarConfirmacaoDialog` — é a única ação que baixa
+ * um arquivo; copiar e-mails/telefones continuam instantâneos (não são download), mas avisam o
+ * resultado num toast (sucesso, "ninguém tem esse dado" ou falha ao copiar) — sem isso, copiar pra
+ * área de transferência não tem nenhum feedback visível.
  */
 export function ExportarDropdown({ pessoaIds }: ExportarDropdownProps): React.ReactElement {
+	const [confirmarAberto, setConfirmarAberto] = useState(false);
 	const [isPending, startTransition] = useTransition();
-	const [whatsappOpen, setWhatsappOpen] = useState(false);
-	const [contatosWhatsapp, setContatosWhatsapp] = useState<ContatoParaExportar[]>([]);
-	const temSelecao = pessoaIds.length > 0;
+	const podeExportar = pessoaIds.length > 0;
 
 	function executar(acao: (contatos: ContatoParaExportar[]) => void): void {
-		if (!temSelecao) {
+		if (!podeExportar) {
 			return;
 		}
 		startTransition(async () => {
@@ -38,15 +42,32 @@ export function ExportarDropdown({ pessoaIds }: ExportarDropdownProps): React.Re
 	}
 
 	function handleBaixarPlanilha(): void {
-		executar((contatos) =>
-			baixarArquivo(montarCsv(contatos), `contatos-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv"),
+		executar((contatos) => {
+			baixarArquivo(montarCsv(contatos), `contatos-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+			setConfirmarAberto(false);
+		});
+	}
+
+	/** Só avisa sucesso depois que o navegador confirma a escrita — clipboard pode ser bloqueado. */
+	function copiarParaAreaDeTransferencia(texto: string, tituloSucesso: string, descricaoSucesso: string): void {
+		navigator.clipboard.writeText(texto).then(
+			() => toast.success(tituloSucesso, { description: descricaoSucesso }),
+			() => toast.error("Não foi possível copiar", { description: "O navegador bloqueou o acesso à área de transferência." }),
 		);
 	}
 
 	function handleCopiarEmails(): void {
 		executar((contatos) => {
 			const emails = contatos.map((contato) => contato.email).filter((email): email is string => email !== null);
-			void navigator.clipboard.writeText(emails.join(", "));
+			if (emails.length === 0) {
+				toast.warning("Nenhum e-mail encontrado", { description: "Ninguém no filtro atual tem e-mail cadastrado." });
+				return;
+			}
+			copiarParaAreaDeTransferencia(
+				emails.join(", "),
+				emails.length === 1 ? "E-mail copiado" : "E-mails copiados",
+				`${emails.length} ${emails.length === 1 ? "endereço" : "endereços"} na área de transferência.`,
+			);
 		});
 	}
 
@@ -55,87 +76,48 @@ export function ExportarDropdown({ pessoaIds }: ExportarDropdownProps): React.Re
 			const telefones = contatos
 				.filter((contato) => contato.telefone !== null)
 				.map((contato) => `+${digitosComPais(contato.telefone as string)}`);
-			void navigator.clipboard.writeText(telefones.join(", "));
+			if (telefones.length === 0) {
+				toast.warning("Nenhum telefone encontrado", { description: "Ninguém no filtro atual tem telefone cadastrado." });
+				return;
+			}
+			copiarParaAreaDeTransferencia(
+				telefones.join(", "),
+				telefones.length === 1 ? "Telefone copiado" : "Telefones copiados",
+				`${telefones.length} ${telefones.length === 1 ? "número" : "números"} na área de transferência.`,
+			);
 		});
-	}
-
-	function handleAbrirWhatsapp(): void {
-		executar((contatos) => {
-			setContatosWhatsapp(contatos.filter((contato) => contato.telefone !== null));
-			setWhatsappOpen(true);
-		});
-	}
-
-	function handleBaixarVcf(): void {
-		executar((contatos) =>
-			baixarArquivo(montarVCard(contatos), `contatos-${new Date().toISOString().slice(0, 10)}.vcf`, "text/vcard"),
-		);
 	}
 
 	return (
-		<>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						type="button"
-						size="sm"
-						variant={temSelecao ? "default" : "outline"}
-						className={cn(
-							"rounded-lg text-[13px] font-semibold normal-case",
-							temSelecao ? "hover:!bg-primary/80" : "opacity-50 hover:!border-border-strong hover:!bg-subtle",
-						)}
-						disabled={isPending}
-					>
-						Exportar
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem disabled={!temSelecao} onClick={handleBaixarPlanilha} className="gap-2">
-						<FileDown className="h-4 w-4" strokeWidth={2.4} />
-						Baixar planilha completa
-					</DropdownMenuItem>
-					<DropdownMenuItem disabled={!temSelecao} onClick={handleCopiarEmails} className="gap-2">
-						<Copy className="h-4 w-4" strokeWidth={2.4} />
-						Copiar e-mails
-					</DropdownMenuItem>
-					<DropdownMenuItem disabled={!temSelecao} onClick={handleCopiarTelefones} className="gap-2">
-						<Copy className="h-4 w-4" strokeWidth={2.4} />
-						Copiar telefones
-					</DropdownMenuItem>
-					<DropdownMenuItem disabled={!temSelecao} onClick={handleAbrirWhatsapp} className="gap-2">
-						<MessageCircle className="h-4 w-4" strokeWidth={2.4} />
-						Abrir conversas no WhatsApp
-					</DropdownMenuItem>
-					<DropdownMenuItem disabled={!temSelecao} onClick={handleBaixarVcf} className="gap-2">
-						<UserPlus className="h-4 w-4" strokeWidth={2.4} />
-						Adicionar como contatos no celular
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-
-			<Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Abrir conversas no WhatsApp</DialogTitle>
-					</DialogHeader>
-					<div className="space-y-2">
-						{contatosWhatsapp.map((contato) => (
-							<a
-								key={contato.id}
-								href={`https://wa.me/${digitosComPais(contato.telefone as string)}`}
-								target="_blank"
-								rel="noreferrer"
-								className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
-							>
-								{contato.nome}
-							</a>
-						))}
-						{contatosWhatsapp.length === 0 ? (
-							<p className="py-4 text-center text-sm text-muted-foreground">Ninguém selecionado tem telefone cadastrado.</p>
-						) : null}
-					</div>
-				</DialogContent>
-			</Dialog>
-		</>
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button type="button" variant="outline" disabled={!podeExportar || isPending}>
+					Exportar
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<ExportarConfirmacaoDialog
+					open={confirmarAberto}
+					onOpenChange={setConfirmarAberto}
+					trigger={
+						<DropdownMenuItem onSelect={(event) => event.preventDefault()} className="gap-2">
+							<FileDown className="h-4 w-4" strokeWidth={2.4} />
+							Baixar planilha completa
+						</DropdownMenuItem>
+					}
+					descricao={`Isso vai baixar uma planilha CSV com ${pessoaIds.length} ${pessoaIds.length === 1 ? "pessoa" : "pessoas"}.`}
+					onConfirmar={handleBaixarPlanilha}
+					isPending={isPending}
+				/>
+				<DropdownMenuItem onClick={handleCopiarEmails} className="gap-2">
+					<Copy className="h-4 w-4" strokeWidth={2.4} />
+					Copiar e-mails
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={handleCopiarTelefones} className="gap-2">
+					<Copy className="h-4 w-4" strokeWidth={2.4} />
+					Copiar telefones
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
