@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { PendenciaItem } from "@/core/dashboard/types";
+
 /**
  * Itens fixos do "Ritual de Segunda" (Figma: frame "Checklist — Ritual de Segunda", node
  * 239-2311) — v1 não permite personalização, só o estado de conclusão por semana é real.
@@ -39,6 +41,11 @@ export interface RitualSemana {
 	/** Chave da semana = data (yyyy-MM-dd) da segunda-feira daquela semana. */
 	semana: string;
 	itens: RitualItemEstado[];
+}
+
+/** Pendência herdada de uma semana anterior do Ritual (`buscarPendenciasRitualHerdadas`) — carrega `semana` como campo próprio, não embutido só no `id`, pra quem consome não precisar recuperá-la fazendo parsing do `id`. */
+export interface RitualPendenciaHerdada extends PendenciaItem {
+	semana: string;
 }
 
 /** `semana` sempre tem o formato fixo "yyyy-MM-dd" (regex já garantiu isso antes de chamar). */
