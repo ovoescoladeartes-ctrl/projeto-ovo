@@ -11,6 +11,7 @@ import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
 import type { DestinoTipo, RepasseStatus } from "@/core/financeiro/repasses/schema";
 import { calcularRecebidoNoMes, calcularSaldoVivo, listarRepassesAVencer } from "@/core/financeiro/saldo";
 import { calcularRecebidoPorTurma, calcularSerieMensalRecebido, type PontoSerieMensal, type RankingTurma } from "@/core/financeiro/series";
+import { buscarPendenciasRitualHerdadas } from "@/core/financeiro/ritual/consultas";
 import { destinoRepasseLabel } from "@/core/financeiro/shared";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
@@ -120,11 +121,12 @@ export async function montarKpisEPendenciasFinanceiro(
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
 }> {
-	const [recebimentosSnapshot, repassesSnapshot, pessoasSnapshot, turmasSnapshot] = await Promise.all([
+	const [recebimentosSnapshot, repassesSnapshot, pessoasSnapshot, turmasSnapshot, pendenciasRitualHerdadas] = await Promise.all([
 		firestore.collection("recebimentos").get(),
 		firestore.collection("repasses").get(),
 		firestore.collection("pessoas").get(),
 		firestore.collection("turmas").get(),
+		buscarPendenciasRitualHerdadas(firestore, agora),
 	]);
 
 	const pessoasNomes: Record<string, string> = {};
@@ -200,6 +202,13 @@ export async function montarKpisEPendenciasFinanceiro(
 
 	const repassesAVencer = repassesAVencerTodos.slice(0, PENDENCIAS_LIMITE);
 
+	// Cada categoria já é limitada a `PENDENCIAS_LIMITE` individualmente (acima/abaixo), mas isso
+	// nunca foi um teto do total — com 3 categorias, o total combinado podia chegar a 3x esse
+	// número. Essa lista alimenta especificamente a prévia da Home (`montarKpisEPendenciasFinanceiro`
+	// só é usada por `page.tsx`); `/caixa/pendencias` continua exaustivo via `montarPendenciasAcionaveis`,
+	// que não é afetado por este corte. O `.slice` final preserva a ordem de mescla já existente
+	// (recebimentos pendentes → repasses a vencer → pendências herdadas do Ritual, a mesma ordem do
+	// Figma) como critério de prioridade — só reduz o total, sem reordenar nada.
 	const pendencias: PendenciaItem[] = [
 		...recebimentosPendentes.map((recebimento) => ({
 			id: `recebimento-${recebimento.id}`,
@@ -217,7 +226,10 @@ export async function montarKpisEPendenciasFinanceiro(
 				meta: `${destinoRepasseLabel(repasse, pessoasNomes)} · ${prazo}`,
 			};
 		}),
-	];
+		// Figma (frame "home-wireframe-financeiro") mostra o item herdado do Ritual como a última
+		// linha da lista de pendências — mesma fonte já usada em `/caixa/checklist` e `/caixa/pendencias`.
+		...pendenciasRitualHerdadas.slice(0, PENDENCIAS_LIMITE),
+	].slice(0, PENDENCIAS_LIMITE);
 
 	const tendencia = calcularSerieMensalRecebido(recebimentos, MESES_TENDENCIA, agora);
 	const recebidoPorTurma = calcularRecebidoPorTurma(recebimentos, turmasNomes, TOP_N_TURMAS);

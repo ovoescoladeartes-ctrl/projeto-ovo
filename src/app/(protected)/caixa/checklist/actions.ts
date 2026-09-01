@@ -41,10 +41,12 @@ export async function alternarItemRitual(input: unknown): Promise<ActionResult> 
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	// Ritual alimenta as pendências herdadas (`/caixa/pendencias`) e as linhas "Reconciliar Semana
-	// N" do Fechamento (`/caixa/fechamento`) — revalida as duas além da própria rota.
+	// Ritual alimenta as pendências herdadas (`/caixa/pendencias`), as linhas "Reconciliar Semana N"
+	// do Fechamento (`/caixa/fechamento`) e, desde o Step 3D, a prévia do Ritual + pendências
+	// herdadas na Home (`/`) — revalida as quatro além da própria rota.
 	revalidatePath("/caixa/checklist");
 	revalidatePath("/caixa/pendencias");
 	revalidatePath("/caixa/fechamento");
+	revalidatePath("/");
 	return { status: "ok" };
 }
