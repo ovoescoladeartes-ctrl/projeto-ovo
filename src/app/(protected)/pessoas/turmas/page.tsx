@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
-import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { ListagemPaginacao } from "@/components/ListagemPaginacao";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
@@ -18,11 +19,14 @@ import { toIso } from "@/core/shared/serialize";
 import { formatCentavos, parseCentavosInput } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
+import { ExportarTurmasButton } from "./ExportarTurmasButton";
 import { NovaTurmaDialog } from "./NovaTurmaDialog";
+import { TurmaCard } from "./TurmaCard";
 import { TurmaEditDialog } from "./TurmaEditDialog";
 import { TurmaExcluirMenuItem } from "./TurmaExcluirMenuItem";
 import { TurmaMatriculasSheet } from "./TurmaMatriculasSheet";
-import { TurmasFiltroBar } from "./TurmasFiltroBar";
+import { TurmasBuscaEFiltros } from "./TurmasBuscaEFiltros";
+import { formatarData, formatarRepasse, TIPO_LABELS } from "./turmasFormat";
 
 // Sem isso, trocar só o searchParam `arquivados` na mesma rota pode servir uma resposta em
 // cache do Router do Next em vez de buscar dados frescos no servidor (mesma causa raiz corrigida
@@ -30,6 +34,7 @@ import { TurmasFiltroBar } from "./TurmasFiltroBar";
 export const dynamic = "force-dynamic";
 
 const TURMAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
+const ITENS_POR_PAGINA = 25;
 
 interface TurmaDoc {
 	nome: string;
@@ -60,18 +65,6 @@ interface MatriculaResumoDoc {
 	status: string;
 }
 
-function formatarData(iso: string | null): string {
-	if (iso === null) {
-		return "—";
-	}
-	return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "UTC" });
-}
-
-function formatarRepasse(turma: Turma): string {
-	return turma.repasseTipo === "percentual" ? `${turma.repasseValor}%` : formatCentavos(turma.repasseValor);
-}
-
-const TIPO_LABELS: Record<string, string> = { curso: "Curso", oficina: "Oficina" };
 
 type CampoOrdenar = "nome" | "tipo" | "assunto" | "mensalidade" | "repasse" | "periodo" | "vagas";
 
@@ -88,6 +81,7 @@ interface TurmasSearchParams {
 	vagasMin?: string;
 	vagasMax?: string;
 	ordenar?: string;
+	pagina?: string;
 }
 
 /**
@@ -104,7 +98,8 @@ function hrefOrdenarTurmas(filtros: TurmasSearchParams, campo: CampoOrdenar): st
 
 	const params = new URLSearchParams();
 	Object.entries(filtros).forEach(([chave, valor]) => {
-		if (valor !== undefined && chave !== "ordenar") {
+		// "pagina" nunca sobrevive a uma reordenação — igual troca de filtro, volta pra página 1.
+		if (valor !== undefined && chave !== "ordenar" && chave !== "pagina") {
 			params.set(chave, valor);
 		}
 	});
@@ -294,18 +289,39 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		return direcaoOrdenar === "desc" ? -comparacao : comparacao;
 	});
 
+	const totalItens = turmas.length;
+	const totalPaginas = Math.max(1, Math.ceil(totalItens / ITENS_POR_PAGINA));
+	const paginaSolicitada = Number.parseInt(filtros.pagina ?? "1", 10);
+	const paginaAtual = Number.isFinite(paginaSolicitada) ? Math.min(Math.max(paginaSolicitada, 1), totalPaginas) : 1;
+	const turmasPagina = turmas.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
+
+	// Todos os IDs que batem com o filtro atual, não só a página visível — mesmo padrão de
+	// `idsFiltrados` em pessoas/page.tsx: "Exportar" exporta o filtro inteiro, não a página nem
+	// uma seleção.
+	const idsFiltrados = turmas.map((turma) => turma.id);
+
 	const novaTurmaCta = <NovaTurmaDialog />;
+	const exportarCta = <ExportarTurmasButton turmaIds={idsFiltrados} />;
+	const ctas = (
+		<>
+			{exportarCta}
+			{novaTurmaCta}
+		</>
+	);
+	const mensagemVazio = todasTurmas.length === 0 ? "Nenhuma turma cadastrada ainda." : "Nenhuma turma bate com os filtros.";
 
 	return (
 		<div>
-			<PageBreadcrumb
-				items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Turmas" }]}
-				cta={novaTurmaCta}
-			/>
-			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Turmas" }]} cta={ctas} />
+			{/* Grid (não flex) pra Busca+Filtros ficar centralizado de verdade na coluna do meio,
+			    mesmo com o CTA escondido no mobile — a coluna reserva o espaço independente de o
+			    conteúdo dela estar visível (regra 15 do design.md). */}
+			<div className="mb-6 mt-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
-				<CopilotoInput />
-				<div className="hidden md:inline-flex">{novaTurmaCta}</div>
+				<Suspense fallback={null}>
+					<TurmasBuscaEFiltros opcoesAssunto={opcoesAssunto} />
+				</Suspense>
+				<div className="hidden items-center gap-2 justify-self-end md:flex">{ctas}</div>
 			</div>
 
 			<div className="mb-6">
@@ -314,80 +330,106 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 				</Suspense>
 			</div>
 
-			<div className="mb-6">
-				<Suspense fallback={null}>
-					<TurmasFiltroBar opcoesAssunto={opcoesAssunto} />
-				</Suspense>
-			</div>
-
-			<div className="overflow-x-auto rounded-lg border border-border bg-card">
-				<table className="w-full text-left text-sm">
-					<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-						<tr>
-							<CabecalhoOrdenavel filtros={filtros} campo="nome" label="Nome" />
-							<CabecalhoOrdenavel filtros={filtros} campo="tipo" label="Tipo" />
-							<CabecalhoOrdenavel filtros={filtros} campo="assunto" label="Assunto" />
-							<CabecalhoOrdenavel filtros={filtros} campo="mensalidade" label="Mensalidade" />
-							<CabecalhoOrdenavel filtros={filtros} campo="repasse" label="Repasse" />
-							<CabecalhoOrdenavel filtros={filtros} campo="periodo" label="Período" />
-							<CabecalhoOrdenavel filtros={filtros} campo="vagas" label="Vagas" />
-							<th className="px-4 py-3 font-medium" />
-						</tr>
-					</thead>
-					<tbody>
-						{turmas.map((turma) => {
-							const alunos = matriculasPorTurma.get(turma.id) ?? [];
-							return (
-								<tr key={turma.id} className="border-b border-border last:border-0">
-									<td className="px-4 py-3 text-foreground">{turma.nome}</td>
-									<td className="px-4 py-3 text-muted-foreground">
-										{turma.tipo !== null ? (TIPO_LABELS[turma.tipo] ?? turma.tipo) : "—"}
-									</td>
-									<td className="px-4 py-3 text-muted-foreground">{turma.assunto || "—"}</td>
-									<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
-									<td className="px-4 py-3 text-muted-foreground">{formatarRepasse(turma)}</td>
-									<td className="px-4 py-3 text-muted-foreground">
-										{formatarData(turma.dataInicio)} – {formatarData(turma.dataFim)}
-									</td>
-									<td className="px-4 py-3 text-muted-foreground">
-										{alunos.length}
-										{turma.capacidadeMaxima !== null ? ` / ${turma.capacidadeMaxima}` : ""}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<div className="flex justify-end gap-1">
-											<TurmaEditDialog
-												turma={turma}
-												educadorInicial={turma.educadorPessoaId ? (colaboradoresPorId.get(turma.educadorPessoaId) ?? null) : null}
-												matriculasAtivasCount={alunos.length}
-											/>
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
-														<MoreVertical className="h-4 w-4" />
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end">
-													<TurmaMatriculasSheet turmaNome={turma.nome} alunos={alunos} />
-													{mostrarArquivados && !turma.ativo && session.role === "admin" ? (
-														<TurmaExcluirMenuItem id={turma.id} nome={turma.nome} />
-													) : null}
-												</DropdownMenuContent>
-											</DropdownMenu>
-										</div>
-									</td>
+			<Card>
+				<CardContent className="p-4">
+					<div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+						<table className="w-full text-left text-sm">
+							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+								<tr>
+									<CabecalhoOrdenavel filtros={filtros} campo="nome" label="Nome" />
+									<CabecalhoOrdenavel filtros={filtros} campo="tipo" label="Tipo" />
+									<CabecalhoOrdenavel filtros={filtros} campo="assunto" label="Assunto" />
+									<CabecalhoOrdenavel filtros={filtros} campo="mensalidade" label="Mensalidade" />
+									<CabecalhoOrdenavel filtros={filtros} campo="repasse" label="Repasse" />
+									<CabecalhoOrdenavel filtros={filtros} campo="periodo" label="Período" />
+									<CabecalhoOrdenavel filtros={filtros} campo="vagas" label="Vagas" />
+									<th className="px-4 py-3 font-medium" />
 								</tr>
-							);
-						})}
-						{turmas.length === 0 ? (
-							<tr>
-								<td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
-									{todasTurmas.length === 0 ? "Nenhuma turma cadastrada ainda." : "Nenhuma turma bate com os filtros."}
-								</td>
-							</tr>
-						) : null}
-					</tbody>
-				</table>
-			</div>
+							</thead>
+							<tbody>
+								{turmasPagina.map((turma) => {
+									const alunos = matriculasPorTurma.get(turma.id) ?? [];
+									return (
+										<tr key={turma.id} className="border-b border-border last:border-0">
+											<td className="px-4 py-3 text-foreground">{turma.nome}</td>
+											<td className="px-4 py-3 text-muted-foreground">
+												{turma.tipo !== null ? (TIPO_LABELS[turma.tipo] ?? turma.tipo) : "—"}
+											</td>
+											<td className="px-4 py-3 text-muted-foreground">{turma.assunto || "—"}</td>
+											<td className="px-4 py-3 text-muted-foreground">{formatCentavos(turma.mensalidadeCentavos)}</td>
+											<td className="px-4 py-3 text-muted-foreground">{formatarRepasse(turma)}</td>
+											<td className="px-4 py-3 text-muted-foreground">
+												{formatarData(turma.dataInicio)} – {formatarData(turma.dataFim)}
+											</td>
+											<td className="px-4 py-3 text-muted-foreground">
+												{alunos.length}
+												{turma.capacidadeMaxima !== null ? ` / ${turma.capacidadeMaxima}` : ""}
+											</td>
+											<td className="px-4 py-3 text-right">
+												<div className="flex justify-end gap-1">
+													<TurmaEditDialog
+														turma={turma}
+														educadorInicial={turma.educadorPessoaId ? (colaboradoresPorId.get(turma.educadorPessoaId) ?? null) : null}
+														matriculasAtivasCount={alunos.length}
+													/>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button type="button" variant="ghost" size="icon" title="Mais ações" aria-label="Mais ações">
+																<MoreVertical className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															<TurmaMatriculasSheet turmaNome={turma.nome} alunos={alunos} />
+															{mostrarArquivados && !turma.ativo && session.role === "admin" ? (
+																<TurmaExcluirMenuItem id={turma.id} nome={turma.nome} />
+															) : null}
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</div>
+											</td>
+										</tr>
+									);
+								})}
+								{turmasPagina.length === 0 ? (
+									<tr>
+										<td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
+											{mensagemVazio}
+										</td>
+									</tr>
+								) : null}
+							</tbody>
+						</table>
+					</div>
+
+					<div className="flex flex-col gap-3 md:hidden">
+						{turmasPagina.length === 0 ? (
+							<p className="py-6 text-center text-sm text-muted-foreground">{mensagemVazio}</p>
+						) : (
+							turmasPagina.map((turma) => {
+								const alunos = matriculasPorTurma.get(turma.id) ?? [];
+								return (
+									<TurmaCard
+										key={turma.id}
+										turma={turma}
+										alunos={alunos}
+										educadorInicial={turma.educadorPessoaId ? (colaboradoresPorId.get(turma.educadorPessoaId) ?? null) : null}
+										podeExcluir={mostrarArquivados && !turma.ativo && session.role === "admin"}
+									/>
+								);
+							})
+						)}
+					</div>
+
+					<div className="mt-4">
+						<ListagemPaginacao
+							paginaAtual={paginaAtual}
+							totalPaginas={totalPaginas}
+							totalItens={totalItens}
+							itensPorPagina={ITENS_POR_PAGINA}
+						/>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

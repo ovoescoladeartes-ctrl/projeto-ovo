@@ -3,14 +3,12 @@
 import { ChevronDown, Eye, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
-import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
+import { ListagemPaginacao } from "@/components/ListagemPaginacao";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +17,7 @@ import { NovaPessoaDialog } from "./NovaPessoaDialog";
 import { PessoaCard } from "./PessoaCard";
 import { PessoaArquivarMenuItem } from "./PessoaArquivarMenuItem";
 import { PessoaDesarquivarMenuItem } from "./PessoaDesarquivarMenuItem";
-import { PessoasFiltroBar } from "./PessoasFiltroBar";
-import { PessoasPaginacao } from "./PessoasPaginacao";
+import { PessoasBuscaEFiltros } from "./PessoasBuscaEFiltros";
 import { StatusBadge } from "./StatusBadge";
 
 export const MAX_TURMAS_VISIVEIS = 2;
@@ -45,6 +42,7 @@ interface TurmaOpcao {
 
 interface PessoasListagemProps {
 	pessoas: PessoaListagemRow[];
+	idsFiltrados: string[];
 	totalItens: number;
 	paginaAtual: number;
 	totalPaginas: number;
@@ -62,13 +60,14 @@ export function formatarData(iso: string | null): string {
 }
 
 /**
- * Header (título | Copiloto | Nova pessoa), abas Ativos/Arquivados e filtros (busca + papel +
+ * Header (título | Exportar + Nova pessoa), abas Ativos/Arquivados e filtros (busca + papel +
  * avançados) ficam fora do card, seguindo a ordem da regra 15 do design.md — o card só tem
- * tabela + paginação. Seleção em massa (checkbox por linha) alimenta o botão "Exportar" do
- * cabeçalho da tabela (ExportarDropdown).
+ * tabela + paginação. "Exportar" (`ExportarDropdown`) exporta todo `idsFiltrados` — o filtro
+ * atual inteiro, calculado no servidor antes da paginação — não a página visível nem uma seleção.
  */
 export function PessoasListagem({
 	pessoas,
+	idsFiltrados,
 	totalItens,
 	paginaAtual,
 	totalPaginas,
@@ -79,35 +78,6 @@ export function PessoasListagem({
 }: PessoasListagemProps): React.ReactElement {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-
-	const todosMarcados = pessoas.length > 0 && pessoas.every((pessoa) => selecionados.has(pessoa.id));
-
-	function alternarTodos(marcado: boolean): void {
-		setSelecionados((atual) => {
-			const proximo = new Set(atual);
-			pessoas.forEach((pessoa) => {
-				if (marcado) {
-					proximo.add(pessoa.id);
-				} else {
-					proximo.delete(pessoa.id);
-				}
-			});
-			return proximo;
-		});
-	}
-
-	function alternarUm(id: string, marcado: boolean): void {
-		setSelecionados((atual) => {
-			const proximo = new Set(atual);
-			if (marcado) {
-				proximo.add(id);
-			} else {
-				proximo.delete(id);
-			}
-			return proximo;
-		});
-	}
 
 	function hrefOrdenar(campo: "nome" | "criadoEm"): string {
 		const atual = searchParams.get("ordenar") ?? "nome_asc";
@@ -136,48 +106,30 @@ export function PessoasListagem({
 	}
 
 	const novaPessoaCta = <NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />;
+	const exportarCta = <ExportarDropdown pessoaIds={idsFiltrados} />;
+	const ctas = (
+		<>
+			{exportarCta}
+			{novaPessoaCta}
+		</>
+	);
 
 	return (
 		<div>
-			<PageBreadcrumb
-				items={[{ label: "Dashboard", href: "/" }, { label: "Cadastro" }, { label: "Pessoas" }]}
-				cta={novaPessoaCta}
-			/>
-			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<div>
-					<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
-					{selecionados.size > 0 ? (
-						<div className="flex flex-wrap items-center gap-3">
-							<p className="text-sm text-muted-foreground">
-								<span className="font-bold text-foreground">{selecionados.size} selecionadas</span>{" "}
-								<button
-									type="button"
-									onClick={() => setSelecionados(new Set())}
-									className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-								>
-									Cancelar seleção
-								</button>
-							</p>
-							{/* No desktop o Exportar já vive no cabeçalho da tabela — aqui só aparece abaixo de
-							    `md`, onde a tabela (e esse cabeçalho) fica escondida em troca dos cards. */}
-							<div className="md:hidden">
-								<ExportarDropdown pessoaIds={Array.from(selecionados)} />
-							</div>
-						</div>
-					) : null}
-				</div>
-				<CopilotoInput />
+			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Pessoas" }]} cta={ctas} />
+			{/* Grid (não flex) pra Busca+Filtros ficar centralizado de verdade na coluna do meio,
+			    mesmo com o CTA escondido no mobile — a coluna reserva o espaço independente de o
+			    conteúdo dela estar visível (regra 15 do design.md). */}
+			<div className="mb-6 mt-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
+				<PessoasBuscaEFiltros opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
 				{/* No mobile o CTA já vive no header fixo (registrado via `cta` acima) — aqui só aparece
 				    a partir de `md`, onde não existe header mobile pra duplicar o botão. */}
-				<div className="hidden md:inline-flex">{novaPessoaCta}</div>
+				<div className="hidden items-center gap-2 justify-self-end md:flex">{ctas}</div>
 			</div>
 
 			<div className="mb-6">
 				<AbaAtivosArquivados />
-			</div>
-
-			<div className="mb-6">
-				<PessoasFiltroBar opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
 			</div>
 
 			<Card>
@@ -186,13 +138,6 @@ export function PessoasListagem({
 						<table className="w-full text-left text-sm">
 							<thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
 								<tr>
-									<th className="w-10 px-4 py-3">
-										<Checkbox
-											checked={todosMarcados}
-											onCheckedChange={(checked) => alternarTodos(checked === true)}
-											aria-label="Selecionar todos"
-										/>
-									</th>
 									<th className="px-4 py-3 font-medium">
 										<Link href={hrefOrdenar("nome")} className="inline-flex items-center gap-1 hover:text-foreground">
 											Nome
@@ -211,9 +156,7 @@ export function PessoasListagem({
 											{iconeOrdenar("criadoEm")}
 										</Link>
 									</th>
-									<th className="px-4 py-3">
-										<ExportarDropdown pessoaIds={Array.from(selecionados)} />
-									</th>
+									<th className="px-4 py-3" />
 								</tr>
 							</thead>
 							<tbody>
@@ -222,13 +165,6 @@ export function PessoasListagem({
 									const restante = pessoa.turmas.length - MAX_TURMAS_VISIVEIS;
 									return (
 										<tr key={pessoa.id} className="border-b border-border last:border-0">
-											<td className="px-4 py-3">
-												<Checkbox
-													checked={selecionados.has(pessoa.id)}
-													onCheckedChange={(checked) => alternarUm(pessoa.id, checked === true)}
-													aria-label={`Selecionar ${pessoa.nome}`}
-												/>
-											</td>
 											<td className="px-4 py-3">
 												<Link href={`/pessoas/${pessoa.id}`} className="font-medium text-foreground hover:underline">
 													{pessoa.nome}
@@ -280,7 +216,7 @@ export function PessoasListagem({
 								})}
 								{pessoas.length === 0 ? (
 									<tr>
-										<td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+										<td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
 											Nenhuma pessoa encontrada.
 										</td>
 									</tr>
@@ -293,19 +229,12 @@ export function PessoasListagem({
 						{pessoas.length === 0 ? (
 							<p className="py-6 text-center text-sm text-muted-foreground">Nenhuma pessoa encontrada.</p>
 						) : (
-							pessoas.map((pessoa) => (
-								<PessoaCard
-									key={pessoa.id}
-									pessoa={pessoa}
-									selecionado={selecionados.has(pessoa.id)}
-									onToggleSelecionado={(marcado) => alternarUm(pessoa.id, marcado)}
-								/>
-							))
+							pessoas.map((pessoa) => <PessoaCard key={pessoa.id} pessoa={pessoa} />)
 						)}
 					</div>
 
 					<div className="mt-4">
-						<PessoasPaginacao
+						<ListagemPaginacao
 							paginaAtual={paginaAtual}
 							totalPaginas={totalPaginas}
 							totalItens={totalItens}

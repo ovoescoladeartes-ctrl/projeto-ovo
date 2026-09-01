@@ -1,4 +1,4 @@
-import { GraduationCap, Home, Wallet, Workflow } from "lucide-react";
+import { GraduationCap, Home, Users, Wallet, Workflow } from "lucide-react";
 
 import type { Role } from "@/core/auth/Role";
 
@@ -24,16 +24,8 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
 	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
-	{
-		label: "Cadastro",
-		icon: GraduationCap,
-		href: null,
-		roles: ["admin", "comunicacao", "financeiro"],
-		children: [
-			{ label: "Pessoas", href: "/pessoas" },
-			{ label: "Turmas", href: "/pessoas/turmas" },
-		],
-	},
+	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
+	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
 ];
 

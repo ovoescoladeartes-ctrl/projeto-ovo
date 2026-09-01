@@ -75,7 +75,6 @@ export function PessoaDetalheEditor({
 			<PageBreadcrumb
 				items={[
 					{ label: "Dashboard", href: "/" },
-					{ label: "Cadastro" },
 					{ label: "Pessoas", href: "/pessoas" },
 					{ label: pessoa.nome },
 				]}

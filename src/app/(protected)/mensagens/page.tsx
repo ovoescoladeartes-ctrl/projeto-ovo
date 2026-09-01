@@ -1,7 +1,6 @@
 import { MoreVertical } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -63,7 +62,6 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 			/>
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Biblioteca de mensagens</h1>
-				<CopilotoInput />
 				<div className="hidden md:inline-flex">{novaMensagemCta}</div>
 			</div>
 

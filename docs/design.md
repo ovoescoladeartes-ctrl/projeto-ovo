@@ -33,7 +33,7 @@ arquivo real antes de confiar cegamente nos valores aqui.
 | Fundo de botão de perigo/destrutivo | `#9C0000` | implementado | `--danger` / `Button variant="destructive"` | Confirmação de ação destrutiva (ex.: excluir permanentemente) |
 | Texto sobre botão de perigo | `#F9FAFB` | implementado | `--danger-foreground` | Idem |
 | Borda forte (controles interativos) | `#d8d8d3` | implementado | `--border-strong` / `border-border-strong` | Checkbox, trilho do segmented control — mais escura que `--border` (bordas leves de card/tabela) |
-| Texto terciário/apagado | `#b3b3ac` | implementado | `--tertiary` / `text-tertiary` | Estados apagados (ex.: botão "Exportar" sem seleção) |
+| Texto terciário/apagado | `#b3b3ac` | implementado | `--tertiary` / `text-tertiary` | Estados apagados (ex.: botão "Exportar" sem resultado no filtro) |
 | Fundo de hover sutil | `#e9e9e4` | implementado | `--surface-hover` / `bg-subtle` | Estado de hover de controles com fundo branco/bordado (chip inativo, aba inativa) — `--accent` (oklch 0.97) é quase idêntico a `--background` (oklch 0.976) e não serve pra esse fim, hover fica imperceptível |
 
 Origem desta leva de tokens: "Prompt de implementação — Cadastro (Pessoas & Turmas)", validado
@@ -48,8 +48,12 @@ controle) e os tokens `--surface-soft`/`--surface-soft-hover`/`bg-soft`/`bg-soft
 `--surface-track`/`bg-track` pedidos nos rounds anteriores foram **revertidos** — feedback de
 revisão determinou que customizar visualmente componentes shadcn além do necessário não vale a
 pena nesta fase; o padrão default do shadcn, seguindo Dashboard/Vagões como referência, é
-suficiente. `--border-strong`/`bg-subtle`/`--tertiary` continuam vivos porque ainda têm uso real
-(`Checkbox`, `Chip`, `ExportarDropdown`) — não foram tocados por essa reversão.
+suficiente. `--border-strong` continua vivo porque ainda tem uso real (`Checkbox`) — não foi
+tocado por essa reversão. `bg-subtle`/`--tertiary`: o uso em `ExportarDropdown` (estado "sem
+seleção") foi removido em 2026-08-24 (regra 36, botão hoje usa só o `disabled` padrão do
+`Button`) — `bg-subtle` sobrevive só dentro de `Chip` (`src/components/ui/chip.tsx`), componente
+sem nenhum importador no app no momento (órfão desde a mesma rodada que tirou Aluno/Professor de
+chip pra `Checkbox` dentro do drawer de Filtros).
 
 ### Armadilha conhecida — `className` em cima de um `Button` com `variant`
 
@@ -108,8 +112,7 @@ componente, mas vale saber a causa se aparecer um espaçamento estranho perto de
 | Card principal (Cadastro) | 12px (`rounded-xl`) | implementado | `Card` de listagem de Pessoas |
 | Campo de busca | 9px (`rounded-[9px]`) | implementado | `Input` de busca |
 | Botão "Baixar contatos" | 10px (`rounded-[10px]`) | implementado | — |
-| Chip (seleção múltipla, ex. Aluno/Professor) | 999px / pílula (`rounded-full`) | implementado | `Chip` (`src/components/ui/chip.tsx`) |
-| Botão "Filtros avançados" / trilho do segmented control / ícone de linha (olho) / botão "Exportar" | 8px (`rounded-lg`) | implementado | — |
+| Trilho do segmented control / ícone de linha (olho) | 8px (`rounded-lg`) | implementado | — |
 | Botão redondo de ação primária ("+") | 50% / círculo (`rounded-full` num `h-9 w-9`) | implementado | Trigger do modal "Nova pessoa" |
 | Checkbox | 5px (`rounded-[5px]`, **não** circular) | implementado | Ver "Checkbox — medida exata" abaixo |
 | Botões de paginação | 7px (`rounded-[7px]`) | implementado | — |
@@ -160,7 +163,6 @@ sidebar como um drawer.
 | Cards de KPI, pendências, ritual | `Card` | `KpiCard`, `PendenciaRow` (dentro de `PendenciasList`) |
 | Abas de seção de página (Comunicação/Financeiro, Recebimentos/Repasses) | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` — **variante sublinhada**, não a pill padrão do shadcn (ver regra MANDATÓRIA abaixo) | — |
 | Badge de contagem ("3"), badge "3/5 concluídos" | `Badge` | — |
-| Barra de busca do Copiloto | `Input` (`disabled`) | `CopilotoInput` |
 | Itens do checklist "Ritual de segunda" | `Checkbox` + `Label` (`checked`+`disabled`) | `RitualChecklistItem`, `RitualChecklist` |
 | Botões "Ver", "Abrir pessoa" | `Button` (`variant="outline"` / `variant="default"` sobre fundo escuro) | — |
 | Avatar do usuário | `Avatar`, `AvatarFallback` | — |
@@ -172,11 +174,12 @@ sidebar como um drawer.
 | Cabeçalho da página (título + busca + data) | — | `DashboardHeader` |
 | Dropdowns de seleção única (filtros, formulários) | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` — nunca `<select>` nativo (ver regra MANDATÓRIA abaixo) | — |
 | Checkbox (corrigido — quadrado, não circular) | `Checkbox` (`src/components/ui/checkbox.tsx`) | Seleção em massa da listagem de Pessoas, formulários |
-| Chip de seleção múltipla (pílula, preenchido quando ativo) | — | `Chip` (`src/components/ui/chip.tsx`) — usado pra papel Aluno/Professor; diferente de `Checkbox`, não é pra seleção em massa de linha |
-| Botão "Filtros avançados" (agrupa filtros pouco usados) | `Sheet` (gaveta lateral) + `Button` | `FiltrosAvancadosSheet` |
+| Busca + botão único "Filtros" (abre drawer com todo filtro da página, ver regra 15) | `Sheet` (gaveta lateral) + `Input` + `Button` | `PessoasBuscaEFiltros`/`TurmasBuscaEFiltros` |
 | Segmented control (Ativos/Arquivados) | — | `AbaAtivosArquivados` (`src/components/`) |
 | Botão redondo de ação primária ("+") | `Button size="icon"` + `rounded-full` | Trigger de `NovaPessoaDialog` |
-| Exportar contextual (dropdown de ações, disparado do cabeçalho de uma tabela) | `DropdownMenu` | `ExportarDropdown` (`src/app/(protected)/pessoas/`) |
+| Exportar (dropdown de ações, botão secundário no header da página ao lado do CTA principal) | `DropdownMenu` | `ExportarDropdown` (`src/app/(protected)/pessoas/`), `ExportarTurmasButton` (`.../turmas/`, sem dropdown — só uma ação) |
+| Confirmação antes de baixar planilha ("X pessoas/turmas serão exportadas", Download × Cancelar) | `AlertDialog` | `ExportarConfirmacaoDialog` (`src/components/`) — genérico, qualquer fluxo de exportar (download) reaproveita |
+| Toast (aviso passageiro sem ação bloqueante — ex.: "E-mails copiados") | `sonner`, adicionado via `npx shadcn add sonner` (`src/components/ui/sonner.tsx`) | `<Toaster />` montado uma vez em `src/app/layout.tsx`, chamadas via `import { toast } from "sonner"` em qualquer client component — **sem** `next-themes` de propósito (removido do wrapper padrão do shadcn: app não tem dark mode ativo, só o boilerplate `.dark` dormente) |
 | Trail de navegação acima do `<h1>` de toda página interna | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator` | `PageBreadcrumb` (`src/components/shell/PageBreadcrumb.tsx`) |
 
 Biblioteca de ícones: **lucide-react** (estilo de traço fino consistente com os ícones do
@@ -393,7 +396,7 @@ desta conversa:
     {/* Cabeçalho de tabela — com uppercase */}
     <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
     ```
-15. **Toda página interna segue a mesma ordem de header: Breadcrumb → H1+busca+CTA → Tabs →
+15. **Toda página interna segue a mesma ordem de header: Breadcrumb → H1+CTA → Tabs →
     Filtros → Conteúdo.** Decidido com o Rogério em 2026-08-13. Existia como convenção implícita
     desde a página de Pessoas (`PessoasListagem.tsx`), replicada em Turmas por analogia, mas nunca
     tinha sido escrita — o que já causou divergência real (filtro na linha do H1 em Vagões, CTA
@@ -401,36 +404,54 @@ desta conversa:
     ordem, de cima pra baixo:
     1. `PageBreadcrumb` — regra 12 acima, sem mudança (sempre presente, exceto no Dashboard).
     2. Bloco H1 — só o `<h1>` (regra 6), **sem subtítulo estático abaixo** (ver regra 17); coluna
-       direita com `CopilotoInput` (busca — só em páginas de listagem/navegação, não em fluxos de
-       ação única tipo Importar CSV ou Sincronizar Wix) e o(s) CTA(s) (`Dialog`/`Button`). Copie
-       exatamente:
+       direita com o(s) CTA(s) (`Dialog`/`Button`), se houver. Copie exatamente:
        ```tsx
        <div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Título</h1>
-         <CopilotoInput />
          <NovaCoisaDialog />
        </div>
        ```
-       **Sem CTA, a busca fica centralizada de verdade, não só espremida pelo `justify-between`.**
-       Decidido com o Rogério em 2026-08-13 — caso de hoje: Dashboard (`DashboardHeader.tsx`), que
-       tem `CopilotoInput` mas nenhum `Dialog` de CTA, só a data por extenso do lado direito.
-       `justify-between` sozinho não centraliza a busca de verdade quando os itens das pontas têm
-       larguras diferentes (título vs. texto da data) — a correção é dar `sm:flex-1` pros dois
-       itens das pontas (mesmo quando um deles não é um CTA, é só texto/decorativo), sem
-       `sm:justify-between`, pra que sobre o mesmo espaço dos dois lados e a busca fique
-       exatamente no centro. Copie exatamente:
-       ```tsx
-       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-         <h1 className="text-2xl font-bold text-foreground sm:flex-1 sm:text-3xl">Título</h1>
-         <CopilotoInput />
-         <p className="shrink-0 text-sm text-muted-foreground sm:flex-1 sm:text-right">Texto do lado direito, se houver.</p>
-       </div>
-       ```
+       Sem CTA (ex.: Dashboard, que só tem a data por extenso do lado direito), o mesmo wrapper
+       com `sm:justify-between` funciona sem tratamento especial.
     3. Tabs — regra 7 acima, sem mudança (variante sublinhada, `mt-6`/`mb-6`).
     4. Filtros — **sempre depois das tabs, nunca na linha do H1**, wrapper
        `<div className="mb-6 flex flex-wrap items-center gap-3">` imediatamente acima do
-       conteúdo (tabela/board/lista).
+       conteúdo (tabela/board/lista). **Exceção: Pessoas e Turmas**, ver nota abaixo.
     5. Conteúdo.
+
+    **Caso Pessoas/Turmas — Busca + Filtros centralizados no H1, sem linha própria depois das
+    tabs.** Decidido com o Rogério em 2026-08-24, junto da remoção do Copiloto: como o Copiloto
+    já ocupava a coluna central do H1 nessas páginas, Busca + um botão único "Filtros" tomaram o
+    lugar dele em vez de virar mais uma linha depois das tabs (item 4 acima). Componentes:
+    `PessoasBuscaEFiltros.tsx`/`TurmasBuscaEFiltros.tsx`, um por página, substituindo o antigo par
+    `*FiltroBar` + `*FiltrosAvancadosSheet` (chips/Selects soltos na linha + gatilho de "Filtros
+    avançados"). Regras:
+    - **Centralização com `grid`, não `flex-1`**: como o CTA (coluna da direita) fica
+      `hidden md:...`, um `flex` com `flex-1` nas pontas não centraliza de verdade entre `sm` e
+      `md` (a coluna da direita não existe pra empurrar contra). `grid-cols-[1fr_auto_1fr]`
+      reserva a terceira coluna independente do conteúdo dela estar visível, então a coluna do
+      meio (`auto`) fica sempre exatamente centralizada. Copie exatamente:
+      ```tsx
+      <div className="mb-6 mt-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
+        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Título</h1>
+        <BuscaEFiltros ... />
+        <div className="hidden justify-self-end md:flex">{novaCoisaCta}</div>
+      </div>
+      ```
+    - **Busca por nome** sempre visível, aplica sozinha com debounce (400ms) — igual ao padrão
+      antigo, não faz parte do drawer.
+    - **Um só botão "Filtros"** (com badge de contagem) abre um `Sheet` com **todo** filtro da
+      página — os que antes ficavam soltos na barra (ex.: Papel/Tipo) e os que já estavam em
+      "Filtros avançados" — sem distinção entre os dois grupos.
+    - **Nada dentro do drawer aplica sozinho.** Cada campo só muda estado local (rascunho); só o
+      botão "Aplicar" no rodapé (`SheetFooter`) navega de fato. Reabrir o drawer sempre parte do
+      que está aplicado na URL agora — descarta rascunho de uma visita anterior sem "Aplicar".
+    - **"Limpar filtros"** existe em dois lugares com o mesmo efeito (zera todo filtro — não a
+      busca — e navega na hora, sem passar por "Aplicar"): dentro do drawer (rodapé, ao lado de
+      "Aplicar", sempre) e **fora dele**, ao lado do botão "Filtros" — só quando `filtrosAtivos >
+      0` **e só a partir de `sm`**; no mobile a linha Busca+Filtros já não tem espaço sobrando,
+      então a versão de fora fica `hidden sm:inline-flex` e quem usa só o celular limpa pelo
+      drawer mesmo.
 
     **Caso Caixa — CTA que depende da aba ativa:** `NovoRecebimentoDialog`/`NovoRepasseDialog`
     ficam no bloco do H1 (item 2), não dentro do `TabsContent` — mas qual dos dois aparece depende
@@ -669,9 +690,9 @@ desta conversa:
       (`MarcarPagoButton`); (2) "Cancelar" ao lado de "Salvar" (regra 24); (3) CTA de criação
       **de seção dentro de uma página que já tem outro foco principal** — "Matricular"
       (`MatricularDialog`, dentro da página de detalhe de Pessoa) é `outline`, não `default`,
-      precisamente por não ser o CTA da página, diferente das "Nova X" do item acima. Trigger de
-      `Sheet` de filtro (`FiltrosAvancadosSheet`, `TurmasFiltrosAvancadosSheet`) também entra
-      aqui.
+      precisamente por não ser o CTA da página, diferente das "Nova X" do item acima. Trigger do
+      `Sheet` de filtro (botão "Filtros" de `PessoasBuscaEFiltros`/`TurmasBuscaEFiltros`) também
+      entra aqui.
     - **Terciário (`variant="ghost"`)**: menor ênfase possível — reservado a ícone sozinho (kebab
       `MoreVertical`, regra 21/25) e ações inline dentro de uma lista/picker onde o item já
       carrega o contexto (ex. "Copiar" em `MensagemPickerSheet`). **Nunca** o único botão visível
@@ -715,7 +736,7 @@ desta conversa:
     - **`StatusBadge.tsx`**: `"ex_aluno"` usa azul (`bg-blue-100 text-blue-800`, regra 18) — mesma
       semântica de `"encerrada"` na Matrícula, terminou sem ter sido uma falha.
     - Refletido também em `EXPORT_STATUS_LABELS` (`pessoas/actions.ts`) e no filtro de Status
-      (`FiltrosAvancadosSheet.tsx` + `pessoas/page.tsx`) — nesse filtro, `"ex_aluno"` é exclusivo
+      (`PessoasBuscaEFiltros.tsx` + `pessoas/page.tsx`) — nesse filtro, `"ex_aluno"` é exclusivo
       de Aluno, Professor não tem status equivalente.
 28. **`atualizarPessoa` sincroniza `nome` com o Contato vinculado, se existir.** Bug corrigido em
     2026-08-14, achado na prática: `Contato.nome` é copiado do Pessoa só na criação
@@ -769,8 +790,8 @@ desta conversa:
 31. **Todo elemento interativo (botão, ícone clicável, aba, item de menu) tem uma área de toque
     real de pelo menos 44×44px em qualquer viewport, mesmo quando o tamanho VISUAL do controle é
     menor por decisão de hierarquia.** Decidido em 2026-08-19, a partir de uma revisão de UX
-    mobile — kebabs de tabela (36px), botão fechar do Copiloto (28px) e outros ícones pequenos
-    eram difíceis de tocar com precisão em tela pequena. **Não muda a hierarquia de alturas já
+    mobile — kebabs de tabela (36px) e outros ícones pequenos eram difíceis de tocar com precisão
+    em tela pequena. **Não muda a hierarquia de alturas já
     validada com o Figma** (as duas alturas de 36px/30px de Cadastro, seção "Altura de
     controles" acima, continuam do mesmo tamanho visual em qualquer tela) — a técnica expande só
     a área CLICÁVEL, via um pseudo-elemento invisível, nunca `h-`/`w-`/padding visível do próprio
@@ -784,7 +805,7 @@ desta conversa:
     - Aplicada direto na string-base de `buttonVariants` (`src/components/ui/button.tsx`) e de
       `TabsTrigger` (`src/components/ui/tabs.tsx`) — **todo** `Button`/`TabsTrigger` do app herda
       automaticamente, mesmo com `size`/`className` customizados (ex. `SidebarTrigger`,
-      `CopilotoDrawer`, `AlertBanner`, o botão de colapsar da `AppSidebar` — todos usam `<Button>`
+      `AlertBanner`, o botão de colapsar da `AppSidebar` — todos usam `<Button>`
       por baixo, nenhum precisou de edição própria). Não reaplique a classe manualmente em cada
       consumidor.
 32. **`src/app/layout.tsx` define `export const viewport` explícito** (`{ width:
@@ -802,8 +823,8 @@ desta conversa:
     sensação de navegação tipo app nativo (usuária não sabia "onde estava" nem como voltar sem
     abrir a sidebar inteira).
     - **Regra final**: a Dashboard (`items === null`, único caso sem `PageBreadcrumb` — regra 12)
-      é a única página com hambúrguer; qualquer outra página mostra "Voltar", mesmo quando não tem
-      um pai navegável "de verdade" na hierarquia do breadcrumb (nesse caso volta pra `/`).
+      é a única página com hambúrguer; qualquer outra página mostra "Voltar", que sempre leva pra
+      Dashboard (`/`) — não pro pai lógico do breadcrumb nem pro histórico do navegador.
     - **O header NÃO mostra o título da página — nem centralizado, nem à esquerda.** Passou por
       duas revisões no mesmo dia (centralizado via grid → alinhado à esquerda → removido de vez)
       até o usuário decidir que o `<h1>` de cada página (sempre visível, regra 6) já é a fonte do
@@ -815,16 +836,13 @@ desta conversa:
     - Tamanhos aumentados nesta revisão: botão do hambúrguer `h-12 w-12` (48px) com ícone
       `!size-6` (24px, precisa do `!` pela armadilha de especificidade de `[&_svg]:size-4`
       documentada no topo deste arquivo).
-    - **Botão voltar usa `router.back()` de verdade, não só o `href` do pai lógico do
-      breadcrumb** — revisão importante: a primeira versão desta regra evitava
-      `router.back()`/`history.back()` por medo de sair do app sem histórico, mas o usuário pediu
-      explicitamente "voltar pra última página navegada". Resolvido com `canGoBack`
-      (`PageHeaderProvider`): um `useEffect` com `usePathname()` marca `canGoBack = true` assim
-      que a **primeira** troca de rota client-side acontece depois do app carregar — antes disso
-      (primeiro carregamento, refresh, link externo), `canGoBack` continua `false` e o botão volta
-      a usar o `href` calculado (pai do breadcrumb, ou `/`) como fallback seguro. Ou seja:
-      `router.back()` só roda quando já existe histórico de navegação real dentro do app nesta
-      aba; caso contrário, cai no fallback antigo. Ver `BotaoVoltar` em `SidebarShell.tsx`.
+    - **Botão voltar sempre leva pra Dashboard (`/`), sem exceção.** Decidido com o Rogério em
+      2026-08-24, revertendo a versão anterior desta regra (2026-08-19), que usava
+      `router.back()` (histórico real do navegador, via `canGoBack` no `PageHeaderProvider`) pra
+      "voltar pra última página navegada" quando havia histórico client-side, com fallback pro pai
+      do breadcrumb senão. Essa lógica de `canGoBack`/fallback foi removida (não existe mais em
+      `PageHeaderProvider.tsx`) — `BotaoVoltar` (`SidebarShell.tsx`) agora é só um `Link href="/"`,
+      sem depender de histórico de navegação nem do breadcrumb da página atual.
     - **CTA no header** (à direita, único elemento do lado oposto ao "Voltar"): `PageBreadcrumb`
       aceita uma prop opcional `cta?: React.ReactNode` — a página declara o elemento uma vez (ex.
       `const novaPessoaCta = <NovaPessoaDialog .../>`), passa pro `PageBreadcrumb` **e** renderiza
@@ -832,10 +850,13 @@ desta conversa:
       mobile já cobre esse espaço abaixo de `md`, então a cópia inline só aparece a partir de `md`,
       quando o header mobile nem existe). Monta duas instâncias reais do componente (uma no
       header, outra na página, cada uma com seu próprio estado de `Dialog` aberto/fechado) —
-      inofensivo porque só uma fica visível por vez via CSS, mesmo padrão já usado pelo
-      `ExportarDropdown` na regra 36. Aplicado em toda página com CTA principal de página inteira
-      (regra 26): `PessoasListagem.tsx` (Nova pessoa), `pessoas/turmas/page.tsx` (Nova turma),
-      `vagoes/page.tsx` (Novo contato), `mensagens/page.tsx` (Nova mensagem), `caixa/page.tsx`
+      inofensivo porque só uma fica visível por vez via CSS — mesmo padrão do `ExportarDropdown`
+      na regra 36. `cta` aceita mais de um botão (basta agrupar num `<>...</>`, como em
+      `PessoasListagem.tsx`); nesse caso o grupo inteiro é a "variável declarada uma vez" que se
+      repete nos dois lugares, não um `cta` por botão. Aplicado em toda página com CTA principal
+      de página inteira (regra 26): `PessoasListagem.tsx` (Exportar + Nova pessoa, nessa ordem —
+      secundário antes do primário), `pessoas/turmas/page.tsx` (Exportar + Nova turma, mesma
+      ordem), `vagoes/page.tsx` (Novo contato), `mensagens/page.tsx` (Nova mensagem), `caixa/page.tsx`
       (Novo recebimento/repasse, alterna com a aba ativa — `caixaCta` calculado antes do
       `PageBreadcrumb` pra usar o mesmo valor nos dois lugares). Páginas de detalhe/edição
       (`/pessoas/[id]`) não têm CTA de página inteira, ficam de fora por não se aplicar, não por
@@ -862,7 +883,7 @@ desta conversa:
     - `src/components/shell/MobileNavSheet.tsx`: `Sheet` do shadcn com `className` sobrescrevendo
       `sheetVariants` pra `w-screen max-w-none h-dvh border-none` (cobre a tela inteira, não os
       `w-3/4`/`sm:max-w-sm` default) — mesmo truque de esconder o `X` default (`[&>button]:hidden`)
-      e montar um cabeçalho próprio que já existe em `CopilotoDrawer.tsx`, aplicado aqui de novo.
+      e montar um cabeçalho próprio, já usado em outros `Sheet` do sistema.
     - **Fonte de navegação compartilhada**: `NAV_ITEMS`/`rotaAtiva`/`childMaisEspecificoAtivo`/
       `grupoDaRota`, extraídos de dentro de `AppSidebar.tsx` pra `src/components/shell/navItems.ts`
       — `AppSidebar` (desktop) e `MobileNavSheet` (mobile) importam da mesma fonte, **nunca
@@ -911,19 +932,15 @@ desta conversa:
       `ContatoCard.tsx` (board de Vagões), adaptado de "card arrastável" pra "item de lista".
       **Ainda não replicado nas demais listagens com tabela** (Turmas, Caixa, Mensagens,
       Admin/Usuários) — próxima rodada.
-    - **Seleção em massa e `ExportarDropdown` continuam funcionando no card**: cada `PessoaCard`
-      recebe `selecionado`/`onToggleSelecionado` do mesmo `Set<string>` que a tabela usa. Como o
-      `ExportarDropdown` normalmente vive só no cabeçalho da tabela (escondido no mobile junto com
-      ela), uma segunda instância (`md:hidden`) aparece ao lado de "Cancelar seleção" assim que
-      `selecionados.size > 0` — sem isso, exportar ficaria inacessível no mobile depois de
-      selecionar pelos cards. Não existe "selecionar todos" no card ainda (só na tabela) — cada
-      pessoa é selecionada individualmente no mobile.
+    - **Não existe mais seleção em massa** (checkbox por linha/card, "selecionar todos", "X
+      selecionadas") — removida em 2026-08-24 junto da mudança de `ExportarDropdown` pra exportar
+      o filtro/busca atual inteiro (regra do header de Pessoas), não uma seleção manual. `Exportar`
+      hoje é um botão de header comum (ver "CTA no header" acima), sem instância extra no card nem
+      no `md:hidden`.
     - Card não é o card inteiro clicável tipo `ContatoCard`: o **nome** é o link de navegação
       (`tap-target-44` pra compensar ser só texto), kebab (`MoreVertical`) cobre
-      Arquivar/Desarquivar — decisão específica de Pessoas por já ter um `Checkbox` de seleção no
-      card (elemento interativo aninhado dentro de um `<a>` inteiro seria inválido/ambíguo pra
-      clique). Página de listagem sem seleção em massa pode seguir o padrão de `ContatoCard`
-      (card inteiro como link) quando chegar a vez dela.
+      Arquivar/Desarquivar — mesmo padrão do botão "Ver" na linha da tabela desktop, não card
+      inteiro como link.
 37. **`DialogFooter`/`AlertDialogFooter`/`SheetFooter` usam `gap-2` (não `sm:space-x-2`) entre os
     botões.** Bug corrigido em 2026-08-19, achado na revisão de UX mobile: `sm:space-x-2` só
     aplica espaçamento na direção `row` (`sm:` pra cima) — no mobile, onde o rodapé empilha em

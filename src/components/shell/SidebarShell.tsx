@@ -2,7 +2,6 @@
 
 import { ChevronLeft, Menu } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -27,27 +26,14 @@ interface SidebarShellProps {
 
 /**
  * Botão voltar do header mobile — ícone + texto "Voltar", substitui o título por completo (o
- * título da página volta a viver só no `<h1>` da própria página, sempre visível). Usa
- * `router.back()` (histórico real do navegador) sempre que já houve alguma navegação client-side
- * desde que o app carregou (`canGoBack`) — só cai pro `href` calculado (pai lógico do breadcrumb,
- * ou "/") quando a página foi carregada direto (refresh, link externo, primeira tela), caso em
- * que não há histórico de verdade pra voltar.
+ * título da página volta a viver só no `<h1>` da própria página, sempre visível). Sempre leva pra
+ * Dashboard ("/"), não pro histórico do navegador nem pro pai lógico do breadcrumb — decidido com
+ * o Rogério em 2026-08-24: em qualquer página interna, "Voltar" é a Dashboard.
  */
-function BotaoVoltar({ hrefFallback, canGoBack }: { hrefFallback: string; canGoBack: boolean }): React.ReactElement {
-	const router = useRouter();
-
-	if (canGoBack) {
-		return (
-			<Button type="button" variant="ghost" className="shrink-0 gap-1 px-2" onClick={() => router.back()}>
-				<ChevronLeft className="h-5 w-5" />
-				Voltar
-			</Button>
-		);
-	}
-
+function BotaoVoltar(): React.ReactElement {
 	return (
 		<Button type="button" variant="ghost" className="shrink-0 gap-1 px-2" asChild>
-			<Link href={hrefFallback}>
+			<Link href="/">
 				<ChevronLeft className="h-5 w-5" />
 				Voltar
 			</Link>
@@ -65,11 +51,10 @@ function BotaoVoltar({ hrefFallback, canGoBack }: { hrefFallback: string; canGoB
  * `Sidebar`/rail usado no desktop — ver regra do design.md sobre header mobile.
  */
 function MobileHeader({ user }: { user: SidebarShellProps["user"] }): React.ReactElement {
-	const { items, cta, canGoBack } = usePageHeader();
+	const { items, cta } = usePageHeader();
 	const [menuAberto, setMenuAberto] = useState(false);
 
 	const naDashboard = items === null;
-	const hrefVoltar = (!naDashboard ? items[items.length - 2]?.href : undefined) ?? "/";
 
 	return (
 		<>
@@ -90,7 +75,7 @@ function MobileHeader({ user }: { user: SidebarShellProps["user"] }): React.Reac
 					</>
 				) : (
 					<div className="min-w-0 flex-1">
-						<BotaoVoltar hrefFallback={hrefVoltar} canGoBack={canGoBack} />
+						<BotaoVoltar />
 					</div>
 				)}
 				<div className="flex shrink-0 items-center gap-2">

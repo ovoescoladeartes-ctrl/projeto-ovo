@@ -19,7 +19,7 @@ Instruções para quem (ou qual agente) for mexer no projeto **ovo-escola**. Vá
 
 - O projeto usa **shadcn/ui** (`components.json`, style `new-york`, componentes em `src/components/ui`).
 - Antes de criar qualquer componente novo:
-  1. Revisar os componentes já existentes no projeto (`src/components/ui`, `src/components/shell`, `src/components/dashboard`, `src/components/copiloto`) — priorizar reutilização.
+  1. Revisar os componentes já existentes no projeto (`src/components/ui`, `src/components/shell`, `src/components/dashboard`) — priorizar reutilização.
   2. Se não houver nada reutilizável, verificar se existe um componente equivalente no shadcn e importar de lá (`npx shadcn add <componente>`).
   3. Só criar um componente do zero se nenhuma das opções acima resolver.
 
