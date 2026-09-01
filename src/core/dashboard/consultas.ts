@@ -11,6 +11,7 @@ import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
 import type { DestinoTipo, RepasseStatus } from "@/core/financeiro/repasses/schema";
 import { calcularRecebidoNoMes, calcularSaldoVivo, listarRepassesAVencer } from "@/core/financeiro/saldo";
 import { calcularRecebidoPorTurma, calcularSerieMensalRecebido, type PontoSerieMensal, type RankingTurma } from "@/core/financeiro/series";
+import { destinoRepasseLabel } from "@/core/financeiro/shared";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
@@ -108,13 +109,6 @@ interface ContatoResumo {
 	arquivadoMotivo: ArquivadoMotivo | null;
 	estagioAtualizadoEm: string | null;
 	criadoEm: string | null;
-}
-
-function destinoRepasseLabel(repasse: RepasseResumo, pessoasNomes: Record<string, string>): string {
-	if (repasse.destinoTipo === "educador") {
-		return repasse.destinoPessoaId !== null ? (pessoasNomes[repasse.destinoPessoaId] ?? "Educador") : "Educador";
-	}
-	return repasse.destinoTipo === "espaco" ? "Espaço" : "Outro";
 }
 
 export async function montarKpisEPendenciasFinanceiro(
