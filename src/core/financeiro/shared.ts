@@ -22,3 +22,18 @@ export function destinoRepasseLabel(
 	}
 	return repasse.destinoTipo === "espaco" ? "Espaço" : "Outro";
 }
+
+export interface EstadoConclusaoChecklist {
+	concluido: boolean;
+	concluidoEm: Date | null;
+	concluidoPor: string | null;
+}
+
+/** Payload de conclusão de um item de checklist (Ritual/Fechamento) — mesmo formato gravado via merge nos dois casos. */
+export function montarEstadoConclusaoChecklist(concluido: boolean, uid: string): EstadoConclusaoChecklist {
+	return {
+		concluido,
+		concluidoEm: concluido ? new Date() : null,
+		concluidoPor: concluido ? uid : null,
+	};
+}
