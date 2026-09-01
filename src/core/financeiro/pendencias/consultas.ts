@@ -106,6 +106,8 @@ export async function montarPendenciasAcionaveis(firestore: FirebaseFirestore.Fi
 			titulo: "Repasse a vencer",
 			meta: `${destino} · ${vencimentoLabel}`,
 			origem: repasse.origem,
+			tipo: "repasse",
+			pendenciaManualId: null,
 		};
 	});
 
@@ -120,6 +122,8 @@ export async function montarPendenciasAcionaveis(firestore: FirebaseFirestore.Fi
 			titulo: "Pix pendente",
 			meta: `${pessoasNomes[recebimento.pessoaId] ?? "Pessoa"} · ${formatCentavos(recebimento.valorCentavos)} aguardando confirmação`,
 			origem: recebimento.origem as Origem,
+			tipo: "recebimento",
+			pendenciaManualId: null,
 		}));
 
 	const itensManuais: PendenciaAcionavel[] = pendenciasManuais.map((pendencia) => ({
@@ -127,6 +131,8 @@ export async function montarPendenciasAcionaveis(firestore: FirebaseFirestore.Fi
 		titulo: pendencia.titulo,
 		meta: pendencia.meta,
 		origem: "manual",
+		tipo: "manual",
+		pendenciaManualId: pendencia.id,
 	}));
 
 	return [...itensRepasse, ...itensPix, ...itensManuais];
