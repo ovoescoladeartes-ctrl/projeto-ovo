@@ -20,13 +20,29 @@ export interface NavItem {
  * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752). Fonte única
  * compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela cheia) — nunca
  * duplique esta lista.
+ *
+ * "Caixa" virou grupo expansível (Recebimentos + as 3 rotas do Checklist Financeiro) — `href:
+ * null` porque, com `children` presente, a própria linha "Caixa" só expande/recolhe o submenu
+ * (ver `AppSidebar`/`MobileNavSheet`); `/caixa` (Recebimentos) continua existindo exatamente como
+ * antes, só passa a ser alcançado pelo item filho, não mais clicando em "Caixa" diretamente.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
 	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
 	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
-	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
+	{
+		label: "Caixa",
+		icon: Wallet,
+		href: null,
+		roles: ["admin", "financeiro"],
+		children: [
+			{ label: "Recebimentos", href: "/caixa" },
+			{ label: "Checklist", href: "/caixa/checklist" },
+			{ label: "Pendências", href: "/caixa/pendencias" },
+			{ label: "Fechamento", href: "/caixa/fechamento" },
+		],
+	},
 ];
 
 export function rotaAtiva(pathname: string, href: string): boolean {
