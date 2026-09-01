@@ -1,5 +1,6 @@
 "use server";
 
+import type { Timestamp } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -8,7 +9,11 @@ import type { Role } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { upsertInteresse } from "@/core/interesses/actions";
 import { recalcularStatusProfessor } from "@/core/pessoas/recalcularStatusProfessor";
+import { toIso } from "@/core/shared/serialize";
 import { turmaInputSchema, turmaUpdateInputSchema, type TurmaInput } from "@/core/turmas/schema";
+import { formatCentavos } from "@/lib/currency";
+
+import { formatarData, TIPO_LABELS } from "./turmasFormat";
 
 export interface ActionResult {
 	status: "ok" | "error";
@@ -246,4 +251,86 @@ export async function excluirTurmaPermanentemente(id: unknown): Promise<ActionRe
 
 	revalidatePath("/pessoas/turmas");
 	return { status: "ok" };
+}
+
+const buscarTurmasParaExportarInputSchema = z.array(z.string().min(1)).min(1, "Nenhuma turma para exportar.");
+
+export interface TurmaParaExportar {
+	id: string;
+	nome: string;
+	tipo: string;
+	assunto: string;
+	mensalidade: string;
+	repasse: string;
+	inicio: string;
+	fim: string;
+	vagasOcupadas: number;
+	capacidade: string;
+	educador: string;
+}
+
+/**
+ * Uma busca só, usada pela única ação do dropdown "Exportar" de Turmas (baixar planilha) — Turma
+ * não tem e-mail/telefone como Pessoa, então não há "copiar e-mails"/"copiar telefones"
+ * equivalente aqui (ver `ExportarTurmasButton.tsx`).
+ */
+export async function buscarTurmasParaExportar(input: unknown): Promise<TurmaParaExportar[]> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarTurmas(session.role)) {
+		return [];
+	}
+
+	const parsed = buscarTurmasParaExportarInputSchema.safeParse(input);
+	if (!parsed.success) {
+		return [];
+	}
+
+	const firestore = getFirebaseAdminFirestore();
+
+	const [turmaDocs, pessoasSnapshot, matriculasSnapshot] = await Promise.all([
+		Promise.all(parsed.data.map((id) => firestore.collection("turmas").doc(id).get())),
+		firestore.collection("pessoas").get(),
+		firestore.collection("matriculas").where("status", "==", "ativa").get(),
+	]);
+
+	const pessoasNomes = new Map<string, string>();
+	pessoasSnapshot.docs.forEach((doc) => {
+		pessoasNomes.set(doc.id, (doc.data() as { nome: string }).nome);
+	});
+
+	const vagasPorTurma = new Map<string, number>();
+	matriculasSnapshot.docs.forEach((doc) => {
+		const data = doc.data() as { turmaId: string };
+		vagasPorTurma.set(data.turmaId, (vagasPorTurma.get(data.turmaId) ?? 0) + 1);
+	});
+
+	return turmaDocs
+		.filter((doc) => doc.exists)
+		.map((doc) => {
+			const data = doc.data() as {
+				nome: string;
+				assunto?: string;
+				tipo?: string | null;
+				mensalidadeCentavos: number;
+				repasseTipo: string;
+				repasseValor: number;
+				dataInicio?: Timestamp;
+				dataFim?: Timestamp | null;
+				educadorPessoaId: string | null;
+				capacidadeMaxima?: number | null;
+			};
+			return {
+				id: doc.id,
+				nome: data.nome,
+				tipo: data.tipo ? (TIPO_LABELS[data.tipo] ?? data.tipo) : "—",
+				assunto: data.assunto ?? "",
+				mensalidade: formatCentavos(data.mensalidadeCentavos),
+				repasse: data.repasseTipo === "percentual" ? `${data.repasseValor}%` : formatCentavos(data.repasseValor),
+				inicio: formatarData(toIso(data.dataInicio ?? null)),
+				fim: formatarData(toIso(data.dataFim ?? null)),
+				vagasOcupadas: vagasPorTurma.get(doc.id) ?? 0,
+				capacidade: data.capacidadeMaxima != null ? String(data.capacidadeMaxima) : "—",
+				educador: data.educadorPessoaId !== null ? (pessoasNomes.get(data.educadorPessoaId) ?? "—") : "—",
+			};
+		});
 }

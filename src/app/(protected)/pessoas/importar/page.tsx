@@ -19,7 +19,6 @@ export default async function ImportarPessoasPage(): Promise<React.ReactElement>
 			<PageBreadcrumb
 				items={[
 					{ label: "Dashboard", href: "/" },
-					{ label: "Cadastro" },
 					{ label: "Pessoas", href: "/pessoas" },
 					{ label: "Importar" },
 				]}

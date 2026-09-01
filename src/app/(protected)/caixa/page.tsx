@@ -1,7 +1,6 @@
 import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
 
-import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
@@ -146,7 +145,6 @@ export default async function CaixaPage({ searchParams }: CaixaPageProps): Promi
 			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa" }]} cta={caixaCta} />
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Caixa</h1>
-				<CopilotoInput />
 				<div className="hidden md:inline-flex">{caixaCta}</div>
 			</div>
 

@@ -171,6 +171,10 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	const paginaSolicitada = Number.parseInt(filtros.pagina ?? "1", 10);
 	const paginaAtual = Number.isFinite(paginaSolicitada) ? Math.min(Math.max(paginaSolicitada, 1), totalPaginas) : 1;
 
+	// Todos os IDs que batem com o filtro atual, não só a página visível — "Exportar" exporta o
+	// filtro inteiro (padrão de listagem com busca/filtro), não a página de 25 nem uma seleção.
+	const idsFiltrados = pessoas.map((pessoa) => pessoa.id);
+
 	const pessoasPagina: PessoaListagemRow[] = pessoas
 		.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA)
 		.map((pessoa) => ({
@@ -189,6 +193,7 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 		<Suspense fallback={null}>
 			<PessoasListagem
 				pessoas={pessoasPagina}
+				idsFiltrados={idsFiltrados}
 				totalItens={totalItens}
 				paginaAtual={paginaAtual}
 				totalPaginas={totalPaginas}
