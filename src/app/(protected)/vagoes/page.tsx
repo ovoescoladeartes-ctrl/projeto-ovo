@@ -2,7 +2,6 @@ import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { CopilotoInput } from "@/components/dashboard/CopilotoInput";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
@@ -21,6 +20,12 @@ import { VagoesFiltroBar } from "./VagoesFiltroBar";
 
 const VAGOES_ROLES: readonly Role[] = ["admin", "comunicacao"];
 
+interface InteracaoContatoDoc {
+	texto: string;
+	criadoEm: string;
+	autorNome: string;
+}
+
 interface ContatoDoc {
 	nome: string;
 	canal: string;
@@ -32,6 +37,9 @@ interface ContatoDoc {
 	criadoEm?: Timestamp;
 	ativo: boolean;
 	interesses?: string[];
+	linkReferencia?: string | null;
+	observacoes?: string | null;
+	historico?: InteracaoContatoDoc[];
 }
 
 interface MensagemDoc {
@@ -80,6 +88,9 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			criadoEm: toIso(data.criadoEm ?? null),
 			ativo: data.ativo,
 			interesses: data.interesses ?? [],
+			linkReferencia: data.linkReferencia ?? null,
+			observacoes: data.observacoes ?? null,
+			historico: data.historico ?? [],
 		};
 	});
 
@@ -142,7 +153,6 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} cta={novoContatoCta} />
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
-				<CopilotoInput />
 				<div className="hidden md:inline-flex">{novoContatoCta}</div>
 			</div>
 
@@ -176,7 +186,7 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			</div>
 
 			<div className="min-h-0 flex-1">
-				<Board contatos={contatosComCurso} mensagens={mensagens} />
+				<Board contatos={contatosComCurso} mensagens={mensagens} opcoesInteresse={opcoesInteresse} />
 			</div>
 		</div>
 	);

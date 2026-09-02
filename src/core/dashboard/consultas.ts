@@ -5,6 +5,7 @@ import type { Timestamp } from "firebase-admin/firestore";
 import { ROLES, type Role } from "@/core/auth/Role";
 import { BUCKETS, bucketKeyDe } from "@/core/comunicacao/buckets";
 import type { ArquivadoMotivo, Estagio } from "@/core/comunicacao/contatos/schema";
+import { contatoEhPendente, diasDesde, TITULO_PENDENCIA_POR_ESTAGIO } from "@/core/comunicacao/pendencias";
 import { calcularUrgencia } from "@/core/comunicacao/urgencia";
 import type { FunnelStageCount, KpiCardData, PendenciaItem } from "@/core/dashboard/types";
 import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
@@ -61,19 +62,6 @@ interface ContatoDoc {
 	estagioAtualizadoEm?: Timestamp;
 	criadoEm?: Timestamp;
 	ativo: boolean;
-}
-
-const TITULO_PENDENCIA_POR_ESTAGIO: Partial<Record<Estagio, string>> = {
-	novo: "Lead sem resposta",
-	em_conversa: "Conversa esfriando",
-	experimental: "Experimental sem follow-up",
-};
-
-function diasDesde(iso: string | null, agora: Date): number {
-	if (iso === null) {
-		return 0;
-	}
-	return Math.max(0, Math.floor((agora.getTime() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 function diasAte(iso: string | null, agora: Date): number {
@@ -176,14 +164,26 @@ export async function montarKpisEPendenciasFinanceiro(
 	const totalRepassesAVencer = repassesAVencerTodos.reduce((soma, repasse) => soma + repasse.valorCentavos, 0);
 
 	const kpis: KpiCardData[] = [
-		{ label: "Recebido no mês", value: formatCentavos(calcularRecebidoNoMes(recebimentos)), subtitle: "Recebimentos confirmados" },
-		{ label: "Saldo vivo", value: formatCentavos(calcularSaldoVivo(recebimentos, repasses)), subtitle: "Confirmado − repasses pagos" },
 		{
+			icon: "recebido",
+			label: "Recebido no mês",
+			value: formatCentavos(calcularRecebidoNoMes(recebimentos)),
+			subtitle: "Recebimentos confirmados",
+		},
+		{
+			icon: "saldo",
+			label: "Saldo vivo",
+			value: formatCentavos(calcularSaldoVivo(recebimentos, repasses)),
+			subtitle: "Confirmado − repasses pagos",
+		},
+		{
+			icon: "repasses",
 			label: "Repasses a vencer",
 			value: formatCentavos(totalRepassesAVencer),
 			subtitle: `${repassesAVencerTodos.length} repasse${repassesAVencerTodos.length === 1 ? "" : "s"} em ${REPASSES_JANELA_DIAS} dias`,
 		},
 		{
+			icon: "pendentes",
 			label: "Recebimentos pendentes",
 			value: formatCentavos(totalRecebimentosPendentes),
 			subtitle: `${recebimentosPendentesTodos.length} aguardando confirmação`,
@@ -267,13 +267,12 @@ export async function montarKpisEPendenciasComunicacao(
 	);
 
 	const kpis: KpiCardData[] = [
-		{ label: "Leads da semana", value: String(leadsDaSemana.length), subtitle: `${leadsSemResposta.length} sem resposta` },
-		{ label: "Convertidos no mês", value: String(convertidosNoMes.length), subtitle: "Viraram aluno" },
+		{ icon: "leads", label: "Leads da semana", value: String(leadsDaSemana.length), subtitle: `${leadsSemResposta.length} sem resposta` },
+		{ icon: "convertidos", label: "Convertidos no mês", value: String(convertidosNoMes.length), subtitle: "Viraram aluno" },
 	];
 
 	const pendencias: PendenciaItem[] = contatos
-		.filter((contato) => contato.estagio in TITULO_PENDENCIA_POR_ESTAGIO)
-		.filter((contato) => calcularUrgencia(contato.estagioAtualizadoEm, agora) !== "recente")
+		.filter((contato) => contatoEhPendente(contato.estagio, contato.estagioAtualizadoEm, agora))
 		.slice(0, PENDENCIAS_LIMITE)
 		.map((contato) => ({
 			id: `contato-${contato.id}`,

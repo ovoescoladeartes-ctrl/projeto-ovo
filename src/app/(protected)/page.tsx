@@ -5,9 +5,11 @@ import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
 import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { VagoesChecklist } from "@/components/dashboard/VagoesChecklist";
 import { VisaoGeralContent } from "@/components/dashboard/VisaoGeralContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
+import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
 import {
 	CAIXA_ROLES,
 	GERAL_ROLES,
@@ -34,7 +36,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const firestore = getFirebaseAdminFirestore();
 	const semanaAtual = chaveSemana(segundaFeiraDe(agora));
 
-	const [visaoGeral, financeiro, comunicacao] = await Promise.all([
+	const [visaoGeral, financeiro, comunicacao, checklistComunicacao] = await Promise.all([
 		podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
 		// `financeiro`/`ritual` sempre nascem juntos (mesmo flag `podeVerFinanceiro`) — combinados
 		// num único valor pra não precisar checar dois `!== null` redundantes na hora de renderizar.
@@ -44,6 +46,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 				)
 			: null,
 		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
+		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
 	]);
 
 	const abaPadrao = podeVerGeral ? "geral" : podeVerFinanceiro ? "financeiro" : "comunicacao";
@@ -95,9 +98,10 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						</TabsContent>
 					) : null}
 
-					{comunicacao !== null ? (
+					{comunicacao !== null && checklistComunicacao !== null ? (
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
+							<VagoesChecklist checklist={checklistComunicacao} />
 							<FunnelStageRow items={comunicacao.funil} />
 							<PendenciasList items={comunicacao.pendencias} />
 						</TabsContent>

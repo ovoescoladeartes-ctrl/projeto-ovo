@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { CopilotoDrawer } from "@/components/copiloto/CopilotoDrawer";
-import { CopilotoProvider } from "@/components/copiloto/CopilotoProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeaderProvider } from "@/components/shell/PageHeaderProvider";
 import { SidebarShell } from "@/components/shell/SidebarShell";
@@ -47,12 +45,9 @@ export default async function ProtectedLayout({
 
 	return (
 		<PageHeaderProvider>
-			<CopilotoProvider>
-				<SidebarShell user={{ displayName: user.displayName, email: user.email, role: user.role }}>
-					<div className="overflow-x-hidden p-6 sm:p-8">{children}</div>
-				</SidebarShell>
-				<CopilotoDrawer />
-			</CopilotoProvider>
+			<SidebarShell user={{ displayName: user.displayName, email: user.email, role: user.role }}>
+				<div className="overflow-x-hidden p-6 sm:p-8">{children}</div>
+			</SidebarShell>
 		</PageHeaderProvider>
 	);
 }

@@ -6,7 +6,13 @@ import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import { ARQUIVADO_MOTIVOS, ESTAGIOS, novoContatoInputSchema } from "@/core/comunicacao/contatos/schema";
+import {
+	ARQUIVADO_MOTIVOS,
+	editarContatoInputSchema,
+	ESTAGIOS,
+	novoContatoInputSchema,
+	registrarInteracaoInputSchema,
+} from "@/core/comunicacao/contatos/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -92,6 +98,72 @@ export async function criarContato(input: unknown): Promise<ActionResult> {
 
 	revalidatePath("/vagoes");
 	revalidatePath("/pessoas");
+	return { status: "ok" };
+}
+
+export async function editarContato(input: unknown): Promise<ActionResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarVagoes(session.role)) {
+		return { status: "error", message: "Sem permissão para editar contatos." };
+	}
+
+	const parsed = editarContatoInputSchema.safeParse(input);
+	if (!parsed.success) {
+		return { status: "error", message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+	}
+
+	try {
+		const firestore = getFirebaseAdminFirestore();
+		await firestore
+			.collection("contatos")
+			.doc(parsed.data.id)
+			.set(
+				{
+					nome: parsed.data.nome,
+					canal: parsed.data.canal,
+					interesseInicial: parsed.data.interesseInicial,
+					interesses: parsed.data.interesses,
+					linkReferencia: parsed.data.linkReferencia,
+					observacoes: parsed.data.observacoes,
+				},
+				{ merge: true },
+			);
+	} catch {
+		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
+	}
+
+	revalidatePath("/vagoes");
+	return { status: "ok" };
+}
+
+export async function registrarInteracaoContato(input: unknown): Promise<ActionResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarVagoes(session.role)) {
+		return { status: "error", message: "Sem permissão para registrar interações." };
+	}
+
+	const parsed = registrarInteracaoInputSchema.safeParse(input);
+	if (!parsed.success) {
+		return { status: "error", message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+	}
+
+	try {
+		const firestore = getFirebaseAdminFirestore();
+		await firestore
+			.collection("contatos")
+			.doc(parsed.data.id)
+			.update({
+				historico: FieldValue.arrayUnion({
+					texto: parsed.data.texto,
+					criadoEm: new Date().toISOString(),
+					autorNome: session.displayName,
+				}),
+			});
+	} catch {
+		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
+	}
+
+	revalidatePath("/vagoes");
 	return { status: "ok" };
 }
 

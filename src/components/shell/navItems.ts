@@ -1,4 +1,4 @@
-import { GraduationCap, Home, Settings, Wallet, Workflow } from "lucide-react";
+import { GraduationCap, Home, Users, Wallet, Workflow } from "lucide-react";
 
 import type { Role } from "@/core/auth/Role";
 
@@ -17,24 +17,31 @@ export interface NavItem {
 }
 
 /**
- * Ordem e conjunto espelham a sidebar do Figma (node 187-1752 pro esqueleto original; o grupo
- * "Caixa" com Checklist/Pendências/Fechamento veio de uma entrega posterior, node 230-1791).
- * Fonte única compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela
- * cheia) — nunca duplique esta lista.
+ * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752 pro esqueleto original;
+ * o grupo "Caixa" com Checklist/Pendências/Fechamento veio de uma entrega posterior, node
+ * 230-1791). Fonte única compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile
+ * em tela cheia) — nunca duplique esta lista.
+ *
+ * "Vagões" e "Caixa" são grupos expansíveis (Vagões: board + Checklist do Dia de Comunicação;
+ * Caixa: Recebimentos + Checklist/Pendências/Fechamento do Ritual de Segunda) — `href: null`
+ * porque, com `children` presente, a própria linha do grupo só expande/recolhe o submenu (ver
+ * `AppSidebar`/`MobileNavSheet`); `/vagoes` e `/caixa` continuam existindo exatamente como antes,
+ * só passam a ser alcançados pelo item filho, não mais clicando no nome do grupo diretamente.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
 	{
-		label: "Cadastro",
-		icon: GraduationCap,
+		label: "Vagões",
+		icon: Workflow,
 		href: null,
-		roles: ["admin", "comunicacao", "financeiro"],
+		roles: ["admin", "comunicacao"],
 		children: [
-			{ label: "Pessoas", href: "/pessoas" },
-			{ label: "Turmas", href: "/pessoas/turmas" },
+			{ label: "Vagões", href: "/vagoes" },
+			{ label: "Checklist", href: "/vagoes/checklist" },
 		],
 	},
+	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
+	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
 	{
 		label: "Caixa",
 		icon: Wallet,
@@ -46,13 +53,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
 			{ label: "Pendências", href: "/caixa/pendencias" },
 			{ label: "Fechamento", href: "/caixa/fechamento" },
 		],
-	},
-	{
-		label: "Configurações",
-		icon: Settings,
-		href: null,
-		roles: ["admin", "comunicacao"],
-		children: [{ label: "Mensagens", href: "/mensagens" }],
 	},
 ];
 
