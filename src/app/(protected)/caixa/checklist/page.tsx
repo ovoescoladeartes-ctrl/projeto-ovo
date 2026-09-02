@@ -52,7 +52,7 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 		<div>
 			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa", href: "/caixa" }, { label: "Checklist" }]} />
 			<div className="mb-6 mt-2">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Ritual de Segunda — {dataLabel}</h1>
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Checklist</h1>
 			</div>
 
 			<Card>
