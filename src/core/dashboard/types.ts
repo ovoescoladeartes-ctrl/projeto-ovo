@@ -37,9 +37,3 @@ export interface FunnelStageCount {
 	value: number;
 	kind: "estagio" | "arquivado-motivo";
 }
-
-export interface RitualChecklistItemData {
-	id: string;
-	label: string;
-	concluido: boolean;
-}
