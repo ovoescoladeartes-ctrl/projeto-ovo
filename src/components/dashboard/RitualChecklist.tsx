@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RitualItemEstado } from "@/core/financeiro/ritual/schema";
 
-import { RitualChecklistItem } from "./RitualChecklistItem";
+import { RitualItemCheckbox } from "./RitualItemCheckbox";
 
 const ITENS_VISIVEIS_NO_CARD = 2;
 
@@ -29,7 +29,7 @@ export function RitualChecklist({ itens, semana, dataLabel }: RitualChecklistPro
 			</CardHeader>
 			<CardContent className="pt-0">
 				{pendentes.slice(0, ITENS_VISIVEIS_NO_CARD).map((item) => (
-					<RitualChecklistItem key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
+					<RitualItemCheckbox key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
 				))}
 				<Button variant="link" size="sm" asChild className="mt-1 h-auto px-0">
 					<Link href="/caixa/checklist">

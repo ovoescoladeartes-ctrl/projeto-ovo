@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { PendenciaRow } from "@/components/dashboard/PendenciaRow";
-import { RitualChecklistItem } from "@/components/dashboard/RitualChecklistItem";
+import { RitualItemCheckbox } from "@/components/dashboard/RitualItemCheckbox";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +55,7 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 				</CardHeader>
 				<CardContent className="pt-0">
 					{ritual.itens.map((item) => (
-						<RitualChecklistItem key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
+						<RitualItemCheckbox key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
 					))}
 				</CardContent>
 			</Card>
