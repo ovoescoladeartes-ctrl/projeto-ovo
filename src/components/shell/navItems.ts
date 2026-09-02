@@ -20,10 +20,24 @@ export interface NavItem {
  * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752). Fonte única
  * compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela cheia) — nunca
  * duplique esta lista.
+ *
+ * "Vagões" virou grupo expansível (o board + o Checklist do Dia de Comunicação) — `href: null`
+ * porque, com `children` presente, a própria linha do grupo só expande/recolhe o submenu (ver
+ * `AppSidebar`/`MobileNavSheet`); `/vagoes` continua existindo exatamente como antes, só passa a
+ * ser alcançado pelo item filho, não mais clicando no nome do grupo diretamente.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
+	{
+		label: "Vagões",
+		icon: Workflow,
+		href: null,
+		roles: ["admin", "comunicacao"],
+		children: [
+			{ label: "Vagões", href: "/vagoes" },
+			{ label: "Checklist", href: "/vagoes/checklist" },
+		],
+	},
 	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
