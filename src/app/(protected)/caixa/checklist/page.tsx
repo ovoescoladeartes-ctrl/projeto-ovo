@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { PendenciaRow } from "@/components/dashboard/PendenciaRow";
+import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { semanaSchema } from "@/core/financeiro/ritual/schema";
 import { formatarDataCurta } from "@/core/financeiro/shared";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
-import { RitualItemCheckbox } from "./RitualItemCheckbox";
+import { alternarItemRitual } from "./actions";
 
 // `?semana=` muda o conteúdo da mesma rota — sem isso o Router do Next pode servir uma resposta
 // em cache em vez de buscar a semana pedida (mesma causa raiz corrigida em `caixa/page.tsx`).
@@ -71,7 +72,12 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 					</p>
 					<div className="divide-y divide-border">
 						{ritual.itens.map((item) => (
-							<RitualItemCheckbox key={item.id} id={item.id} semana={semana} label={item.label} concluido={item.concluido} />
+							<ChecklistItemToggle
+								key={item.id}
+								label={item.label}
+								concluido={item.concluido}
+								onToggle={(concluido) => alternarItemRitual({ semana, itemId: item.id, concluido })}
+							/>
 						))}
 					</div>
 				</CardContent>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { RitualChecklistItem } from "@/components/dashboard/RitualChecklistItem";
+import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fech
 import { periodoSchema, type FechamentoItemId } from "@/core/financeiro/fechamento/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
-import { FechamentoItemCheckbox } from "./FechamentoItemCheckbox";
+import { alternarItemFechamento } from "./actions";
 
 // `?periodo=` muda o conteúdo da mesma rota — mesma razão de `caixa/page.tsx` e `caixa/checklist/page.tsx`.
 export const dynamic = "force-dynamic";
@@ -78,12 +79,13 @@ export default async function FechamentoPage({ searchParams }: FechamentoPagePro
 						<div className="divide-y divide-border">
 							{fechamento.linhas.map((linha) =>
 								linha.tipo === "fixo" ? (
-									<FechamentoItemCheckbox
+									<ChecklistItemToggle
 										key={linha.id}
-										id={linha.id as FechamentoItemId}
-										periodo={periodo}
 										label={linha.label}
 										concluido={linha.concluido}
+										onToggle={(concluido) =>
+											alternarItemFechamento({ periodo, itemId: linha.id as FechamentoItemId, concluido })
+										}
 									/>
 								) : (
 									<RitualChecklistItem key={linha.id} label={linha.label} concluido={linha.concluido} />

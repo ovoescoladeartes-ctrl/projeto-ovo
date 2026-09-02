@@ -4,21 +4,21 @@ import { useState, useTransition } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { ChecklistItemTipo } from "@/core/comunicacao/checklist/schema";
 import { cn } from "@/lib/utils";
 
-import { alternarItemChecklistComunicacao } from "./actions";
+export interface ChecklistToggleResult {
+	status: "ok" | "error";
+	message?: string;
+}
 
-interface ChecklistItemCheckboxProps {
-	dia: string;
-	tipo: ChecklistItemTipo;
-	itemId: string;
+interface ChecklistItemToggleProps {
 	label: string;
-	meta?: string;
 	concluido: boolean;
-	/** Nome de onde derivar as iniciais do avatar — só itens de contato têm (Figma: "Generic avatar"); item manual não. */
+	onToggle: (concluido: boolean) => Promise<ChecklistToggleResult>;
+	meta?: string;
+	/** Nome de onde derivar as iniciais do avatar (Figma: "Generic avatar") — só itens de contato têm. */
 	avatarNome?: string;
-	/** Estilo vermelho de "Pendências anteriores" (Figma: frame "4 · Checklist (vermelho)", aprovado como tratamento final). */
+	/** Estilo vermelho de pendência atrasada (Figma: frame "4 · Checklist (vermelho)"). */
 	destaque?: boolean;
 }
 
@@ -32,17 +32,13 @@ function iniciaisDoNome(nome: string): string {
 	return (primeira + ultima).toUpperCase();
 }
 
-/** Checkbox real do Checklist do Dia — mesmo padrão otimista de `RitualItemCheckbox`/`FechamentoItemCheckbox` (financeiro), reaproveitado aqui pra contato (com avatar) e item manual (`tipo`). */
-export function ChecklistItemCheckbox({
-	dia,
-	tipo,
-	itemId,
-	label,
-	meta,
-	concluido,
-	avatarNome,
-	destaque = false,
-}: ChecklistItemCheckboxProps): React.ReactElement {
+/**
+ * Checkbox otimista genérico — estado local + `useTransition` + revert em erro, chamando
+ * `onToggle` (a server action de cada domínio já parcialmente aplicada pelo caller). Cobre
+ * Ritual/Fechamento (financeiro) e Checklist do Dia/Materiais (comunicação): layout compacto por
+ * padrão, ou "rico" (avatar/meta/destaque) quando alguma dessas props é passada.
+ */
+export function ChecklistItemToggle({ label, concluido, onToggle, meta, avatarNome, destaque = false }: ChecklistItemToggleProps): React.ReactElement {
 	const [marcado, setMarcado] = useState(concluido);
 	const [isPending, startTransition] = useTransition();
 
@@ -50,11 +46,22 @@ export function ChecklistItemCheckbox({
 		const proximo = checked === true;
 		setMarcado(proximo);
 		startTransition(async () => {
-			const resultado = await alternarItemChecklistComunicacao({ dia, tipo, itemId, concluido: proximo });
+			const resultado = await onToggle(proximo);
 			if (resultado.status === "error") {
 				setMarcado(!proximo);
 			}
 		});
+	}
+
+	const rico = avatarNome !== undefined || meta !== undefined || destaque;
+
+	if (!rico) {
+		return (
+			<div className="flex items-center gap-3 py-1.5">
+				<Checkbox checked={marcado} disabled={isPending} onCheckedChange={handleCheckedChange} />
+				<span className={cn("text-sm", marcado ? "text-muted-foreground line-through" : "text-foreground")}>{label}</span>
+			</div>
+		);
 	}
 
 	return (
@@ -65,12 +72,7 @@ export function ChecklistItemCheckbox({
 				</Avatar>
 			) : null}
 			<div className="min-w-0 flex-1">
-				<p
-					className={cn(
-						"text-sm font-medium",
-						marcado ? "text-muted-foreground line-through" : destaque ? "text-red-700" : "text-foreground",
-					)}
-				>
+				<p className={cn("text-sm font-medium", marcado ? "text-muted-foreground line-through" : destaque ? "text-red-700" : "text-foreground")}>
 					{label}
 				</p>
 				{meta !== undefined ? (

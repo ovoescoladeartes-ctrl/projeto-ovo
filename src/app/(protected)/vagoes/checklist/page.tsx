@@ -1,6 +1,7 @@
 import { CheckCircle2 } from "lucide-react";
 import { redirect } from "next/navigation";
 
+import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { VAGOES_ROLES } from "@/core/dashboard/consultas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 import { AdicionarMaterialButton } from "./AdicionarMaterialButton";
-import { ChecklistItemCheckbox } from "./ChecklistItemCheckbox";
+import { alternarItemChecklistComunicacao } from "./actions";
 
 export default async function ChecklistComunicacaoPage(): Promise<React.ReactElement> {
 	const session = await getServerSession();
@@ -41,16 +42,16 @@ export default async function ChecklistComunicacaoPage(): Promise<React.ReactEle
 						<CardContent className="pt-0">
 							<div className="divide-y divide-border">
 								{checklist.pendenciasAnteriores.map((item) => (
-									<ChecklistItemCheckbox
+									<ChecklistItemToggle
 										key={item.contatoId}
-										dia={dia}
-										tipo="contato"
-										itemId={item.contatoId}
 										label={item.nome}
 										meta={`${item.canal} · vencido há ${item.diasAguardando} dia${item.diasAguardando === 1 ? "" : "s"}`}
 										concluido={item.concluido}
 										avatarNome={item.nome}
 										destaque
+										onToggle={(concluido) =>
+											alternarItemChecklistComunicacao({ dia, tipo: "contato", itemId: item.contatoId, concluido })
+										}
 									/>
 								))}
 							</div>
@@ -71,15 +72,15 @@ export default async function ChecklistComunicacaoPage(): Promise<React.ReactEle
 							) : bloco.itens.length > 0 ? (
 								<div className="divide-y divide-border">
 									{bloco.itens.map((item) => (
-										<ChecklistItemCheckbox
+										<ChecklistItemToggle
 											key={item.contatoId}
-											dia={dia}
-											tipo="contato"
-											itemId={item.contatoId}
 											label={item.nome}
 											meta={`${item.canal} · aguardando há ${item.diasAguardando} dia${item.diasAguardando === 1 ? "" : "s"}`}
 											concluido={item.concluido}
 											avatarNome={item.nome}
+											onToggle={(concluido) =>
+												alternarItemChecklistComunicacao({ dia, tipo: "contato", itemId: item.contatoId, concluido })
+											}
 										/>
 									))}
 								</div>
@@ -104,13 +105,13 @@ export default async function ChecklistComunicacaoPage(): Promise<React.ReactEle
 						<CardContent className="pt-0">
 							<div className="divide-y divide-border">
 								{checklist.manuais.map((item) => (
-									<ChecklistItemCheckbox
+									<ChecklistItemToggle
 										key={item.id}
-										dia={dia}
-										tipo="manual"
-										itemId={item.id}
 										label={item.titulo}
 										concluido={item.concluido}
+										onToggle={(concluido) =>
+											alternarItemChecklistComunicacao({ dia, tipo: "manual", itemId: item.id, concluido })
+										}
 									/>
 								))}
 							</div>
