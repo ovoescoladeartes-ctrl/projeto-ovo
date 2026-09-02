@@ -17,16 +17,14 @@ export interface NavItem {
 }
 
 /**
- * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752 pro esqueleto original;
- * o grupo "Caixa" com Checklist/Pendências/Fechamento veio de uma entrega posterior, node
- * 230-1791). Fonte única compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile
- * em tela cheia) — nunca duplique esta lista.
+ * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752). Fonte única
+ * compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela cheia) — nunca
+ * duplique esta lista.
  *
- * "Vagões" e "Caixa" são grupos expansíveis (Vagões: board + Checklist do Dia de Comunicação;
- * Caixa: Recebimentos + Checklist/Pendências/Fechamento do Ritual de Segunda) — `href: null`
+ * "Vagões" virou grupo expansível (o board + o Checklist do Dia de Comunicação) — `href: null`
  * porque, com `children` presente, a própria linha do grupo só expande/recolhe o submenu (ver
- * `AppSidebar`/`MobileNavSheet`); `/vagoes` e `/caixa` continuam existindo exatamente como antes,
- * só passam a ser alcançados pelo item filho, não mais clicando no nome do grupo diretamente.
+ * `AppSidebar`/`MobileNavSheet`); `/vagoes` continua existindo exatamente como antes, só passa a
+ * ser alcançado pelo item filho, não mais clicando no nome do grupo diretamente.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
@@ -42,18 +40,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 	},
 	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
-	{
-		label: "Caixa",
-		icon: Wallet,
-		href: null,
-		roles: ["admin", "financeiro"],
-		children: [
-			{ label: "Recebimentos", href: "/caixa" },
-			{ label: "Checklist", href: "/caixa/checklist" },
-			{ label: "Pendências", href: "/caixa/pendencias" },
-			{ label: "Fechamento", href: "/caixa/fechamento" },
-		],
-	},
+	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
 ];
 
 export function rotaAtiva(pathname: string, href: string): boolean {

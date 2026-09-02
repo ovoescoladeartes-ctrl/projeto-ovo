@@ -19,8 +19,6 @@ import {
 } from "@/core/dashboard/consultas";
 import { montarVisaoGeral } from "@/core/dashboard/visaoGeral";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
-import { buscarRitualDaSemana } from "@/core/financeiro/ritual/consultas";
-import { chaveSemana, formatarDataCurta, segundaFeiraDe } from "@/core/financeiro/ritual/semana";
 import { cn } from "@/lib/utils";
 
 export default async function HomePage(): Promise<React.ReactElement> {
@@ -34,17 +32,10 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const podeVerComunicacao = VAGOES_ROLES.includes(session.role);
 	const agora = new Date();
 	const firestore = getFirebaseAdminFirestore();
-	const semanaAtual = chaveSemana(segundaFeiraDe(agora));
 
 	const [visaoGeral, financeiro, comunicacao, checklistComunicacao] = await Promise.all([
 		podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
-		// `financeiro`/`ritual` sempre nascem juntos (mesmo flag `podeVerFinanceiro`) — combinados
-		// num único valor pra não precisar checar dois `!== null` redundantes na hora de renderizar.
-		podeVerFinanceiro
-			? Promise.all([montarKpisEPendenciasFinanceiro(firestore, agora), buscarRitualDaSemana(firestore, semanaAtual)]).then(
-					([dados, ritual]) => ({ ...dados, ritual }),
-				)
-			: null,
+		podeVerFinanceiro ? montarKpisEPendenciasFinanceiro(firestore, agora) : null,
 		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
 		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
 	]);
@@ -114,7 +105,6 @@ export default async function HomePage(): Promise<React.ReactElement> {
 								pendencias={financeiro.pendencias}
 								tendencia={financeiro.tendencia}
 								recebidoPorTurma={financeiro.recebidoPorTurma}
-								ritual={{ itens: financeiro.ritual.itens, semana: semanaAtual, dataLabel: formatarDataCurta(segundaFeiraDe(agora)) }}
 							/>
 						</TabsContent>
 					) : null}

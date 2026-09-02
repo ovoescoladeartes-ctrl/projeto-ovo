@@ -1,4 +1,9 @@
-import type { FunnelStageCount, KpiCardData, PendenciaItem } from "./types";
+import type {
+	FunnelStageCount,
+	KpiCardData,
+	PendenciaItem,
+	RitualChecklistItemData,
+} from "./types";
 
 export const mockKpisComunicacao: KpiCardData[] = [
 	{ label: "Alunos ativos", value: "23", subtitle: "por turma" },
@@ -63,6 +68,14 @@ export const mockPendenciasFinanceiro: PendenciaItem[] = [
 		titulo: "Ritual de segunda",
 		meta: "Reconciliação desta semana não concluída",
 	},
+];
+
+export const mockRitualChecklist: RitualChecklistItemData[] = [
+	{ id: "1", label: "Conferir entradas novas", concluido: true },
+	{ id: "2", label: "Confirmar Pix pendentes", concluido: true },
+	{ id: "3", label: "Revisar falhas de cobrança", concluido: false },
+	{ id: "4", label: "Checar repasses do dia 15", concluido: false },
+	{ id: "5", label: "Exportar relatório", concluido: false },
 ];
 
 export const mockAlertaCobranca = {

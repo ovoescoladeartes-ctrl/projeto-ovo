@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { getServerSession } from "@/core/auth/getServerSession";
-import { CAIXA_ROLES } from "@/core/dashboard/consultas";
+import type { Role } from "@/core/auth/Role";
 import type { KpiCardData } from "@/core/dashboard/types";
 import type { Recebimento } from "@/core/financeiro/recebimentos/schema";
 import type { Repasse } from "@/core/financeiro/repasses/schema";
@@ -20,6 +20,8 @@ import { NovoRepasseDialog } from "./NovoRepasseDialog";
 // Router do Next em vez de buscar dados frescos no servidor (mesma causa raiz corrigida em
 // pessoas/turmas/page.tsx).
 export const dynamic = "force-dynamic";
+
+const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
 interface RecebimentoDoc {
 	pessoaId: string;

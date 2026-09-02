@@ -3,20 +3,26 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { getServerSession } from "@/core/auth/getServerSession";
+import type { Role } from "@/core/auth/Role";
 import { recebimentoInputSchema } from "@/core/financeiro/recebimentos/schema";
 import { repasseInputSchema } from "@/core/financeiro/repasses/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
-
-import { autorizarAcaoCaixa } from "./authGuard";
 
 export interface ActionResult {
 	status: "ok" | "error";
 	message?: string;
 }
 
+const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
+
+function podeGerenciarCaixa(role: Role): boolean {
+	return CAIXA_ROLES.includes(role);
+}
+
 export async function criarRecebimento(input: unknown): Promise<ActionResult> {
-	const session = await autorizarAcaoCaixa();
-	if (session === null) {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarCaixa(session.role)) {
 		return { status: "error", message: "Sem permissão para registrar recebimentos." };
 	}
 
@@ -44,8 +50,8 @@ export async function criarRecebimento(input: unknown): Promise<ActionResult> {
 }
 
 export async function criarRepasse(input: unknown): Promise<ActionResult> {
-	const session = await autorizarAcaoCaixa();
-	if (session === null) {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarCaixa(session.role)) {
 		return { status: "error", message: "Sem permissão para registrar repasses." };
 	}
 
@@ -78,8 +84,8 @@ const idSchema = z.string().min(1);
  * sem precisar de transação Firestore aqui (decisão do plano v1).
  */
 export async function marcarRepasseComoPago(id: unknown): Promise<ActionResult> {
-	const session = await autorizarAcaoCaixa();
-	if (session === null) {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarCaixa(session.role)) {
 		return { status: "error", message: "Sem permissão para alterar repasses." };
 	}
 

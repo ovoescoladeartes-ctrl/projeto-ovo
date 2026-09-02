@@ -1,6 +1,10 @@
 import type { Recebimento } from "@/core/financeiro/recebimentos/schema";
 import type { Repasse } from "@/core/financeiro/repasses/schema";
-import { formatarAnoMes } from "@/core/financeiro/shared";
+
+function anoMesAtual(): string {
+	const agora = new Date();
+	return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
+}
 
 /**
  * Saldo vivo = confirmado − repasses pagos. Wix retido NÃO entra (decisão fechada v1) —
@@ -25,7 +29,7 @@ export function calcularSaldoVivo(
 }
 
 export function calcularRecebidoNoMes(recebimentos: Pick<Recebimento, "status" | "dataRecebimento" | "valorCentavos">[]): number {
-	const anoMes = formatarAnoMes(new Date());
+	const anoMes = anoMesAtual();
 
 	return recebimentos
 		.filter(
