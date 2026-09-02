@@ -76,7 +76,6 @@ export async function alternarItemChecklistComunicacao(input: unknown): Promise<
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes/checklist");
 	revalidatePath("/");
 	return { status: "ok" };
 }
@@ -104,7 +103,6 @@ export async function criarItemManualChecklist(input: unknown): Promise<ActionRe
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes/checklist");
 	revalidatePath("/");
 	return { status: "ok" };
 }

@@ -192,9 +192,9 @@ export async function montarKpisEPendenciasFinanceiro(
 
 	// Cada categoria já é limitada a `PENDENCIAS_LIMITE` individualmente (acima/abaixo), mas isso
 	// nunca foi um teto do total — com 3 categorias, o total combinado podia chegar a 3x esse
-	// número. Essa lista alimenta especificamente a prévia da Home (`montarKpisEPendenciasFinanceiro`
-	// só é usada por `page.tsx`); `/caixa/pendencias` continua exaustivo via `montarPendenciasAcionaveis`,
-	// que não é afetado por este corte. O `.slice` final preserva a ordem de mescla já existente
+	// número. Essa lista alimenta especificamente a `PendenciasList` da Home (`montarKpisEPendenciasFinanceiro`
+	// só é usada por `page.tsx`); o Checklist Financeiro (`montarPendenciasAcionaveis`) é outra lista,
+	// não afetada por este corte. O `.slice` final preserva a ordem de mescla já existente
 	// (recebimentos pendentes → repasses a vencer → pendências herdadas do Ritual, a mesma ordem do
 	// Figma) como critério de prioridade — só reduz o total, sem reordenar nada.
 	const pendencias: PendenciaItem[] = [
@@ -215,7 +215,7 @@ export async function montarKpisEPendenciasFinanceiro(
 			};
 		}),
 		// Figma (frame "home-wireframe-financeiro") mostra o item herdado do Ritual como a última
-		// linha da lista de pendências — mesma fonte já usada em `/caixa/checklist` e `/caixa/pendencias`.
+		// linha da lista de pendências — mesma fonte já usada no Checklist Financeiro do Dashboard.
 		...pendenciasRitualHerdadas.slice(0, PENDENCIAS_LIMITE),
 	].slice(0, PENDENCIAS_LIMITE);
 

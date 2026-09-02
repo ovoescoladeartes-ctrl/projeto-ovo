@@ -100,7 +100,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 					{comunicacao !== null && checklistComunicacao !== null ? (
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
-							<VagoesChecklist checklist={checklistComunicacao} />
+							<VagoesChecklist dia={chaveDia(agora)} checklist={checklistComunicacao} />
 							<FunnelStageRow items={comunicacao.funil} />
 							<PendenciasList items={comunicacao.pendencias} />
 						</TabsContent>
