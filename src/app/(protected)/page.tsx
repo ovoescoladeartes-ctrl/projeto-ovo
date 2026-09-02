@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
 import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
@@ -10,6 +11,7 @@ import { VisaoGeralContent } from "@/components/dashboard/VisaoGeralContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
+import { buscarItensMateriais } from "@/core/comunicacao/materiais/consultas";
 import {
 	CAIXA_ROLES,
 	GERAL_ROLES,
@@ -36,17 +38,27 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const agora = new Date();
 	const firestore = getFirebaseAdminFirestore();
 
-	const [visaoGeral, financeiro, comunicacao, checklistComunicacao, ritualDaSemana, pendenciasAcionaveis, pendenciasHerdadas, fechamento] =
-		await Promise.all([
-			podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
-			podeVerFinanceiro ? montarKpisEPendenciasFinanceiro(firestore, agora) : null,
-			podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
-			podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
-			podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
-			podeVerFinanceiro ? montarPendenciasAcionaveis(firestore, agora) : null,
-			podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
-			podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
-		]);
+	const [
+		visaoGeral,
+		financeiro,
+		comunicacao,
+		checklistComunicacao,
+		ritualDaSemana,
+		pendenciasAcionaveis,
+		pendenciasHerdadas,
+		fechamento,
+		itensMateriais,
+	] = await Promise.all([
+		podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
+		podeVerFinanceiro ? montarKpisEPendenciasFinanceiro(firestore, agora) : null,
+		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
+		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
+		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
+		podeVerFinanceiro ? montarPendenciasAcionaveis(firestore, agora) : null,
+		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
+		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
+		podeVerComunicacao ? buscarItensMateriais(firestore) : null,
+	]);
 
 	const abaPadrao = podeVerGeral ? "geral" : podeVerFinanceiro ? "financeiro" : "comunicacao";
 
@@ -97,10 +109,11 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						</TabsContent>
 					) : null}
 
-					{comunicacao !== null && checklistComunicacao !== null ? (
+					{comunicacao !== null && checklistComunicacao !== null && itensMateriais !== null ? (
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
 							<VagoesChecklist dia={chaveDia(agora)} checklist={checklistComunicacao} />
+							<ChecklistMateriais itens={itensMateriais} />
 							<FunnelStageRow items={comunicacao.funil} />
 							<PendenciasList items={comunicacao.pendencias} />
 						</TabsContent>
