@@ -46,6 +46,10 @@ export async function criarRecebimento(input: unknown): Promise<ActionResult> {
 	}
 
 	revalidatePath("/caixa");
+	// /caixa/pendencias e a Home (`/`) também leem recebimentos/repasses (Financeiro checklist) —
+	// sem isso, ficam mostrando dado desatualizado depois desta mutação.
+	revalidatePath("/caixa/pendencias");
+	revalidatePath("/");
 	return { status: "ok" };
 }
 
@@ -74,6 +78,10 @@ export async function criarRepasse(input: unknown): Promise<ActionResult> {
 	}
 
 	revalidatePath("/caixa");
+	// /caixa/pendencias e a Home (`/`) também leem recebimentos/repasses (Financeiro checklist) —
+	// sem isso, ficam mostrando dado desatualizado depois desta mutação.
+	revalidatePath("/caixa/pendencias");
+	revalidatePath("/");
 	return { status: "ok" };
 }
 
@@ -111,5 +119,9 @@ export async function marcarRepasseComoPago(id: unknown): Promise<ActionResult> 
 	}
 
 	revalidatePath("/caixa");
+	// /caixa/pendencias e a Home (`/`) também leem recebimentos/repasses (Financeiro checklist) —
+	// sem isso, ficam mostrando dado desatualizado depois desta mutação.
+	revalidatePath("/caixa/pendencias");
+	revalidatePath("/");
 	return { status: "ok" };
 }
