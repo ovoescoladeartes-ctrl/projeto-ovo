@@ -36,14 +36,16 @@ export function FinanceiroContent({
 		<div className="flex flex-col gap-6">
 			<KpiCardsGrid items={kpis} />
 
-			<ChecklistFinanceiro
-				semana={ritual.semana}
-				passosRitual={ritual.itens}
-				pendenciasAcionaveis={pendenciasAcionaveis}
-				pendenciasHerdadas={pendenciasHerdadas}
-			/>
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				<ChecklistFinanceiro
+					semana={ritual.semana}
+					passosRitual={ritual.itens}
+					pendenciasAcionaveis={pendenciasAcionaveis}
+					pendenciasHerdadas={pendenciasHerdadas}
+				/>
 
-			<ChecklistFechamento fechamento={fechamento} />
+				<ChecklistFechamento fechamento={fechamento} />
+			</div>
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<Card className="min-w-0 p-5">
