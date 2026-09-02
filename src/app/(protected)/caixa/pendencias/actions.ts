@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import { resolverPendenciaManualSchema } from "@/core/financeiro/pendencias/schema";
+import { criarPendenciaManualSchema, resolverPendenciaManualSchema } from "@/core/financeiro/pendencias/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -16,6 +16,30 @@ const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
 function podeGerenciarCaixa(role: Role): boolean {
 	return CAIXA_ROLES.includes(role);
+}
+
+/** Cria uma pendência manual aberta (ex.: "Nota fiscal faltando") — schema já existia (`criarPendenciaManualSchema`), faltava a action que o usa. */
+export async function criarPendenciaManual(input: unknown): Promise<ActionResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarCaixa(session.role)) {
+		return { status: "error", message: "Sem permissão para criar pendências." };
+	}
+
+	const parsed = criarPendenciaManualSchema.safeParse(input);
+	if (!parsed.success) {
+		return { status: "error", message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+	}
+
+	try {
+		await getFirebaseAdminFirestore()
+			.collection("pendenciasManuais")
+			.add({ ...parsed.data, status: "aberta", criadoEm: new Date() });
+	} catch {
+		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
+	}
+
+	revalidatePath("/");
+	return { status: "ok" };
 }
 
 /**
@@ -49,6 +73,6 @@ export async function resolverPendenciaManual(input: unknown): Promise<ActionRes
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/caixa/pendencias");
+	revalidatePath("/");
 	return { status: "ok" };
 }

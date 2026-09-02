@@ -3,16 +3,13 @@ import { z } from "zod";
 import type { PendenciaItem } from "@/core/dashboard/types";
 
 /**
- * Itens fixos do "Ritual de Segunda" (Figma: frame "Checklist — Ritual de Segunda", node
- * 239-2311) — v1 não permite personalização, só o estado de conclusão por semana é real.
+ * Passos manuais do Ritual de Segunda que sobram sem contraparte de dado real (Figma: frame
+ * "Checklist — Ritual de Segunda", node 239-2311) — v1 não permite personalização, só o estado de
+ * conclusão por semana é real. "Checar repasses do dia 15" e "Confirmar Pix pendentes" saíram
+ * daqui: viraram pendências reais (`montarPendenciasAcionaveis`, repasse a vencer / Pix pendente)
+ * dentro do Checklist Financeiro do Dashboard, em vez de um toggle manual sem verificação.
  */
-export const RITUAL_ITEM_IDS = [
-	"checar-repasses",
-	"exportar-relatorio",
-	"conferir-entradas",
-	"confirmar-pix",
-	"revisar-falhas",
-] as const;
+export const RITUAL_ITEM_IDS = ["exportar-relatorio", "conferir-entradas", "revisar-falhas"] as const;
 
 export type RitualItemId = (typeof RITUAL_ITEM_IDS)[number];
 
@@ -22,10 +19,8 @@ export interface RitualItemDefinicao {
 }
 
 export const RITUAL_ITENS: readonly RitualItemDefinicao[] = [
-	{ id: "checar-repasses", label: "Checar repasses do dia 15" },
 	{ id: "exportar-relatorio", label: "Exportar relatório semanal" },
 	{ id: "conferir-entradas", label: "Conferir entradas novas" },
-	{ id: "confirmar-pix", label: "Confirmar Pix pendentes" },
 	{ id: "revisar-falhas", label: "Revisar falhas de cobrança" },
 ];
 
