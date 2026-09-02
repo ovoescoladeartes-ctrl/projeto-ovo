@@ -30,6 +30,9 @@ export function ChecklistFechamento({ fechamento }: ChecklistFechamentoProps): R
 					</Badge>
 				</CardHeader>
 				<CardContent className="pt-0">
+					<p className="mb-3 text-sm text-muted-foreground">
+						Itens fixos de fechamento e a reconciliação das semanas do mês.
+					</p>
 					<Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
 						Ver checklist completo
 					</Button>

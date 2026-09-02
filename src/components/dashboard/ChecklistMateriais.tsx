@@ -35,6 +35,7 @@ export function ChecklistMateriais({ itens }: ChecklistMateriaisProps): React.Re
 					</Badge>
 				</CardHeader>
 				<CardContent className="pt-0">
+					<p className="mb-3 text-sm text-muted-foreground">Lista de compra: adicione itens e marque como comprados.</p>
 					<Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
 						Ver checklist completo
 					</Button>
