@@ -9,8 +9,17 @@ export type ArquivadoMotivo = (typeof ARQUIVADO_MOTIVOS)[number];
 export const CANAIS = ["whatsapp", "instagram", "indicacao", "site", "outro"] as const;
 export type Canal = (typeof CANAIS)[number];
 
+/** Detecta um par de tag HTML (`<algo>`/`</algo>`) — pega o caso real já visto em produção (alguém colou o HTML de uma linha da tabela de Pessoas, em vez do nome em texto puro), sem reagir a um `<`/`>` solto que porventura apareça num nome legítimo. */
+const PARECE_MARCACAO_HTML = /<\/?[a-z][^<>]*>/i;
+
+const nomeContatoSchema = z
+	.string()
+	.trim()
+	.min(1, "Nome é obrigatório.")
+	.refine((valor) => !PARECE_MARCACAO_HTML.test(valor), "Nome não pode conter marcação HTML — cole só o texto, não o código da página.");
+
 export const novoContatoInputSchema = z.object({
-	nome: z.string().trim().min(1, "Nome é obrigatório."),
+	nome: nomeContatoSchema,
 	canal: z.enum(CANAIS),
 	interesseInicial: z.string().trim().min(1, "Conte o que a pessoa perguntou."),
 	interesses: z.array(z.string()).default([]),
@@ -49,7 +58,7 @@ export interface Contato {
 
 export const editarContatoInputSchema = z.object({
 	id: z.string().min(1),
-	nome: z.string().trim().min(1, "Nome é obrigatório."),
+	nome: nomeContatoSchema,
 	canal: z.enum(CANAIS),
 	interesseInicial: z.string().trim().min(1, "Conte o que a pessoa perguntou."),
 	interesses: z.array(z.string()).default([]),
