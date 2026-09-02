@@ -2,11 +2,13 @@
 
 import { RankingHorizontal } from "@/components/dashboard/charts/RankingHorizontal";
 import { SerieMensalBarras } from "@/components/dashboard/charts/SerieMensalBarras";
+import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
 import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { Card } from "@/components/ui/card";
 import type { KpiCardData, PendenciaItem } from "@/core/dashboard/types";
+import type { FechamentoConsolidado } from "@/core/financeiro/fechamento/schema";
 import type { PendenciaAcionavel } from "@/core/financeiro/pendencias/schema";
 import type { RitualSemana, RitualPendenciaHerdada } from "@/core/financeiro/ritual/schema";
 import type { PontoSerieMensal, RankingTurma } from "@/core/financeiro/series";
@@ -20,6 +22,7 @@ interface FinanceiroContentProps {
 	ritual: RitualSemana;
 	pendenciasAcionaveis: PendenciaAcionavel[];
 	pendenciasHerdadas: RitualPendenciaHerdada[];
+	fechamento: FechamentoConsolidado;
 }
 
 export function FinanceiroContent({
@@ -30,6 +33,7 @@ export function FinanceiroContent({
 	ritual,
 	pendenciasAcionaveis,
 	pendenciasHerdadas,
+	fechamento,
 }: FinanceiroContentProps): React.ReactElement {
 	return (
 		<div className="flex flex-col gap-6">
@@ -41,6 +45,8 @@ export function FinanceiroContent({
 				pendenciasAcionaveis={pendenciasAcionaveis}
 				pendenciasHerdadas={pendenciasHerdadas}
 			/>
+
+			<ChecklistFechamento fechamento={fechamento} />
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<Card className="min-w-0 p-5">
