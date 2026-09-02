@@ -5,7 +5,6 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
 import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
-import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { VagoesChecklist } from "@/components/dashboard/VagoesChecklist";
 import { VisaoGeralContent } from "@/components/dashboard/VisaoGeralContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -115,7 +114,6 @@ export default async function HomePage(): Promise<React.ReactElement> {
 							<VagoesChecklist dia={chaveDia(agora)} checklist={checklistComunicacao} />
 							<ChecklistMateriais itens={itensMateriais} />
 							<FunnelStageRow items={comunicacao.funil} />
-							<PendenciasList items={comunicacao.pendencias} />
 						</TabsContent>
 					) : null}
 
@@ -127,7 +125,6 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						<TabsContent value="financeiro" className="mt-6 flex flex-col gap-6">
 							<FinanceiroContent
 								kpis={financeiro.kpis}
-								pendencias={financeiro.pendencias}
 								tendencia={financeiro.tendencia}
 								recebidoPorTurma={financeiro.recebidoPorTurma}
 								ritual={ritualDaSemana}

@@ -5,15 +5,11 @@ import type { Timestamp } from "firebase-admin/firestore";
 import { ROLES, type Role } from "@/core/auth/Role";
 import { BUCKETS, bucketKeyDe } from "@/core/comunicacao/buckets";
 import type { ArquivadoMotivo, Estagio } from "@/core/comunicacao/contatos/schema";
-import { contatoEhPendente, diasDesde, TITULO_PENDENCIA_POR_ESTAGIO } from "@/core/comunicacao/pendencias";
-import { calcularUrgencia } from "@/core/comunicacao/urgencia";
-import type { FunnelStageCount, KpiCardData, PendenciaItem } from "@/core/dashboard/types";
+import type { FunnelStageCount, KpiCardData } from "@/core/dashboard/types";
 import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
 import type { DestinoTipo, RepasseStatus } from "@/core/financeiro/repasses/schema";
 import { calcularRecebidoNoMes, calcularSaldoVivo, listarRepassesAVencer } from "@/core/financeiro/saldo";
 import { calcularRecebidoPorTurma, calcularSerieMensalRecebido, type PontoSerieMensal, type RankingTurma } from "@/core/financeiro/series";
-import { buscarPendenciasRitualHerdadas } from "@/core/financeiro/ritual/consultas";
-import { destinoRepasseLabel } from "@/core/financeiro/shared";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
 
@@ -27,7 +23,6 @@ export const VAGOES_ROLES: readonly Role[] = ["admin", "comunicacao"];
  */
 export const GERAL_ROLES: readonly Role[] = ROLES;
 const REPASSES_JANELA_DIAS = 7;
-const PENDENCIAS_LIMITE = 5;
 const MESES_TENDENCIA = 6;
 const TOP_N_TURMAS = 5;
 
@@ -53,10 +48,6 @@ interface RepasseDoc {
 	ativo: boolean;
 }
 
-interface PessoaDoc {
-	nome: string;
-}
-
 interface ContatoDoc {
 	nome: string;
 	estagio: string;
@@ -64,13 +55,6 @@ interface ContatoDoc {
 	estagioAtualizadoEm?: Timestamp;
 	criadoEm?: Timestamp;
 	ativo: boolean;
-}
-
-function diasAte(iso: string | null, agora: Date): number {
-	if (iso === null) {
-		return 0;
-	}
-	return Math.ceil((new Date(iso).getTime() - agora.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 interface RecebimentoResumo {
@@ -105,22 +89,14 @@ export async function montarKpisEPendenciasFinanceiro(
 	agora: Date,
 ): Promise<{
 	kpis: KpiCardData[];
-	pendencias: PendenciaItem[];
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
 }> {
-	const [recebimentosSnapshot, repassesSnapshot, pessoasSnapshot, turmasSnapshot, pendenciasRitualHerdadas] = await Promise.all([
+	const [recebimentosSnapshot, repassesSnapshot, turmasSnapshot] = await Promise.all([
 		firestore.collection("recebimentos").get(),
 		firestore.collection("repasses").get(),
-		firestore.collection("pessoas").get(),
 		firestore.collection("turmas").get(),
-		buscarPendenciasRitualHerdadas(firestore, agora),
 	]);
-
-	const pessoasNomes: Record<string, string> = {};
-	pessoasSnapshot.docs.forEach((doc) => {
-		pessoasNomes[doc.id] = (doc.data() as PessoaDoc).nome;
-	});
 
 	const turmasNomes: Record<string, string> = {};
 	turmasSnapshot.docs.forEach((doc) => {
@@ -186,49 +162,16 @@ export async function montarKpisEPendenciasFinanceiro(
 		},
 	];
 
-	const recebimentosPendentes = recebimentosPendentesTodos.slice(0, PENDENCIAS_LIMITE);
-
-	const repassesAVencer = repassesAVencerTodos.slice(0, PENDENCIAS_LIMITE);
-
-	// Cada categoria já é limitada a `PENDENCIAS_LIMITE` individualmente (acima/abaixo), mas isso
-	// nunca foi um teto do total — com 3 categorias, o total combinado podia chegar a 3x esse
-	// número. Essa lista alimenta especificamente a `PendenciasList` da Home (`montarKpisEPendenciasFinanceiro`
-	// só é usada por `page.tsx`); o Checklist Financeiro (`montarPendenciasAcionaveis`) é outra lista,
-	// não afetada por este corte. O `.slice` final preserva a ordem de mescla já existente
-	// (recebimentos pendentes → repasses a vencer → pendências herdadas do Ritual, a mesma ordem do
-	// Figma) como critério de prioridade — só reduz o total, sem reordenar nada.
-	const pendencias: PendenciaItem[] = [
-		...recebimentosPendentes.map((recebimento) => ({
-			id: `recebimento-${recebimento.id}`,
-			icon: "info" as const,
-			titulo: "Recebimento pendente",
-			meta: `${pessoasNomes[recebimento.pessoaId] ?? "Pessoa"} · ${formatCentavos(recebimento.valorCentavos)} aguardando confirmação`,
-		})),
-		...repassesAVencer.map((repasse) => {
-			const dias = diasAte(repasse.vencimento, agora);
-			const prazo = dias < 0 ? `venceu há ${Math.abs(dias)}d` : dias === 0 ? "vence hoje" : `vence em ${dias}d`;
-			return {
-				id: `repasse-${repasse.id}`,
-				icon: "prazo" as const,
-				titulo: "Repasse a vencer",
-				meta: `${destinoRepasseLabel(repasse, pessoasNomes)} · ${prazo}`,
-			};
-		}),
-		// Figma (frame "home-wireframe-financeiro") mostra o item herdado do Ritual como a última
-		// linha da lista de pendências — mesma fonte já usada no Checklist Financeiro do Dashboard.
-		...pendenciasRitualHerdadas.slice(0, PENDENCIAS_LIMITE),
-	].slice(0, PENDENCIAS_LIMITE);
-
 	const tendencia = calcularSerieMensalRecebido(recebimentos, MESES_TENDENCIA, agora);
 	const recebidoPorTurma = calcularRecebidoPorTurma(recebimentos, turmasNomes, TOP_N_TURMAS);
 
-	return { kpis, pendencias, tendencia, recebidoPorTurma };
+	return { kpis, tendencia, recebidoPorTurma };
 }
 
 export async function montarKpisEPendenciasComunicacao(
 	firestore: FirebaseFirestore.Firestore,
 	agora: Date,
-): Promise<{ kpis: KpiCardData[]; funil: FunnelStageCount[]; pendencias: PendenciaItem[] }> {
+): Promise<{ kpis: KpiCardData[]; funil: FunnelStageCount[] }> {
 	const contatosSnapshot = await firestore
 		.collection("contatos")
 		.where("ativo", "==", true)
@@ -277,15 +220,5 @@ export async function montarKpisEPendenciasComunicacao(
 		{ icon: "convertidos", label: "Convertidos no mês", value: String(convertidosNoMes.length), subtitle: "Viraram aluno" },
 	];
 
-	const pendencias: PendenciaItem[] = contatos
-		.filter((contato) => contatoEhPendente(contato.estagio, contato.estagioAtualizadoEm, agora))
-		.slice(0, PENDENCIAS_LIMITE)
-		.map((contato) => ({
-			id: `contato-${contato.id}`,
-			icon: calcularUrgencia(contato.estagioAtualizadoEm, agora) === "urgente" ? ("erro" as const) : ("aviso" as const),
-			titulo: TITULO_PENDENCIA_POR_ESTAGIO[contato.estagio] ?? "Aguardando atualização",
-			meta: `${contato.nome} · ${diasDesde(contato.estagioAtualizadoEm, agora)}d sem atualização`,
-		}));
-
-	return { kpis, funil, pendencias };
+	return { kpis, funil };
 }

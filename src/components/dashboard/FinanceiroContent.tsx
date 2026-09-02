@@ -5,9 +5,8 @@ import { SerieMensalBarras } from "@/components/dashboard/charts/SerieMensalBarr
 import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
 import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
-import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { Card } from "@/components/ui/card";
-import type { KpiCardData, PendenciaItem } from "@/core/dashboard/types";
+import type { KpiCardData } from "@/core/dashboard/types";
 import type { FechamentoConsolidado } from "@/core/financeiro/fechamento/schema";
 import type { PendenciaAcionavel } from "@/core/financeiro/pendencias/schema";
 import type { RitualSemana, RitualPendenciaHerdada } from "@/core/financeiro/ritual/schema";
@@ -16,7 +15,6 @@ import { formatCentavos, formatCentavosCompacto } from "@/lib/currency";
 
 interface FinanceiroContentProps {
 	kpis: KpiCardData[];
-	pendencias: PendenciaItem[];
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
 	ritual: RitualSemana;
@@ -27,7 +25,6 @@ interface FinanceiroContentProps {
 
 export function FinanceiroContent({
 	kpis,
-	pendencias,
 	tendencia,
 	recebidoPorTurma,
 	ritual,
@@ -79,8 +76,6 @@ export function FinanceiroContent({
 					</div>
 				</Card>
 			</div>
-
-			<PendenciasList items={pendencias} />
 		</div>
 	);
 }
