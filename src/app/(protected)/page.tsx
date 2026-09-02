@@ -18,6 +18,7 @@ import {
 	VAGOES_ROLES,
 } from "@/core/dashboard/consultas";
 import { montarVisaoGeral } from "@/core/dashboard/visaoGeral";
+import { buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { cn } from "@/lib/utils";
 
@@ -33,11 +34,12 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const agora = new Date();
 	const firestore = getFirebaseAdminFirestore();
 
-	const [visaoGeral, financeiro, comunicacao, checklistComunicacao] = await Promise.all([
+	const [visaoGeral, financeiro, comunicacao, checklistComunicacao, ritualDaSemana] = await Promise.all([
 		podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
 		podeVerFinanceiro ? montarKpisEPendenciasFinanceiro(firestore, agora) : null,
 		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
 		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
+		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
 	]);
 
 	const abaPadrao = podeVerGeral ? "geral" : podeVerFinanceiro ? "financeiro" : "comunicacao";
@@ -98,13 +100,14 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						</TabsContent>
 					) : null}
 
-					{financeiro !== null ? (
+					{financeiro !== null && ritualDaSemana !== null ? (
 						<TabsContent value="financeiro" className="mt-6 flex flex-col gap-6">
 							<FinanceiroContent
 								kpis={financeiro.kpis}
 								pendencias={financeiro.pendencias}
 								tendencia={financeiro.tendencia}
 								recebidoPorTurma={financeiro.recebidoPorTurma}
+								ritual={ritualDaSemana}
 							/>
 						</TabsContent>
 					) : null}

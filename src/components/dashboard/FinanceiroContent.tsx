@@ -4,8 +4,10 @@ import { RankingHorizontal } from "@/components/dashboard/charts/RankingHorizont
 import { SerieMensalBarras } from "@/components/dashboard/charts/SerieMensalBarras";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { RitualChecklist } from "@/components/dashboard/RitualChecklist";
 import { Card } from "@/components/ui/card";
 import type { KpiCardData, PendenciaItem } from "@/core/dashboard/types";
+import type { RitualSemana } from "@/core/financeiro/ritual/schema";
 import type { PontoSerieMensal, RankingTurma } from "@/core/financeiro/series";
 import { formatCentavos, formatCentavosCompacto } from "@/lib/currency";
 
@@ -14,12 +16,15 @@ interface FinanceiroContentProps {
 	pendencias: PendenciaItem[];
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
+	ritual: RitualSemana;
 }
 
-export function FinanceiroContent({ kpis, pendencias, tendencia, recebidoPorTurma }: FinanceiroContentProps): React.ReactElement {
+export function FinanceiroContent({ kpis, pendencias, tendencia, recebidoPorTurma, ritual }: FinanceiroContentProps): React.ReactElement {
 	return (
 		<div className="flex flex-col gap-6">
 			<KpiCardsGrid items={kpis} />
+
+			<RitualChecklist items={ritual.itens} />
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<Card className="min-w-0 p-5">
