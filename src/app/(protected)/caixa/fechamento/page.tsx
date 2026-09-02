@@ -1,20 +1,22 @@
 import { redirect } from "next/navigation";
 
-import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
+import { RitualChecklistItem } from "@/components/dashboard/RitualChecklistItem";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getServerSession } from "@/core/auth/getServerSession";
-import { CAIXA_ROLES } from "@/core/dashboard/consultas";
-import type { KpiCardData } from "@/core/dashboard/types";
-import { buscarFechamentoDoMes } from "@/core/financeiro/fechamento/consultas";
-import { chavePeriodo, chavePeriodoValida } from "@/core/financeiro/fechamento/periodo";
+import type { Role } from "@/core/auth/Role";
+import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
+import { periodoSchema, type FechamentoItemId } from "@/core/financeiro/fechamento/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
-import { FechamentoItemRow } from "./FechamentoItemRow";
+import { FechamentoItemCheckbox } from "./FechamentoItemCheckbox";
 
-// `?periodo=` muda o conteúdo da mesma rota — mesma razão de `caixa/page.tsx`.
+// `?periodo=` muda o conteúdo da mesma rota — mesma razão de `caixa/page.tsx` e `caixa/checklist/page.tsx`.
 export const dynamic = "force-dynamic";
+
+const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
 interface FechamentoPageProps {
 	searchParams: Promise<{ periodo?: string }>;
@@ -27,20 +29,11 @@ export default async function FechamentoPage({ searchParams }: FechamentoPagePro
 	}
 
 	const filtros = await searchParams;
-	const periodo = filtros.periodo !== undefined && chavePeriodoValida(filtros.periodo) ? filtros.periodo : chavePeriodo(new Date());
+	const agora = new Date();
+	const periodoPadrao = chavePeriodoDoMes(agora);
+	const periodo = filtros.periodo !== undefined && periodoSchema.safeParse(filtros.periodo).success ? filtros.periodo : periodoPadrao;
 
 	const fechamento = await buscarFechamentoDoMes(getFirebaseAdminFirestore(), periodo);
-
-	const kpis: KpiCardData[] = [
-		{ label: "Semanas Fechadas", value: `${fechamento.semanasFechadas} semanas`, subtitle: `de ${fechamento.totalSemanas} no período` },
-		{
-			label: "Pendências Restantes",
-			value: `${fechamento.pendenciasRestantes} pendência${fechamento.pendenciasRestantes === 1 ? "" : "s"}`,
-			subtitle: "itens ainda não concluídos",
-		},
-		{ label: "Período de Referência", value: fechamento.periodoLabel, subtitle: "mês de referência do fechamento" },
-	];
-
 	const concluidos = fechamento.linhas.filter((linha) => linha.concluido).length;
 
 	return (
@@ -51,39 +44,67 @@ export default async function FechamentoPage({ searchParams }: FechamentoPagePro
 			</div>
 
 			<div className="flex flex-col gap-6">
-				<KpiCardsGrid items={kpis} />
+				{/* Figma mostra só rótulo+valor (2 linhas) nesses 3 cards — diferente do 3º texto
+				("subtitle") que `KpiCard`/`KpiCardData` exigem, então esses cards são montados
+				diretamente com `Card` (mesmas classes de `KpiCard`) em vez de reaproveitar
+				`KpiCardsGrid`, que forçaria inventar uma legenda que não existe no Figma. */}
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+					<Card className="min-w-0 p-5">
+						<p className="text-xs font-medium text-muted-foreground">Semanas Fechadas</p>
+						<p className="mt-2 text-3xl font-bold text-foreground">
+							{fechamento.semanasFechadas} semana{fechamento.semanasFechadas === 1 ? "" : "s"}
+						</p>
+					</Card>
+					<Card className="min-w-0 p-5">
+						<p className="text-xs font-medium text-muted-foreground">Pendências Restantes</p>
+						<p className="mt-2 text-3xl font-bold text-foreground">
+							{fechamento.pendenciasRestantes} pendência{fechamento.pendenciasRestantes === 1 ? "" : "s"}
+						</p>
+					</Card>
+					<Card className="min-w-0 p-5">
+						<p className="text-xs font-medium text-muted-foreground">Período de Referência</p>
+						<p className="mt-2 text-3xl font-bold text-foreground">{fechamento.periodoLabel}</p>
+					</Card>
+				</div>
 
-				<section>
-					<div className="mb-3 flex items-center justify-between gap-2">
-						<h2 className="text-base font-semibold text-foreground">Checklist Consolidado de Fechamento — {fechamento.periodoLabel}</h2>
-						<span className="shrink-0 text-sm text-muted-foreground">
+				<Card>
+					<CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+						<CardTitle className="text-base">Checklist Consolidado de Fechamento — {fechamento.periodoLabel}</CardTitle>
+						<Badge variant="secondary">
 							{concluidos} de {fechamento.linhas.length} concluídos
-						</span>
-					</div>
-					<div className="divide-y divide-border overflow-hidden rounded-xl border border-l-4 border-border border-l-foreground bg-card">
-						{fechamento.linhas.map((linha) => (
-							<FechamentoItemRow
-								key={linha.id}
-								id={linha.id}
-								label={linha.label}
-								concluido={linha.concluido}
-								editavel={linha.editavel}
-								periodo={periodo}
-							/>
-						))}
-					</div>
-				</section>
+						</Badge>
+					</CardHeader>
+					<CardContent className="pt-0">
+						<div className="divide-y divide-border">
+							{fechamento.linhas.map((linha) =>
+								linha.tipo === "fixo" ? (
+									<FechamentoItemCheckbox
+										key={linha.id}
+										id={linha.id as FechamentoItemId}
+										periodo={periodo}
+										label={linha.label}
+										concluido={linha.concluido}
+									/>
+								) : (
+									<RitualChecklistItem key={linha.id} label={linha.label} concluido={linha.concluido} />
+								),
+							)}
+						</div>
+					</CardContent>
+				</Card>
 
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<span className="w-fit">
-							<Button type="button" variant="outline" disabled>
-								Exportar Relatório
-							</Button>
-						</span>
-					</TooltipTrigger>
-					<TooltipContent>Formato de exportação pendente de confirmação com contadora. Aguarde antes de revisar.</TooltipContent>
-				</Tooltip>
+				{/* "Exportar Relatório" (Figma) não tem formato/ação definidos hoje — o próprio texto do
+				Figma diz "Formato de exportação pendente de confirmação com a contadora". Sem uma regra
+				ou ação do produto pra isso, o botão fica desabilitado em vez de simular um clique que
+				não faz nada. */}
+				<div className="flex flex-col gap-3">
+					<Button type="button" className="w-fit" disabled>
+						Exportar Relatório
+					</Button>
+					<div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+						Formato de exportação pendente de confirmação com a contadora. Aguarde antes de enviar.
+					</div>
+				</div>
 			</div>
 		</div>
 	);

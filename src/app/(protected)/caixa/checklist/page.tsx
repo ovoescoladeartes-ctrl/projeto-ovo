@@ -1,22 +1,31 @@
 import { redirect } from "next/navigation";
 
 import { PendenciaRow } from "@/components/dashboard/PendenciaRow";
-import { RitualItemCheckbox } from "@/components/dashboard/RitualItemCheckbox";
 import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getServerSession } from "@/core/auth/getServerSession";
-import { CAIXA_ROLES } from "@/core/dashboard/consultas";
-import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana } from "@/core/financeiro/ritual/consultas";
-import { chaveSemana, chaveSemanaValida, formatarDataCurta, segundaFeiraDe } from "@/core/financeiro/ritual/semana";
+import type { Role } from "@/core/auth/Role";
+import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
+import { semanaSchema } from "@/core/financeiro/ritual/schema";
+import { formatarDataCurta } from "@/core/financeiro/shared";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
+import { RitualItemCheckbox } from "./RitualItemCheckbox";
+
 // `?semana=` muda o conteúdo da mesma rota — sem isso o Router do Next pode servir uma resposta
-// em cache em vez de buscar a semana pedida (mesma causa raiz de `caixa/page.tsx`).
+// em cache em vez de buscar a semana pedida (mesma causa raiz corrigida em `caixa/page.tsx`).
 export const dynamic = "force-dynamic";
+
+const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
 interface ChecklistPageProps {
 	searchParams: Promise<{ semana?: string }>;
+}
+
+/** `semana` já passou por `semanaSchema` (formato + é uma segunda-feira real) antes de chegar aqui. */
+function parseSemanaParaData(semana: string): Date {
+	return new Date(Number(semana.slice(0, 4)), Number(semana.slice(5, 7)) - 1, Number(semana.slice(8, 10)));
 }
 
 export default async function ChecklistPage({ searchParams }: ChecklistPageProps): Promise<React.ReactElement> {
@@ -27,9 +36,9 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 
 	const filtros = await searchParams;
 	const agora = new Date();
-	const semana =
-		filtros.semana !== undefined && chaveSemanaValida(filtros.semana) ? filtros.semana : chaveSemana(segundaFeiraDe(agora));
-	const dataLabel = formatarDataCurta(new Date(`${semana}T00:00:00`));
+	const semanaPadrao = chaveSemana(segundaFeiraDaSemana(agora));
+	const semana = filtros.semana !== undefined && semanaSchema.safeParse(filtros.semana).success ? filtros.semana : semanaPadrao;
+	const dataLabel = formatarDataCurta(parseSemanaParaData(semana));
 
 	const firestore = getFirebaseAdminFirestore();
 	const [ritual, pendenciasHerdadas] = await Promise.all([
@@ -43,7 +52,7 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 		<div>
 			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Caixa", href: "/caixa" }, { label: "Checklist" }]} />
 			<div className="mb-6 mt-2">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Ritual de Segunda — {dataLabel}</h1>
+				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Checklist</h1>
 			</div>
 
 			<Card>
@@ -54,9 +63,17 @@ export default async function ChecklistPage({ searchParams }: ChecklistPageProps
 					</Badge>
 				</CardHeader>
 				<CardContent className="pt-0">
-					{ritual.itens.map((item) => (
-						<RitualItemCheckbox key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
-					))}
+					{/* Texto do Figma (frame "Checklist — Ritual de Segunda") — vive dentro do conteúdo do
+					card, não como subtítulo estático abaixo do <h1> (regra 17 de docs/design.md, que já
+					removeu esse padrão de Caixa antes). */}
+					<p className="mb-3 text-sm text-muted-foreground">
+						Rotina financeira semanal. Conclua os rituais básicos antes de gerar o fechamento quinzenal.
+					</p>
+					<div className="divide-y divide-border">
+						{ritual.itens.map((item) => (
+							<RitualItemCheckbox key={item.id} id={item.id} semana={semana} label={item.label} concluido={item.concluido} />
+						))}
+					</div>
 				</CardContent>
 			</Card>
 

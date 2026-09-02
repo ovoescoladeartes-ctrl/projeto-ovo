@@ -1,32 +1,50 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
-import { PENDENCIA_MANUAL_IDS } from "@/core/financeiro/pendencias/manuais";
+import { getServerSession } from "@/core/auth/getServerSession";
+import type { Role } from "@/core/auth/Role";
+import { resolverPendenciaManualSchema } from "@/core/financeiro/pendencias/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
-import type { ActionResult } from "../actions";
-import { autorizarAcaoCaixa } from "../authGuard";
+export interface ActionResult {
+	status: "ok" | "error";
+	message?: string;
+}
 
-const marcarPendenciaManualSchema = z.object({ id: z.enum(PENDENCIA_MANUAL_IDS) });
+const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
 
-export async function marcarPendenciaManualResolvida(input: unknown): Promise<ActionResult> {
-	const session = await autorizarAcaoCaixa();
-	if (session === null) {
-		return { status: "error", message: "Sem permissão para alterar pendências." };
+function podeGerenciarCaixa(role: Role): boolean {
+	return CAIXA_ROLES.includes(role);
+}
+
+/**
+ * Idempotente: checa `status !== "resolvida"` antes de gravar, mesma proteção contra duplo
+ * clique de `marcarRepasseComoPago` (caixa/actions.ts).
+ */
+export async function resolverPendenciaManual(input: unknown): Promise<ActionResult> {
+	const session = await getServerSession();
+	if (session === null || !podeGerenciarCaixa(session.role)) {
+		return { status: "error", message: "Sem permissão para resolver pendências." };
 	}
 
-	const parsed = marcarPendenciaManualSchema.safeParse(input);
+	const parsed = resolverPendenciaManualSchema.safeParse(input);
 	if (!parsed.success) {
 		return { status: "error", message: "Dados inválidos." };
 	}
 
+	const ref = getFirebaseAdminFirestore().collection("pendenciasManuais").doc(parsed.data.id);
+
 	try {
-		await getFirebaseAdminFirestore()
-			.collection("pendencias_manuais")
-			.doc(parsed.data.id)
-			.set({ resolvido: true, resolvidoEm: new Date(), resolvidoPor: session.uid }, { merge: true });
+		const doc = await ref.get();
+		if (!doc.exists) {
+			return { status: "error", message: "Pendência não encontrada." };
+		}
+		if ((doc.data() as { status?: string })?.status === "resolvida") {
+			return { status: "ok" };
+		}
+
+		await ref.set({ status: "resolvida", resolvidoEm: new Date() }, { merge: true });
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}

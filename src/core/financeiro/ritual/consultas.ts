@@ -1,23 +1,16 @@
 import "server-only";
 
-import { FieldPath, type Timestamp } from "firebase-admin/firestore";
+import type { Timestamp } from "firebase-admin/firestore";
 
-import type { PendenciaIcon } from "@/core/dashboard/types";
+import { formatarDataCurta } from "@/core/financeiro/shared";
 import { toIso } from "@/core/shared/serialize";
 
-import { RITUAL_ITENS, type RitualItemId } from "./itens";
-import type { RitualChecklistSemana, RitualItemEstado } from "./schema";
-import { chaveSemana, formatarIntervaloSemana, segundaFeiraDe } from "./semana";
+import { RITUAL_ITENS, type RitualItemEstado, type RitualItemId, type RitualPendenciaHerdada, type RitualSemana } from "./schema";
 
-const COLECAO = "ritual_checklist_semanas";
-/**
- * Corte deliberado de v1: só as 8 semanas mais recentes com doc incompleto entram na lista de
- * pendência herdada. Uma semana incompleta que envelhece além desse número de semanas seguintes
- * sai da lista silenciosamente — aceitável por ora (ritual semanal, 8 semanas ~ 2 meses de
- * atraso), mas se isso passar a importar de verdade, trocar por paginação real em vez de um
- * corte fixo.
- */
-const SEMANAS_HERDADAS_LIMITE = 8;
+const COLECAO = "ritualSemanas";
+
+/** Quantas semanas anteriores checar em busca de itens não concluídos (v1, valor fixo). */
+const SEMANAS_HISTORICO = 8;
 
 interface RitualItemDoc {
 	concluido: boolean;
@@ -25,90 +18,85 @@ interface RitualItemDoc {
 	concluidoPor?: string | null;
 }
 
-interface RitualSemanaDoc {
-	itens?: Partial<Record<RitualItemId, RitualItemDoc>>;
+type RitualSemanaDoc = Partial<Record<RitualItemId, RitualItemDoc>>;
+
+/** Segunda-feira (00:00 local) da semana que contém `data` — semanas do Ritual sempre começam na segunda. */
+export function segundaFeiraDaSemana(data: Date): Date {
+	const resultado = new Date(data);
+	const diaDaSemana = resultado.getDay(); // 0 = domingo
+	const diffParaSegunda = diaDaSemana === 0 ? -6 : 1 - diaDaSemana;
+	resultado.setDate(resultado.getDate() + diffParaSegunda);
+	resultado.setHours(0, 0, 0, 0);
+	return resultado;
 }
 
-function montarEstado(semana: string, doc: RitualSemanaDoc | undefined): RitualChecklistSemana {
-	const itensDoc = doc?.itens ?? {};
-	const itens: RitualItemEstado[] = RITUAL_ITENS.map((definicao) => {
-		const itemDoc = itensDoc[definicao.id];
+/** Chave de semana (yyyy-MM-dd) a partir de uma segunda-feira já calculada por `segundaFeiraDaSemana`. */
+export function chaveSemana(segunda: Date): string {
+	const ano = segunda.getFullYear();
+	const mes = String(segunda.getMonth() + 1).padStart(2, "0");
+	const dia = String(segunda.getDate()).padStart(2, "0");
+	return `${ano}-${mes}-${dia}`;
+}
+
+function montarItensComEstado(doc: RitualSemanaDoc | undefined): RitualItemEstado[] {
+	return RITUAL_ITENS.map((definicao) => {
+		const estado = doc?.[definicao.id];
 		return {
 			id: definicao.id,
 			label: definicao.label,
-			concluido: itemDoc?.concluido ?? false,
-			concluidoEm: toIso(itemDoc?.concluidoEm ?? null),
-			concluidoPor: itemDoc?.concluidoPor ?? null,
+			concluido: estado?.concluido ?? false,
+			concluidoEm: toIso(estado?.concluidoEm ?? null),
+			concluidoPor: estado?.concluidoPor ?? null,
 		};
 	});
-	return { semana, itens };
+}
+
+export async function buscarRitualDaSemana(firestore: FirebaseFirestore.Firestore, semana: string): Promise<RitualSemana> {
+	const doc = await firestore.collection(COLECAO).doc(semana).get();
+	return { semana, itens: montarItensComEstado(doc.exists ? (doc.data() as RitualSemanaDoc) : undefined) };
 }
 
 /**
- * Doc ausente (semana nunca tocada) vira estado default (tudo pendente) — não escreve nada aqui.
- * O doc só é criado de fato na primeira chamada de `alternarItemRitual` (merge:true).
+ * Semanas anteriores (até `SEMANAS_HISTORICO` pra trás, sem contar a semana atual) que já tiveram
+ * um Ritual iniciado (doc existe) mas ficaram com algum item não concluído — viram pendência
+ * herdada nas telas de Pendências e no próprio Ritual (Figma: "Ritual de segunda: reconciliação
+ * da semana 21/07 não concluída"). `semana` vem como campo próprio (não só embutida no `id`) pra
+ * quem consome montar um link de volta ao Ritual daquela semana sem parsear o `id`.
+ * Semanas sem doc (Ritual nunca iniciado ali) não contam — não há histórico anterior ao lançamento
+ * da funcionalidade.
  */
-export async function buscarRitualDaSemana(
-	firestore: FirebaseFirestore.Firestore,
-	chave: string,
-): Promise<RitualChecklistSemana> {
-	const doc = await firestore.collection(COLECAO).doc(chave).get();
-	return montarEstado(chave, doc.exists ? (doc.data() as RitualSemanaDoc) : undefined);
-}
-
-/**
- * Versão em lote de `buscarRitualDaSemana` — um único round trip (`getAll`) em vez de N chamadas
- * `.doc(x).get()` separadas. Usada por `buscarFechamentoDoMes`, que precisa do ritual de várias
- * semanas do mesmo período de uma vez.
- */
-export async function buscarRituaisDasSemanas(
-	firestore: FirebaseFirestore.Firestore,
-	chaves: readonly string[],
-): Promise<RitualChecklistSemana[]> {
-	if (chaves.length === 0) {
-		return [];
+export async function buscarPendenciasRitualHerdadas(firestore: FirebaseFirestore.Firestore, agora: Date): Promise<RitualPendenciaHerdada[]> {
+	const segundaAtual = segundaFeiraDaSemana(agora);
+	const semanasAnteriores: Date[] = [];
+	for (let i = 1; i <= SEMANAS_HISTORICO; i += 1) {
+		const data = new Date(segundaAtual);
+		data.setDate(data.getDate() - 7 * i);
+		semanasAnteriores.push(data);
 	}
-	const colecao = firestore.collection(COLECAO);
-	const docs = await firestore.getAll(...chaves.map((chave) => colecao.doc(chave)));
-	return docs.map((doc, index) => montarEstado(chaves[index] ?? doc.id, doc.exists ? (doc.data() as RitualSemanaDoc) : undefined));
-}
 
-export interface PendenciaRitualHerdada {
-	id: string;
-	icon: PendenciaIcon;
-	titulo: string;
-	meta: string;
-	semana: string;
-}
+	const resultados = await Promise.all(
+		semanasAnteriores.map(async (segunda): Promise<RitualPendenciaHerdada | null> => {
+			const semana = chaveSemana(segunda);
+			const doc = await firestore.collection(COLECAO).doc(semana).get();
+			if (!doc.exists) {
+				return null;
+			}
 
-/**
- * Semanas passadas com doc existente mas incompleto viram pendência herdada na tela de
- * Pendências/no card do Ritual. Semanas sem doc nenhum (nunca abertas, incl. todo o histórico
- * anterior a esta feature) não entram — senão o histórico pré-feature inundaria a lista.
- */
-export async function buscarPendenciasRitualHerdadas(
-	firestore: FirebaseFirestore.Firestore,
-	agora: Date,
-): Promise<PendenciaRitualHerdada[]> {
-	const semanaAtual = chaveSemana(segundaFeiraDe(agora));
-	const colecao = firestore.collection(COLECAO);
-	const snapshot = await colecao
-		.orderBy(FieldPath.documentId(), "desc")
-		.startAfter(colecao.doc(semanaAtual))
-		.limit(SEMANAS_HERDADAS_LIMITE)
-		.get();
+			const itens = montarItensComEstado(doc.data() as RitualSemanaDoc);
+			const temPendente = itens.some((item) => !item.concluido);
+			if (!temPendente) {
+				return null;
+			}
 
-	return snapshot.docs
-		.map((doc) => montarEstado(doc.id, doc.data() as RitualSemanaDoc))
-		.filter((semana) => semana.itens.some((item) => !item.concluido))
-		.map((semana) => {
-			const dataSemana = new Date(`${semana.semana}T00:00:00`);
 			return {
-				id: `ritual-${semana.semana}`,
-				icon: "aviso" as const,
-				titulo: "Ritual de segunda",
-				meta: `Reconciliação da semana ${formatarIntervaloSemana(dataSemana)} não concluída`,
-				semana: semana.semana,
+				id: `ritual-${semana}`,
+				semana,
+				icon: "calendario",
+				titulo: `Ritual de segunda: reconciliação da semana ${formatarDataCurta(segunda)} não concluída`,
+				meta: "Item herdado do ciclo anterior • Requer revisão manual",
 			};
-		});
+		}),
+	);
+
+	return resultados.filter((item): item is RitualPendenciaHerdada => item !== null);
 }

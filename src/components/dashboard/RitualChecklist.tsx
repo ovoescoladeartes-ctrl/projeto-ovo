@@ -1,42 +1,36 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RitualItemEstado } from "@/core/financeiro/ritual/schema";
+import type { RitualChecklistItemData } from "@/core/dashboard/types";
 
-import { RitualItemCheckbox } from "./RitualItemCheckbox";
+import { RitualChecklistItem } from "./RitualChecklistItem";
 
-const ITENS_VISIVEIS_NO_CARD = 2;
+/** Prévia do Dashboard mostra só os 2 primeiros itens (ordem fixa) — mesmo recorte do Figma (frame "home-wireframe-financeiro"), que exibe exatamente os itens 1-2 dos 5 do Ritual. A lista completa/interativa vive em `/caixa/checklist`. */
+const ITENS_NA_PREVIA = 2;
 
 interface RitualChecklistProps {
-	itens: RitualItemEstado[];
-	semana: string;
-	dataLabel: string;
+	items: RitualChecklistItemData[];
 }
 
-export function RitualChecklist({ itens, semana, dataLabel }: RitualChecklistProps): React.ReactElement {
-	const pendentes = itens.filter((item) => !item.concluido);
+export function RitualChecklist({ items }: RitualChecklistProps): React.ReactElement {
+	const pendentes = items.filter((item) => !item.concluido).length;
 
 	return (
 		<Card>
 			<CardHeader className="flex-row items-center gap-2 space-y-0">
-				<CardTitle className="text-base">Ritual de Segunda — {dataLabel}</CardTitle>
+				<CardTitle className="text-base">Ritual de Segunda</CardTitle>
 				<Badge variant="secondary">
-					{pendentes.length} de {itens.length} pendentes
+					{pendentes} de {items.length} pendentes
 				</Badge>
 			</CardHeader>
 			<CardContent className="pt-0">
-				{pendentes.slice(0, ITENS_VISIVEIS_NO_CARD).map((item) => (
-					<RitualItemCheckbox key={item.id} id={item.id} label={item.label} concluido={item.concluido} semana={semana} />
+				{items.slice(0, ITENS_NA_PREVIA).map((item) => (
+					<RitualChecklistItem key={item.id} label={item.label} concluido={item.concluido} />
 				))}
-				<Button variant="link" size="sm" asChild className="mt-1 h-auto px-0">
-					<Link href="/caixa/checklist">
-						Ver checklist completo
-						<ArrowRight className="h-3.5 w-3.5" />
-					</Link>
-				</Button>
+				<Link href="/caixa/checklist" className="mt-3 inline-block text-sm font-medium text-foreground underline-offset-4 hover:underline">
+					Ver checklist completo →
+				</Link>
 			</CardContent>
 		</Card>
 	);

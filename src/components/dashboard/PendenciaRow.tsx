@@ -14,7 +14,7 @@ const ICONS: Record<PendenciaIcon, React.ComponentType<{ className?: string }>> 
 };
 
 interface PendenciaRowProps extends Omit<PendenciaItem, "id"> {
-	/** Sem `href`, o botão é só decorativo ("Ver", sem ação) — caso do dashboard hoje. Com `href`, vira um link navegável de verdade (usado pelas pendências herdadas do Ritual em `/caixa/checklist` e `/caixa/pendencias`). */
+	/** Sem `href`, o botão é decorativo ("Ver" por padrão) — comportamento atual do Dashboard, inalterado. Com `href`, vira um link navegável de verdade. */
 	href?: string;
 	actionLabel?: string;
 }

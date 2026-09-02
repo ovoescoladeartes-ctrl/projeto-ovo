@@ -17,16 +17,15 @@ export interface NavItem {
 }
 
 /**
- * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752 pro esqueleto original;
- * o grupo "Caixa" com Checklist/Pendências/Fechamento veio de uma entrega posterior, node
- * 230-1791). Fonte única compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile
- * em tela cheia) — nunca duplique esta lista.
+ * Ordem e conjunto espelham exatamente a sidebar do Figma (node 187-1752). Fonte única
+ * compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela cheia) — nunca
+ * duplique esta lista.
  *
- * "Vagões" e "Caixa" são grupos expansíveis (Vagões: board + Checklist do Dia de Comunicação;
- * Caixa: Recebimentos + Checklist/Pendências/Fechamento do Ritual de Segunda) — `href: null`
- * porque, com `children` presente, a própria linha do grupo só expande/recolhe o submenu (ver
- * `AppSidebar`/`MobileNavSheet`); `/vagoes` e `/caixa` continuam existindo exatamente como antes,
- * só passam a ser alcançados pelo item filho, não mais clicando no nome do grupo diretamente.
+ * "Vagões" e "Caixa" são grupos expansíveis — `href: null` porque, com `children` presente, a
+ * própria linha do grupo só expande/recolhe o submenu (ver `AppSidebar`/`MobileNavSheet`).
+ * "Vagões": o board + o Checklist do Dia de Comunicação — `/vagoes` continua existindo, só passa
+ * a ser alcançado pelo item filho. "Caixa": Recebimentos + as 3 rotas do Checklist Financeiro —
+ * `/caixa` (Recebimentos) idem, só passa a ser alcançado pelo item filho.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },

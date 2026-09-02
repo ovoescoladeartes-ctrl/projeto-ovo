@@ -3,13 +3,37 @@
 // não quebrar os imports existentes deste módulo.
 export { ORIGENS, type Origem } from "@/core/shared/origem";
 
+/** Data curta (dd/mm) usada nos textos de meta de Repasse/Ritual/Fechamento — uma única implementação, sem depender de nenhum módulo `server-only`. */
+export function formatarDataCurta(data: Date): string {
+	return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(data);
+}
+
 /**
- * Chave `yyyy-MM` em horário local — fonte única pra esse formato dentro do domínio financeiro
- * (usado por `saldo.ts` pro mês corrente e por `fechamento/periodo.ts` pra período de referência).
- * Não confundir com `core/shared/mesesJanela.ts`, que usa `Date.UTC` de propósito pra montar
- * janelas de meses estáveis independente de fuso — semântica diferente, não deve ser unificada
- * sem revisar por que a janela é UTC e o período/mês corrente aqui é local.
+ * Rótulo de destino de um Repasse ("Educador" pelo nome, "Espaço" ou "Outro") — tipado de forma
+ * estrutural (sem importar `Repasse`/`DestinoTipo` de `repasses/schema.ts`) pra não criar
+ * dependência circular, já que `repasses/schema.ts` importa `Origem` deste mesmo módulo.
  */
-export function formatarAnoMes(data: Date): string {
-	return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
+export function destinoRepasseLabel(
+	repasse: { destinoTipo: "educador" | "espaco" | "outro"; destinoPessoaId: string | null },
+	pessoasNomes: Record<string, string>,
+): string {
+	if (repasse.destinoTipo === "educador") {
+		return repasse.destinoPessoaId !== null ? (pessoasNomes[repasse.destinoPessoaId] ?? "Educador") : "Educador";
+	}
+	return repasse.destinoTipo === "espaco" ? "Espaço" : "Outro";
+}
+
+export interface EstadoConclusaoChecklist {
+	concluido: boolean;
+	concluidoEm: Date | null;
+	concluidoPor: string | null;
+}
+
+/** Payload de conclusão de um item de checklist (Ritual/Fechamento) — mesmo formato gravado via merge nos dois casos. */
+export function montarEstadoConclusaoChecklist(concluido: boolean, uid: string): EstadoConclusaoChecklist {
+	return {
+		concluido,
+		concluidoEm: concluido ? new Date() : null,
+		concluidoPor: concluido ? uid : null,
+	};
 }
