@@ -1,3 +1,5 @@
+"use client";
+
 import { alternarItemFechamento } from "@/app/(protected)/caixa/fechamento/actions";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { RitualChecklistItem } from "@/components/dashboard/RitualChecklistItem";

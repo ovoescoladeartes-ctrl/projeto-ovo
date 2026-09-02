@@ -1,3 +1,5 @@
+"use client";
+
 import { alternarItemMaterial } from "@/app/(protected)/vagoes/materiais/actions";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { AdicionarMaterialDialog } from "@/components/dashboard/AdicionarMaterialDialog";

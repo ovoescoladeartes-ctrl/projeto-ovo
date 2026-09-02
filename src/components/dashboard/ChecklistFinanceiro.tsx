@@ -1,3 +1,5 @@
+"use client";
+
 import { alternarItemRitual } from "@/app/(protected)/caixa/checklist/actions";
 import { ResolverPendenciaManualButton } from "@/app/(protected)/caixa/pendencias/ResolverPendenciaManualButton";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
