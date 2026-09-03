@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
 
+import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
 import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
-import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { VagoesChecklist } from "@/components/dashboard/VagoesChecklist";
 import { VisaoGeralContent } from "@/components/dashboard/VisaoGeralContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
+import { buscarItensMateriais } from "@/core/comunicacao/materiais/consultas";
 import {
 	CAIXA_ROLES,
 	GERAL_ROLES,
@@ -18,7 +19,9 @@ import {
 	VAGOES_ROLES,
 } from "@/core/dashboard/consultas";
 import { montarVisaoGeral } from "@/core/dashboard/visaoGeral";
-import { buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
+import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
+import { montarPendenciasAcionaveis } from "@/core/financeiro/pendencias/consultas";
+import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { cn } from "@/lib/utils";
 
@@ -34,12 +37,26 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const agora = new Date();
 	const firestore = getFirebaseAdminFirestore();
 
-	const [visaoGeral, financeiro, comunicacao, checklistComunicacao, ritualDaSemana] = await Promise.all([
+	const [
+		visaoGeral,
+		financeiro,
+		comunicacao,
+		checklistComunicacao,
+		ritualDaSemana,
+		pendenciasAcionaveis,
+		pendenciasHerdadas,
+		fechamento,
+		itensMateriais,
+	] = await Promise.all([
 		podeVerGeral ? montarVisaoGeral(firestore, agora) : null,
 		podeVerFinanceiro ? montarKpisEPendenciasFinanceiro(firestore, agora) : null,
 		podeVerComunicacao ? montarKpisEPendenciasComunicacao(firestore, agora) : null,
 		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
 		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
+		podeVerFinanceiro ? montarPendenciasAcionaveis(firestore, agora) : null,
+		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
+		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
+		podeVerComunicacao ? buscarItensMateriais(firestore) : null,
 	]);
 
 	const abaPadrao = podeVerGeral ? "geral" : podeVerFinanceiro ? "financeiro" : "comunicacao";
@@ -91,23 +108,31 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						</TabsContent>
 					) : null}
 
-					{comunicacao !== null && checklistComunicacao !== null ? (
+					{comunicacao !== null && checklistComunicacao !== null && itensMateriais !== null ? (
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
-							<VagoesChecklist checklist={checklistComunicacao} />
+							<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+								<VagoesChecklist dia={chaveDia(agora)} checklist={checklistComunicacao} />
+								<ChecklistMateriais itens={itensMateriais} />
+							</div>
 							<FunnelStageRow items={comunicacao.funil} />
-							<PendenciasList items={comunicacao.pendencias} />
 						</TabsContent>
 					) : null}
 
-					{financeiro !== null && ritualDaSemana !== null ? (
+					{financeiro !== null &&
+					ritualDaSemana !== null &&
+					pendenciasAcionaveis !== null &&
+					pendenciasHerdadas !== null &&
+					fechamento !== null ? (
 						<TabsContent value="financeiro" className="mt-6 flex flex-col gap-6">
 							<FinanceiroContent
 								kpis={financeiro.kpis}
-								pendencias={financeiro.pendencias}
 								tendencia={financeiro.tendencia}
 								recebidoPorTurma={financeiro.recebidoPorTurma}
 								ritual={ritualDaSemana}
+								pendenciasAcionaveis={pendenciasAcionaveis}
+								pendenciasHerdadas={pendenciasHerdadas}
+								fechamento={fechamento}
 							/>
 						</TabsContent>
 					) : null}
