@@ -2,29 +2,50 @@
 
 import { RankingHorizontal } from "@/components/dashboard/charts/RankingHorizontal";
 import { SerieMensalBarras } from "@/components/dashboard/charts/SerieMensalBarras";
+import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
+import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
-import { PendenciasList } from "@/components/dashboard/PendenciasList";
-import { RitualChecklist } from "@/components/dashboard/RitualChecklist";
 import { Card } from "@/components/ui/card";
-import type { KpiCardData, PendenciaItem } from "@/core/dashboard/types";
-import type { RitualSemana } from "@/core/financeiro/ritual/schema";
+import type { KpiCardData } from "@/core/dashboard/types";
+import type { FechamentoConsolidado } from "@/core/financeiro/fechamento/schema";
+import type { PendenciaAcionavel } from "@/core/financeiro/pendencias/schema";
+import type { RitualSemana, RitualPendenciaHerdada } from "@/core/financeiro/ritual/schema";
 import type { PontoSerieMensal, RankingTurma } from "@/core/financeiro/series";
 import { formatCentavos, formatCentavosCompacto } from "@/lib/currency";
 
 interface FinanceiroContentProps {
 	kpis: KpiCardData[];
-	pendencias: PendenciaItem[];
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
 	ritual: RitualSemana;
+	pendenciasAcionaveis: PendenciaAcionavel[];
+	pendenciasHerdadas: RitualPendenciaHerdada[];
+	fechamento: FechamentoConsolidado;
 }
 
-export function FinanceiroContent({ kpis, pendencias, tendencia, recebidoPorTurma, ritual }: FinanceiroContentProps): React.ReactElement {
+export function FinanceiroContent({
+	kpis,
+	tendencia,
+	recebidoPorTurma,
+	ritual,
+	pendenciasAcionaveis,
+	pendenciasHerdadas,
+	fechamento,
+}: FinanceiroContentProps): React.ReactElement {
 	return (
 		<div className="flex flex-col gap-6">
 			<KpiCardsGrid items={kpis} />
 
-			<RitualChecklist items={ritual.itens} />
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				<ChecklistFinanceiro
+					semana={ritual.semana}
+					passosRitual={ritual.itens}
+					pendenciasAcionaveis={pendenciasAcionaveis}
+					pendenciasHerdadas={pendenciasHerdadas}
+				/>
+
+				<ChecklistFechamento fechamento={fechamento} />
+			</div>
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<Card className="min-w-0 p-5">
@@ -57,8 +78,6 @@ export function FinanceiroContent({ kpis, pendencias, tendencia, recebidoPorTurm
 					</div>
 				</Card>
 			</div>
-
-			<PendenciasList items={pendencias} />
 		</div>
 	);
 }

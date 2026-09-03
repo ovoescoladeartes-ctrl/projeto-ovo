@@ -21,38 +21,16 @@ export interface NavItem {
  * compartilhada por `AppSidebar` (desktop) e `MobileNavSheet` (menu mobile em tela cheia) — nunca
  * duplique esta lista.
  *
- * "Vagões" e "Caixa" são grupos expansíveis — `href: null` porque, com `children` presente, a
- * própria linha do grupo só expande/recolhe o submenu (ver `AppSidebar`/`MobileNavSheet`).
- * "Vagões": o board + o Checklist do Dia de Comunicação — `/vagoes` continua existindo, só passa
- * a ser alcançado pelo item filho. "Caixa": Recebimentos + as 3 rotas do Checklist Financeiro —
- * `/caixa` (Recebimentos) idem, só passa a ser alcançado pelo item filho.
+ * Nem "Vagões" nem "Caixa" têm mais sub-rotas: os checklists de financeiro (Ritual, Pendências,
+ * Fechamento) e de comunicação (Checklist do Dia) viraram cards do Dashboard em vez de páginas
+ * próprias — ver `ChecklistFinanceiro`, `ChecklistFechamento` e `VagoesChecklist`.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
 	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{
-		label: "Vagões",
-		icon: Workflow,
-		href: null,
-		roles: ["admin", "comunicacao"],
-		children: [
-			{ label: "Vagões", href: "/vagoes" },
-			{ label: "Checklist", href: "/vagoes/checklist" },
-		],
-	},
+	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
 	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
 	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
-	{
-		label: "Caixa",
-		icon: Wallet,
-		href: null,
-		roles: ["admin", "financeiro"],
-		children: [
-			{ label: "Recebimentos", href: "/caixa" },
-			{ label: "Checklist", href: "/caixa/checklist" },
-			{ label: "Pendências", href: "/caixa/pendencias" },
-			{ label: "Fechamento", href: "/caixa/fechamento" },
-		],
-	},
+	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
 ];
 
 export function rotaAtiva(pathname: string, href: string): boolean {

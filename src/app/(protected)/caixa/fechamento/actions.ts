@@ -46,6 +46,6 @@ export async function alternarItemFechamento(input: unknown): Promise<ActionResu
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/caixa/fechamento");
+	revalidatePath("/");
 	return { status: "ok" };
 }
