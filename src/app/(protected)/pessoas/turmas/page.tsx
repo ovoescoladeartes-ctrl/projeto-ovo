@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { ListagemPaginacao } from "@/components/ListagemPaginacao";
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -312,21 +312,14 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Turmas" }]} cta={ctas} />
-			{/* Grid (não flex) pra Busca+Filtros ficar centralizado de verdade na coluna do meio,
-			    mesmo com o CTA escondido no mobile — a coluna reserva o espaço independente de o
-			    conteúdo dela estar visível (regra 15 do design.md). */}
-			<div className="mb-6 mt-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Turmas</h1>
-				<Suspense fallback={null}>
-					<TurmasBuscaEFiltros opcoesAssunto={opcoesAssunto} />
-				</Suspense>
-				<div className="hidden items-center gap-2 justify-self-end md:flex">{ctas}</div>
-			</div>
+			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Turmas" }]} title="Turmas" cta={ctas} />
 
-			<div className="mb-6">
+			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<Suspense fallback={null}>
 					<AbaAtivosArquivados />
+				</Suspense>
+				<Suspense fallback={null}>
+					<TurmasBuscaEFiltros opcoesAssunto={opcoesAssunto} />
 				</Suspense>
 			</div>
 

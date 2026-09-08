@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
@@ -50,7 +50,7 @@ interface MensagemDoc {
 }
 
 interface VagoesPageProps {
-	searchParams: Promise<{ interesse?: string }>;
+	searchParams: Promise<{ interesse?: string; contato?: string }>;
 }
 
 export default async function VagoesPage({ searchParams }: VagoesPageProps): Promise<React.ReactElement> {
@@ -150,11 +150,7 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} cta={novoContatoCta} />
-			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Vagões</h1>
-				<div className="hidden md:inline-flex">{novoContatoCta}</div>
-			</div>
+			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={novoContatoCta} />
 
 			<Tabs defaultValue="comunicacao" className="mb-6">
 				<TabsList className="bg-transparent p-0">
@@ -186,7 +182,12 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			</div>
 
 			<div className="min-h-0 flex-1">
-				<Board contatos={contatosComCurso} mensagens={mensagens} opcoesInteresse={opcoesInteresse} />
+				<Board
+					contatos={contatosComCurso}
+					mensagens={mensagens}
+					opcoesInteresse={opcoesInteresse}
+					contatoIdInicial={filtros.contato ?? null}
+				/>
 			</div>
 		</div>
 	);

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { PENDING_ACCESS } from "@/core/auth/Role";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -49,10 +49,10 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<PageBreadcrumb
-				items={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Controle de acessos" }]}
+			<PageHeader
+				breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Controle de acessos" }]}
+				title="Controle de acessos"
 			/>
-			<h1 className="mb-6 mt-2 text-2xl font-bold text-foreground sm:text-3xl">Controle de acessos</h1>
 
 			<div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
 				<table className="w-full text-left text-sm">
