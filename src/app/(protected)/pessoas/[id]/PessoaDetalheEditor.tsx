@@ -3,7 +3,7 @@ import { MoreVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import type { Matricula } from "@/core/matriculas/schema";
 import type { Pessoa } from "@/core/pessoas/schema";
 import { formatCentavos } from "@/lib/currency";
@@ -72,28 +72,26 @@ export function PessoaDetalheEditor({
 }: PessoaDetalheEditorProps): React.ReactElement {
 	return (
 		<div>
-			<PageBreadcrumb
-				items={[
+			<PageHeader
+				breadcrumb={[
 					{ label: "Dashboard", href: "/" },
 					{ label: "Pessoas", href: "/pessoas" },
 					{ label: pessoa.nome },
 				]}
-			/>
-
-			<div className="mt-3 mb-6 flex flex-wrap items-start justify-between gap-4">
-				<div className="flex-1 space-y-4">
-					<div>
-						<h1 className="text-2xl font-bold text-foreground sm:text-3xl">{pessoa.nome}</h1>
+				title={pessoa.nome}
+				align="start"
+				subtitle={
+					<>
 						{pessoa.ativo ? null : <p className="text-sm text-muted-foreground">Arquivado</p>}
-					</div>
-
-					{pessoa.email !== null || pessoa.telefone !== null ? (
-						<p className="text-sm text-muted-foreground">
-							{[pessoa.email, pessoa.telefone].filter((valor) => valor !== null).join(" · ")}
-						</p>
-					) : null}
-
-					{pessoa.interesses.length > 0 ? (
+						{pessoa.email !== null || pessoa.telefone !== null ? (
+							<p className="text-sm text-muted-foreground">
+								{[pessoa.email, pessoa.telefone].filter((valor) => valor !== null).join(" · ")}
+							</p>
+						) : null}
+					</>
+				}
+				extra={
+					pessoa.interesses.length > 0 ? (
 						<div className="flex flex-wrap gap-1.5">
 							{pessoa.interesses.map((interesse) => (
 								<Badge key={interesse} variant="outline">
@@ -101,16 +99,17 @@ export function PessoaDetalheEditor({
 								</Badge>
 							))}
 						</div>
-					) : null}
-				</div>
-
-				<PessoaEditDialog
-					pessoa={pessoa}
-					opcoesInteresse={opcoesInteresse}
-					isAdmin={isAdmin}
-					papelParaAdicionarInicial={papelParaAdicionarInicial}
-				/>
-			</div>
+					) : null
+				}
+				cta={
+					<PessoaEditDialog
+						pessoa={pessoa}
+						opcoesInteresse={opcoesInteresse}
+						isAdmin={isAdmin}
+						papelParaAdicionarInicial={papelParaAdicionarInicial}
+					/>
+				}
+			/>
 
 			{pessoa.ehAluno ? (
 				<div className="mt-10">

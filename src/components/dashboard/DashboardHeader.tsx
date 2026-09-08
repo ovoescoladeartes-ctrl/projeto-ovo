@@ -1,3 +1,5 @@
+import { PageHeader } from "@/components/shell/PageHeader";
+
 function formatarDataAtual(): string {
 	const formatada = new Intl.DateTimeFormat("pt-BR", {
 		weekday: "long",
@@ -8,11 +10,12 @@ function formatarDataAtual(): string {
 	return formatada.charAt(0).toUpperCase() + formatada.slice(1);
 }
 
+/**
+ * Dashboard é a única rota sem breadcrumb (regra 12 do design.md — é a raiz, não há pra onde
+ * "voltar") — por isso não passa `breadcrumb` pro `PageHeader`. `spacing={false}` porque esse
+ * header já vive dentro do `flex flex-col gap-6` de `(protected)/page.tsx`, que já espaça os
+ * irmãos sozinho.
+ */
 export function DashboardHeader(): React.ReactElement {
-	return (
-		<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-			<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Dashboard</h1>
-			<p className="text-sm text-muted-foreground">{formatarDataAtual()}</p>
-		</div>
-	);
+	return <PageHeader title="Dashboard" subtitle={<p className="text-sm text-muted-foreground">{formatarDataAtual()}</p>} spacing={false} />;
 }

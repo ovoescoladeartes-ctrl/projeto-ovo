@@ -1,7 +1,7 @@
 import { MoreVertical } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
@@ -56,14 +56,11 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 
 	return (
 		<div>
-			<PageBreadcrumb
-				items={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Biblioteca de mensagens" }]}
+			<PageHeader
+				breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Configurações" }, { label: "Biblioteca de mensagens" }]}
+				title="Biblioteca de mensagens"
 				cta={novaMensagemCta}
 			/>
-			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Biblioteca de mensagens</h1>
-				<div className="hidden md:inline-flex">{novaMensagemCta}</div>
-			</div>
 
 			<div className="overflow-x-auto rounded-lg border border-border bg-card">
 				<table className="w-full text-left text-sm">

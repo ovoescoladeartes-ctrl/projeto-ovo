@@ -9,6 +9,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import type { Role } from "@/core/auth/Role";
 
 import { AppSidebar } from "./AppSidebar";
+import { GlobalSearchProvider } from "./GlobalSearchProvider";
+import { GlobalSearchTrigger } from "./GlobalSearchTrigger";
 import { MobileNavSheet } from "./MobileNavSheet";
 import { usePageHeader } from "./PageHeaderProvider";
 import { UserAvatarMenu } from "./UserMenu";
@@ -79,6 +81,7 @@ function MobileHeader({ user }: { user: SidebarShellProps["user"] }): React.Reac
 					</div>
 				)}
 				<div className="flex shrink-0 items-center gap-2">
+					<GlobalSearchTrigger variant="icon" />
 					{cta}
 					{naDashboard ? <UserAvatarMenu displayName={user.displayName} email={user.email} /> : null}
 				</div>
@@ -111,11 +114,13 @@ export function SidebarShell({ user, children }: SidebarShellProps): React.React
 
 	return (
 		<SidebarProvider open={expanded} onOpenChange={handleOpenChange} style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}>
-			<AppSidebar user={user} />
-			<SidebarInset>
-				<MobileHeader user={user} />
-				{children}
-			</SidebarInset>
+			<GlobalSearchProvider role={user.role}>
+				<AppSidebar user={user} />
+				<SidebarInset>
+					<MobileHeader user={user} />
+					{children}
+				</SidebarInset>
+			</GlobalSearchProvider>
 		</SidebarProvider>
 	);
 }

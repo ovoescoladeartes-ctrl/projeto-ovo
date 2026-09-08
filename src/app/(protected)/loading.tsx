@@ -1,19 +1,18 @@
 import { CardGridSkeleton } from "@/components/skeletons/CardGridSkeleton";
 import { ChartCardSkeleton } from "@/components/skeletons/ChartCardSkeleton";
+import { PageHeaderSkeleton } from "@/components/skeletons/PageHeaderSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Esqueleto do Dashboard — modela a aba "Geral" (`VisaoGeralContent`), que é sempre a aba padrão
  * (`GERAL_ROLES` cobre todas as roles, ver `core/dashboard/consultas.ts`). `DashboardHeader` não
- * segue o cabeçalho padrão de `PageHeaderSkeleton` (sem breadcrumb, busca ou CTA — só H1 + data).
+ * tem breadcrumb (regra 12 do design.md) e mostra a data no lugar do CTA — mesmo `spacing={false}`
+ * do componente real, porque esse header já vive dentro do `gap-6` deste layout.
  */
 export default function Loading(): React.ReactElement {
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<Skeleton className="h-8 w-32 sm:h-9" />
-				<Skeleton className="h-4 w-40" />
-			</div>
+			<PageHeaderSkeleton breadcrumb={false} cta={false} subtitle spacing={false} />
 
 			<div className="flex gap-6 border-b border-border pb-2">
 				<Skeleton className="h-5 w-14" />

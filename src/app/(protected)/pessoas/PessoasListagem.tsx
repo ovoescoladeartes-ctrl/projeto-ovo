@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { ListagemPaginacao } from "@/components/ListagemPaginacao";
-import { PageBreadcrumb } from "@/components/shell/PageBreadcrumb";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -116,20 +116,11 @@ export function PessoasListagem({
 
 	return (
 		<div>
-			<PageBreadcrumb items={[{ label: "Dashboard", href: "/" }, { label: "Pessoas" }]} cta={ctas} />
-			{/* Grid (não flex) pra Busca+Filtros ficar centralizado de verdade na coluna do meio,
-			    mesmo com o CTA escondido no mobile — a coluna reserva o espaço independente de o
-			    conteúdo dela estar visível (regra 15 do design.md). */}
-			<div className="mb-6 mt-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
-				<h1 className="text-2xl font-bold text-foreground sm:text-3xl">Pessoas</h1>
-				<PessoasBuscaEFiltros opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
-				{/* No mobile o CTA já vive no header fixo (registrado via `cta` acima) — aqui só aparece
-				    a partir de `md`, onde não existe header mobile pra duplicar o botão. */}
-				<div className="hidden items-center gap-2 justify-self-end md:flex">{ctas}</div>
-			</div>
+			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Pessoas" }]} title="Pessoas" cta={ctas} />
 
-			<div className="mb-6">
+			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<AbaAtivosArquivados />
+				<PessoasBuscaEFiltros opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
 			</div>
 
 			<Card>

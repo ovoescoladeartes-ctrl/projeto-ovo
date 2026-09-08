@@ -87,13 +87,15 @@ interface BoardProps {
 	contatos: Contato[];
 	mensagens: Mensagem[];
 	opcoesInteresse: string[];
+	/** Deep link da busca global (`/vagoes?contato=<id>`) — abre o Sheet de detalhe já no contato certo, sem o usuário ter que caçar o card no board. */
+	contatoIdInicial: string | null;
 }
 
-export function Board({ contatos, mensagens, opcoesInteresse }: BoardProps): React.ReactElement {
+export function Board({ contatos, mensagens, opcoesInteresse, contatoIdInicial }: BoardProps): React.ReactElement {
 	const [pickerAberto, setPickerAberto] = useState(false);
 	const [estagioMobile, setEstagioMobile] = useState<string>(BUCKETS[0]?.key ?? "novo");
 	const [activeId, setActiveId] = useState<string | null>(null);
-	const [detalheId, setDetalheId] = useState<string | null>(null);
+	const [detalheId, setDetalheId] = useState<string | null>(contatoIdInicial);
 	const [, startTransition] = useTransition();
 
 	const [contatosOtimistas, moverOtimista] = useOptimistic(contatos, (estado: Contato[], acao: MoverAction) =>
