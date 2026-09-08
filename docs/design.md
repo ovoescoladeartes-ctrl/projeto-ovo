@@ -565,27 +565,42 @@ desta conversa:
     navegação mostrar tela em branco enquanto o Server Component busca dados no Firestore.
     Decidido em 2026-08-14, depois de a Katlin reportar carregamento lento sem nenhum indicador
     visual. Motivo estrutural: as páginas de conteúdo (`(protected)/page.tsx`, `pessoas/page.tsx`,
-    `vagoes/page.tsx`, `caixa/page.tsx`, `pessoas/turmas/page.tsx`) são **Server Components async**
-    que buscam direto no Firestore Admin SDK antes de montar o JSX — não há fetch client-side, então
+    `vagoes/page.tsx`, `caixa/page.tsx`, `pessoas/turmas/page.tsx`, `pessoas/[id]/page.tsx`,
+    `mensagens/page.tsx`, `admin/usuarios/page.tsx`) são **Server Components async** que buscam
+    direto no Firestore Admin SDK antes de montar o JSX — não há fetch client-side, então
     um `<Suspense fallback={null}>` colocado *dentro* do componente que a página retorna não ajuda:
     o `await` já terminou antes desse JSX existir. O mecanismo certo é o `loading.tsx` do App
     Router, que o Next envolve automaticamente num Suspense boundary em volta do `page.tsx` inteiro
     e mostra enquanto a busca de dados roda no servidor.
     - **Componentes disponíveis** (`src/components/skeletons/`, compostos a partir do primitivo
       `Skeleton` de `src/components/ui/skeleton.tsx`):
-      - `PageHeaderSkeleton` — cabeçalho padrão da regra 15 (Breadcrumb → H1+busca+CTA →
+      - `PageHeaderSkeleton` — cabeçalho padrão da regra 15 (Breadcrumb → H1 [+ busca] + CTA →
         Tabs → Filtros). Props `breadcrumb` (default `true`, desligar só no Dashboard — regra 12),
-        `tabs` e `filtros` (default `false`) ligam as linhas correspondentes.
+        `tabs` e `filtros` (default `false`) ligam as linhas correspondentes, `busca` (default
+        `true`) desenha o campo de busca entre H1 e CTA — **só existe de verdade em Pessoas e
+        Turmas**; desligar (`busca={false}`) em Caixa, Vagões e qualquer rota sem campo de busca
+        inline no cabeçalho, senão o skeleton mostra um elemento que nunca chega a carregar.
+      - `ChartCardSkeleton` — card de gráfico (`Card p-5` com título + subtítulo + área de
+        gráfico), para o lugar de qualquer `Card` com `SerieMensalBarras`/`SerieMensalLinha`/
+        `DonutRanking`/`RankingHorizontal` (`VisaoGeralContent`, `FinanceiroContent`).
       - `CardGridSkeleton` — grade de `Card`, para o lugar de `KpiCardsGrid`/`FunnelStageRow`.
         Recebe `count`, `colsClassName` (classes completas de `grid-cols-*`, copiadas do grid real
         — **nunca** combine com um `grid-cols-*` sem prefixo já default no componente, é a mesma
         armadilha de ordem não determinística de `className` da nota acima) e `variant`
         (`"kpi"` | `"funil"`).
-      - `TableSkeleton` — para qualquer listagem em tabela (Pessoas, Turmas, Caixa). Props
-        `columns` e `rows` (default 8).
-      - `CardListSkeleton` — para o lugar de `PendenciasList`. Prop `rows` (default 3).
+      - `TableSkeleton` — para qualquer listagem em tabela (Pessoas, Turmas, Caixa, Mensagens,
+        Controle de acessos). Props `columns` e `rows` (default 8) — `columns` precisa bater com
+        a contagem real de `<th>` da tabela (contando a coluna de ações vazia), senão a tabela real
+        "pula" de largura quando os dados chegam.
       - `BoardSkeleton` — para o board kanban de Vagões (6 colunas desktop / 1 coluna mobile,
         lido de `BUCKETS`).
+    - O Dashboard (`(protected)/loading.tsx`) modela só a aba **Geral** (`VisaoGeralContent`),
+      porque `GERAL_ROLES` cobre todas as roles (ver `core/dashboard/consultas.ts`) — "Geral" é
+      sempre a aba padrão que renderiza no primeiro load, então é a única forma que o skeleton
+      precisa aproximar; trocar de aba depois é client-side e não passa pelo `loading.tsx` de novo.
+      `DashboardHeader` também não segue o cabeçalho padrão (sem breadcrumb, busca ou CTA — só H1 +
+      data), então esse `loading.tsx` não usa `PageHeaderSkeleton`, monta o cabeçalho com `Skeleton`
+      cru direto.
     - **`src/components/ui/skeleton.tsx` usa `bg-border`, não o `bg-primary/10` default do
       shadcn.** Bug corrigido em 2026-08-14: com `--primary` deste projeto sendo quase preto
       (`oklch(0.205 0 0)`, ver tabela de Cor), `bg-primary/10` sobre um `Card` branco já nasce
