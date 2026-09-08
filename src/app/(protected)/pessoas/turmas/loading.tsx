@@ -12,7 +12,7 @@ export default function Loading(): React.ReactElement {
 			<div className="mb-6">
 				<Skeleton className="h-[30px] w-36" />
 			</div>
-			<TableSkeleton columns={7} rows={10} />
+			<TableSkeleton columns={8} rows={10} />
 		</div>
 	);
 }
