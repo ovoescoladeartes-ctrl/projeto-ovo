@@ -14,6 +14,8 @@ export interface NavItem {
 	roles: readonly Role[];
 	/** Presença deste campo transforma o item num grupo expansível (ex.: Cadastro → Pessoas/Turmas). */
 	children?: readonly NavChild[];
+	/** Sinônimos pra busca global (`GlobalSearchDialog`) bater mesmo quando o termo não é o label literal — ex. "financeiro"/"pix" achando "Caixa". */
+	keywords?: readonly string[];
 }
 
 /**
@@ -26,11 +28,41 @@ export interface NavItem {
  * próprias — ver `ChecklistFinanceiro`, `ChecklistFechamento` e `VagoesChecklist`.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-	{ label: "Dashboard", icon: Home, href: "/", roles: ["admin", "financeiro", "comunicacao", "educador"] },
-	{ label: "Vagões", icon: Workflow, href: "/vagoes", roles: ["admin", "comunicacao"] },
-	{ label: "Pessoas", icon: Users, href: "/pessoas", roles: ["admin", "comunicacao", "financeiro"] },
-	{ label: "Turmas", icon: GraduationCap, href: "/pessoas/turmas", roles: ["admin", "comunicacao", "financeiro"] },
-	{ label: "Caixa", icon: Wallet, href: "/caixa", roles: ["admin", "financeiro"] },
+	{
+		label: "Dashboard",
+		icon: Home,
+		href: "/",
+		roles: ["admin", "financeiro", "comunicacao", "educador"],
+		keywords: ["início", "home", "geral"],
+	},
+	{
+		label: "Vagões",
+		icon: Workflow,
+		href: "/vagoes",
+		roles: ["admin", "comunicacao"],
+		keywords: ["leads", "comunicação", "contatos", "funil"],
+	},
+	{
+		label: "Pessoas",
+		icon: Users,
+		href: "/pessoas",
+		roles: ["admin", "comunicacao", "financeiro"],
+		keywords: ["alunos", "professores", "cadastro"],
+	},
+	{
+		label: "Turmas",
+		icon: GraduationCap,
+		href: "/pessoas/turmas",
+		roles: ["admin", "comunicacao", "financeiro"],
+		keywords: ["cursos", "oficinas", "aulas"],
+	},
+	{
+		label: "Caixa",
+		icon: Wallet,
+		href: "/caixa",
+		roles: ["admin", "financeiro"],
+		keywords: ["financeiro", "dinheiro", "pagamento", "pix", "recebimento", "recebimentos", "repasse", "repasses", "saldo"],
+	},
 ];
 
 export function rotaAtiva(pathname: string, href: string): boolean {
