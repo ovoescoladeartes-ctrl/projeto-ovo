@@ -7,23 +7,26 @@ interface PageHeaderSkeletonProps {
 	tabs?: boolean;
 	/** Linha de filtros (chips, selects) abaixo das tabs/H1. */
 	filtros?: boolean;
+	/** Campo de busca entre H1 e CTA — só existe em Pessoas e Turmas, desligar nas demais rotas. */
+	busca?: boolean;
 }
 
 /**
  * Esqueleto do cabeçalho padrão de página interna (regra 15 de docs/design.md):
- * Breadcrumb → H1 + busca + CTA → Tabs → Filtros.
+ * Breadcrumb → H1 [+ busca] + CTA → Tabs → Filtros.
  */
 export function PageHeaderSkeleton({
 	breadcrumb = true,
 	tabs = false,
 	filtros = false,
+	busca = true,
 }: PageHeaderSkeletonProps): React.ReactElement {
 	return (
 		<div>
 			{breadcrumb ? <Skeleton className="mb-2 h-4 w-48" /> : null}
 			<div className="mb-6 mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<Skeleton className="h-8 w-40 sm:h-9" />
-				<Skeleton className="h-9 w-full sm:max-w-xs sm:flex-1" />
+				{busca ? <Skeleton className="h-9 w-full sm:max-w-xs sm:flex-1" /> : null}
 				<Skeleton className="h-9 w-28 shrink-0" />
 			</div>
 
