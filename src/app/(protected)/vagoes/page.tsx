@@ -3,16 +3,13 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
 import type { Mensagem } from "@/core/comunicacao/mensagens/schema";
-import { CAIXA_ROLES } from "@/core/dashboard/consultas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
 import { toIso } from "@/core/shared/serialize";
-import { cn } from "@/lib/utils";
 
 import { Board } from "./Board";
 import { NovoContatoDialog } from "./NovoContatoDialog";
@@ -61,7 +58,6 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		redirect("/");
 	}
 
-	const podeVerFinanceiro = CAIXA_ROLES.includes(session.role);
 	const filtros = await searchParams;
 	const firestore = getFirebaseAdminFirestore();
 
@@ -146,40 +142,18 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		};
 	});
 
-	const novoContatoCta = <NovoContatoDialog opcoesInteresse={opcoesInteresse} />;
+	const cta = (
+		<>
+			<Suspense fallback={null}>
+				<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+			</Suspense>
+			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
+		</>
+	);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={novoContatoCta} />
-
-			<Tabs defaultValue="comunicacao" className="mb-6">
-				<TabsList className="bg-transparent p-0">
-					{podeVerFinanceiro ? (
-						<TabsTrigger
-							value="financeiro"
-							disabled
-							className="rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-						>
-							Financeiro
-						</TabsTrigger>
-					) : null}
-					<TabsTrigger
-						value="comunicacao"
-						className={cn(
-							"rounded-none border-b-2 border-transparent px-1 pb-2 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none",
-							podeVerFinanceiro && "ml-6",
-						)}
-					>
-						Comunicação
-					</TabsTrigger>
-				</TabsList>
-			</Tabs>
-
-			<div className="mb-6 flex flex-wrap items-center gap-3">
-				<Suspense fallback={null}>
-					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
-				</Suspense>
-			</div>
+			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={cta} />
 
 			<div className="min-h-0 flex-1">
 				<Board

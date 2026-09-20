@@ -17,7 +17,7 @@ import { NovaPessoaDialog } from "./NovaPessoaDialog";
 import { PessoaCard } from "./PessoaCard";
 import { PessoaArquivarMenuItem } from "./PessoaArquivarMenuItem";
 import { PessoaDesarquivarMenuItem } from "./PessoaDesarquivarMenuItem";
-import { PessoasBuscaEFiltros } from "./PessoasBuscaEFiltros";
+import { PessoasFiltros } from "./PessoasFiltros";
 import { StatusBadge } from "./StatusBadge";
 
 export const MAX_TURMAS_VISIVEIS = 2;
@@ -60,9 +60,8 @@ export function formatarData(iso: string | null): string {
 }
 
 /**
- * Header (título | Exportar + Nova pessoa), abas Ativos/Arquivados e filtros (busca + papel +
- * avançados) ficam fora do card, seguindo a ordem da regra 15 do design.md — o card só tem
- * tabela + paginação. "Exportar" (`ExportarDropdown`) exporta todo `idsFiltrados` — o filtro
+ * Header (título | Filtros + Exportar + Nova pessoa) e abas Ativos/Arquivados ficam fora do card,
+ * seguindo a ordem da regra 15 do design.md — o card só tem tabela + paginação. "Exportar" (`ExportarDropdown`) exporta todo `idsFiltrados` — o filtro
  * atual inteiro, calculado no servidor antes da paginação — não a página visível nem uma seleção.
  */
 export function PessoasListagem({
@@ -107,8 +106,10 @@ export function PessoasListagem({
 
 	const novaPessoaCta = <NovaPessoaDialog opcoesInteresse={opcoesInteresse} turmasAtivas={turmasAtivas} />;
 	const exportarCta = <ExportarDropdown pessoaIds={idsFiltrados} />;
+	const filtrosCta = <PessoasFiltros opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />;
 	const ctas = (
 		<>
+			{filtrosCta}
 			{exportarCta}
 			{novaPessoaCta}
 		</>
@@ -118,9 +119,8 @@ export function PessoasListagem({
 		<div>
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Pessoas" }]} title="Pessoas" cta={ctas} />
 
-			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="mb-6">
 				<AbaAtivosArquivados />
-				<PessoasBuscaEFiltros opcoesInteresse={opcoesInteresse} opcoesTurma={opcoesTurma} />
 			</div>
 
 			<Card>

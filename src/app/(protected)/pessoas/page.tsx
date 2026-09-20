@@ -48,7 +48,6 @@ interface MatriculaResumoDoc {
 
 interface PessoasPageProps {
 	searchParams: Promise<{
-		busca?: string;
 		aluno?: string;
 		professor?: string;
 		status?: string;
@@ -124,11 +123,6 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 			interesses: data.interesses ?? [],
 		};
 	});
-
-	if (filtros.busca !== undefined && filtros.busca.trim() !== "") {
-		const buscaNormalizada = filtros.busca.trim().toLowerCase();
-		pessoas = pessoas.filter((pessoa) => pessoa.nome.toLowerCase().includes(buscaNormalizada));
-	}
 
 	const marcouAluno = filtros.aluno === "1";
 	const marcouProfessor = filtros.professor === "1";
