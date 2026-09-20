@@ -174,7 +174,7 @@ sidebar como um drawer.
 | Cabeçalho da página (título + busca + data) | — | `DashboardHeader` |
 | Dropdowns de seleção única (filtros, formulários) | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` — nunca `<select>` nativo (ver regra MANDATÓRIA abaixo) | — |
 | Checkbox (corrigido — quadrado, não circular) | `Checkbox` (`src/components/ui/checkbox.tsx`) | Seleção em massa da listagem de Pessoas, formulários |
-| Busca + botão único "Filtros" (abre drawer com todo filtro da página, ver regra 15) | `Sheet` (gaveta lateral) + `Input` + `Button` | `PessoasBuscaEFiltros`/`TurmasBuscaEFiltros` |
+| Botão único "Filtros" no header (abre drawer com todo filtro da página, ver regra 15) | `Sheet` (gaveta lateral) + `Button` | `PessoasFiltros`/`TurmasFiltros` |
 | Segmented control (Ativos/Arquivados) | — | `AbaAtivosArquivados` (`src/components/`) |
 | Botão redondo de ação primária ("+") | `Button size="icon"` + `rounded-full` | Trigger de `NovaPessoaDialog` |
 | Exportar (dropdown de ações, botão secundário no header da página ao lado do CTA principal) | `DropdownMenu` | `ExportarDropdown` (`src/app/(protected)/pessoas/`), `ExportarTurmasButton` (`.../turmas/`, sem dropdown — só uma ação) |
@@ -423,7 +423,7 @@ desta conversa:
     tabs.** Decidido com o Rogério em 2026-08-24, junto da remoção do Copiloto: como o Copiloto
     já ocupava a coluna central do H1 nessas páginas, Busca + um botão único "Filtros" tomaram o
     lugar dele em vez de virar mais uma linha depois das tabs (item 4 acima). Componentes:
-    `PessoasBuscaEFiltros.tsx`/`TurmasBuscaEFiltros.tsx`, um por página, substituindo o antigo par
+    `PessoasFiltros.tsx`/`TurmasFiltros.tsx`, um por página, substituindo o antigo par
     `*FiltroBar` + `*FiltrosAvancadosSheet` (chips/Selects soltos na linha + gatilho de "Filtros
     avançados"). Regras:
     - **Centralização com `grid`, não `flex-1`**: como o CTA (coluna da direita) fica
@@ -706,7 +706,7 @@ desta conversa:
       **de seção dentro de uma página que já tem outro foco principal** — "Matricular"
       (`MatricularDialog`, dentro da página de detalhe de Pessoa) é `outline`, não `default`,
       precisamente por não ser o CTA da página, diferente das "Nova X" do item acima. Trigger do
-      `Sheet` de filtro (botão "Filtros" de `PessoasBuscaEFiltros`/`TurmasBuscaEFiltros`) também
+      `Sheet` de filtro (botão "Filtros" de `PessoasFiltros`/`TurmasFiltros`) também
       entra aqui.
     - **Terciário (`variant="ghost"`)**: menor ênfase possível — reservado a ícone sozinho (kebab
       `MoreVertical`, regra 21/25) e ações inline dentro de uma lista/picker onde o item já
@@ -751,7 +751,7 @@ desta conversa:
     - **`StatusBadge.tsx`**: `"ex_aluno"` usa azul (`bg-blue-100 text-blue-800`, regra 18) — mesma
       semântica de `"encerrada"` na Matrícula, terminou sem ter sido uma falha.
     - Refletido também em `EXPORT_STATUS_LABELS` (`pessoas/actions.ts`) e no filtro de Status
-      (`PessoasBuscaEFiltros.tsx` + `pessoas/page.tsx`) — nesse filtro, `"ex_aluno"` é exclusivo
+      (`PessoasFiltros.tsx` + `pessoas/page.tsx`) — nesse filtro, `"ex_aluno"` é exclusivo
       de Aluno, Professor não tem status equivalente.
 28. **`atualizarPessoa` sincroniza `nome` com o Contato vinculado, se existir.** Bug corrigido em
     2026-08-14, achado na prática: `Contato.nome` é copiado do Pessoa só na criação

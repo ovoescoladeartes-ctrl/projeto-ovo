@@ -25,7 +25,7 @@ import { TurmaCard } from "./TurmaCard";
 import { TurmaEditDialog } from "./TurmaEditDialog";
 import { TurmaExcluirMenuItem } from "./TurmaExcluirMenuItem";
 import { TurmaMatriculasSheet } from "./TurmaMatriculasSheet";
-import { TurmasBuscaEFiltros } from "./TurmasBuscaEFiltros";
+import { TurmasFiltros } from "./TurmasFiltros";
 import { formatarData, formatarRepasse, TIPO_LABELS } from "./turmasFormat";
 
 // Sem isso, trocar só o searchParam `arquivados` na mesma rota pode servir uma resposta em
@@ -225,6 +225,7 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	let turmas = todasTurmas;
 
+	// Sem campo na tela: só chega aqui pelo link de turma da busca global (`core/search/actions.ts`).
 	if (filtros.busca !== undefined && filtros.busca.trim() !== "") {
 		const buscaNormalizada = filtros.busca.trim().toLowerCase();
 		turmas = turmas.filter((turma) => turma.nome.toLowerCase().includes(buscaNormalizada));
@@ -302,8 +303,14 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 
 	const novaTurmaCta = <NovaTurmaDialog />;
 	const exportarCta = <ExportarTurmasButton turmaIds={idsFiltrados} />;
+	const filtrosCta = (
+		<Suspense fallback={null}>
+			<TurmasFiltros opcoesAssunto={opcoesAssunto} />
+		</Suspense>
+	);
 	const ctas = (
 		<>
+			{filtrosCta}
 			{exportarCta}
 			{novaTurmaCta}
 		</>
@@ -314,12 +321,9 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		<div>
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Turmas" }]} title="Turmas" cta={ctas} />
 
-			<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="mb-6">
 				<Suspense fallback={null}>
 					<AbaAtivosArquivados />
-				</Suspense>
-				<Suspense fallback={null}>
-					<TurmasBuscaEFiltros opcoesAssunto={opcoesAssunto} />
 				</Suspense>
 			</div>
 
