@@ -15,8 +15,6 @@ interface PageHeaderSkeletonProps {
 	spacing?: boolean;
 	/** Bloco de Tabs logo abaixo do header (Comunicação/Financeiro, Recebimentos/Repasses). */
 	tabs?: boolean;
-	/** Linha de filtros em chips abaixo das tabs/header — Vagões. */
-	filtros?: boolean;
 }
 
 /**
@@ -34,7 +32,6 @@ export function PageHeaderSkeleton({
 	badges = false,
 	spacing = true,
 	tabs = false,
-	filtros = false,
 }: PageHeaderSkeletonProps): React.ReactElement {
 	return (
 		<div>
@@ -75,14 +72,6 @@ export function PageHeaderSkeleton({
 				<div className="mb-6 flex gap-6 border-b border-border pb-2">
 					<Skeleton className="h-5 w-20" />
 					<Skeleton className="h-5 w-24" />
-				</div>
-			) : null}
-
-			{filtros ? (
-				<div className="mb-6 flex flex-wrap items-center gap-3">
-					<Skeleton className="h-[30px] w-24 rounded-full" />
-					<Skeleton className="h-[30px] w-24 rounded-full" />
-					<Skeleton className="h-[30px] w-36" />
 				</div>
 			) : null}
 		</div>
