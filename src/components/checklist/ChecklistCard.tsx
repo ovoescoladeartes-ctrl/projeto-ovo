@@ -22,12 +22,6 @@ interface ChecklistCardProps {
 	 * pessoa rola pra ver tudo sem precisar abrir o painel (item 4 do feedback de revisão: o badge
 	 * não pode contar item nenhum que não apareça em lugar nenhum dentro do card). Ausente/`undefined`
 	 * mostra a descrição no lugar.
-	 *
-	 * **Uma única caixa, uma única lista (regra 38 do design.md)** — o card não separa Ações de
-	 * Conferência em caixas diferentes nem por rótulo de texto; o tipo de cada item já aparece só
-	 * pelo controle à direita (checkbox ou chevron). Quem chama ordena os itens antes de passar pra
-	 * cá — critério único em `ordenarItensCard` (mais atrasado primeiro, empate por tipo, empate por
-	 * ordem original), nunca reimplementado por checklist.
 	 */
 	children?: React.ReactNode;
 }
