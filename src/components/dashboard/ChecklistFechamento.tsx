@@ -6,6 +6,7 @@ import { alternarItemFechamento } from "@/app/(protected)/caixa/fechamento/actio
 import { ChecklistAcaoRow } from "@/components/checklist/ChecklistAcaoRow";
 import { ChecklistCard } from "@/components/checklist/ChecklistCard";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
+import { ordenarItensCard, type ItemOrdenavelCard } from "@/components/checklist/ordenarItensCard";
 import { FechamentoTarefaRecorrente } from "@/components/dashboard/FechamentoTarefaRecorrente";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { ChecklistResumo } from "@/core/checklist/schema";
@@ -48,37 +49,31 @@ export function ChecklistFechamento({ resumo, fechamento }: ChecklistFechamentoP
 		);
 	}
 
+	function renderLinhaCard(linha: FechamentoConsolidado["linhas"][number]): React.ReactElement {
+		return (
+			<ChecklistItemToggle
+				key={linha.id}
+				label={linha.label}
+				concluido={linha.concluido}
+				explicacao={linha.explicacao}
+				onToggle={(concluido) => alternarItemFechamento({ periodo: fechamento.periodo, itemId: linha.id, concluido })}
+			/>
+		);
+	}
+
+	// Uma lista só, ordenada por atraso > Ações > ordem original (regra 38 do design.md) — sem caixa
+	// separada por tipo dentro do card. Nenhum item aqui tem um "atraso" próprio (não há herdado no
+	// Fechamento), então a ordem final é só Ações primeiro, Conferência depois.
+	const itensCard: (ItemOrdenavelCard & { key: string; node: React.ReactElement })[] = [
+		...tarefasAcoes.map((tarefa) => ({ atraso: 0, tipo: "acao" as const, key: tarefa.itemId, node: renderTarefaCard(tarefa) })),
+		...tarefasConferencia.map((tarefa) => ({ atraso: 0, tipo: "conferencia" as const, key: tarefa.itemId, node: renderTarefaCard(tarefa) })),
+		...fechamento.linhas.map((linha) => ({ atraso: 0, tipo: "conferencia" as const, key: linha.id, node: renderLinhaCard(linha) })),
+	];
+
 	return (
 		<>
 			<ChecklistCard resumo={resumo} totalItens={totalItens} itensPendentes={itensPendentes} onAbrir={() => setOpen(true)}>
-				{totalItens > 0 ? (
-					<div className="flex flex-col gap-3">
-						{/* Mesma separação por comportamento do painel completo (Ações primeiro, Conferência
-						depois) — sem rótulo de texto aqui (pouco espaço no card): a ordem + cada grupo na sua
-						própria caixa com borda já comunicam o agrupamento. O item acumulado (várias semanas
-						pendentes de uma tarefa) nunca expande dentro do card — clicar sempre abre o painel,
-						onde a interação de escolher semanas (accordion) mora. */}
-						{tarefasAcoes.length > 0 ? (
-							<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-								{tarefasAcoes.map(renderTarefaCard)}
-							</div>
-						) : null}
-						{tarefasConferencia.length > 0 || fechamento.linhas.length > 0 ? (
-							<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-								{tarefasConferencia.map(renderTarefaCard)}
-								{fechamento.linhas.map((linha) => (
-									<ChecklistItemToggle
-										key={linha.id}
-										label={linha.label}
-										concluido={linha.concluido}
-										explicacao={linha.explicacao}
-										onToggle={(concluido) => alternarItemFechamento({ periodo: fechamento.periodo, itemId: linha.id, concluido })}
-									/>
-								))}
-							</div>
-						) : null}
-					</div>
-				) : undefined}
+				{totalItens > 0 ? ordenarItensCard(itensCard).map((item) => item.node) : undefined}
 			</ChecklistCard>
 
 			<Sheet open={open} onOpenChange={setOpen}>

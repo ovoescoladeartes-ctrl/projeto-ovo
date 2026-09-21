@@ -21,10 +21,13 @@ interface ChecklistCardProps {
 	 * Lista completa do checklist (não um recorte) — a área tem altura fixa com scroll interno, a
 	 * pessoa rola pra ver tudo sem precisar abrir o painel (item 4 do feedback de revisão: o badge
 	 * não pode contar item nenhum que não apareça em lugar nenhum dentro do card). Ausente/`undefined`
-	 * mostra a descrição no lugar. Quem chama monta os grupos "Ações"/"Conferência" — cada um sua
-	 * própria caixa com borda (`rounded-xl border`), empilhadas com `gap-3` entre si — o card não
-	 * impõe nenhum wrapper por cima; sem rótulo de texto aqui (só no painel completo), a ordem
-	 * (Ações primeiro) e as caixas separadas já comunicam o agrupamento.
+	 * mostra a descrição no lugar.
+	 *
+	 * **Uma única caixa, uma única lista (regra 38 do design.md)** — o card não separa Ações de
+	 * Conferência em caixas diferentes nem por rótulo de texto; o tipo de cada item já aparece só
+	 * pelo controle à direita (checkbox ou chevron). Quem chama ordena os itens antes de passar pra
+	 * cá — critério único em `ordenarItensCard` (mais atrasado primeiro, empate por tipo, empate por
+	 * ordem original), nunca reimplementado por checklist.
 	 */
 	children?: React.ReactNode;
 }
@@ -86,11 +89,11 @@ export function ChecklistCard({ resumo, totalItens, itensPendentes, onAbrir, chi
 				{/* `h-48` fixo (não `max-h-*`): um checklist com 1 item só não pode deixar o card mais baixo
 				que um com muitos — a altura da área de lista/descrição é sempre a mesma, role internamente
 				quando precisar. Mostra a lista completa, não um recorte (item 4 do feedback de revisão). */}
-				<div className="h-48 overflow-y-auto">
+				<div className="h-48 overflow-y-auto rounded-lg border border-border">
 					{children !== undefined ? (
-						children
+						<div className="divide-y divide-border">{children}</div>
 					) : (
-						<p className="rounded-lg border border-border p-3 text-sm text-muted-foreground">{resumo.descricao}</p>
+						<p className="p-3 text-sm text-muted-foreground">{resumo.descricao}</p>
 					)}
 				</div>
 				<div className="flex items-center justify-between gap-2">

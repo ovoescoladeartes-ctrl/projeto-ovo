@@ -46,10 +46,7 @@ export function VagoesChecklist({ resumo, dia, checklist }: VagoesChecklistProps
 		<>
 			<ChecklistCard resumo={resumo} totalItens={totalItens} itensPendentes={itensPendentes} onAbrir={() => setOpen(true)}>
 				{totalItens > 0 ? (
-					// Comunicação não tem item com ação de negócio própria — só "Conferência" existe aqui
-					// (mesmo motivo do título único no painel completo, ver `Sheet` abaixo). Sem rótulo de
-					// texto no card (pouco espaço); a caixa com borda já comunica o agrupamento sozinha.
-					<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+					<>
 						{contatosCard.map((item) => (
 							<ChecklistItemToggle
 								key={item.contatoId}
@@ -69,7 +66,7 @@ export function VagoesChecklist({ resumo, dia, checklist }: VagoesChecklistProps
 								onToggle={(concluido) => alternarItemChecklistComunicacao({ dia, tipo: "manual", itemId: item.id, concluido })}
 							/>
 						))}
-					</div>
+					</>
 				) : undefined}
 			</ChecklistCard>
 
