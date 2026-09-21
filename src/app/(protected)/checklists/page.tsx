@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 
-import { AbaAtivosArquivados } from "@/components/AbaAtivosArquivados";
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
+import { LinkVerArquivadas } from "@/components/checklist/LinkVerArquivadas";
 import { NovoChecklistDialog } from "@/components/checklist/NovoChecklistDialog";
 import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
 import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
@@ -67,6 +66,7 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 		checklistComunicacao,
 		customizadosComunicacao,
 		itensMateriais,
+		turmasSnapshot,
 		preferenciasSistema,
 	] = await Promise.all([
 		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
@@ -77,29 +77,44 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
 		podeVerComunicacao ? buscarChecklistsCustomizados(firestore, "comunicacao") : null,
 		podeVerComunicacao ? buscarItensMateriais(firestore) : null,
+		podeVerComunicacao ? firestore.collection("turmas").get() : null,
 		buscarPreferenciasSistema(firestore, IDS_CHECKLISTS_SISTEMA),
 	]);
 
+	// Turmas ativas pro seletor de "Adicionar material" (item 3 da 8ª rodada de feedback).
+	const turmasAtivas: { id: string; nome: string }[] = [];
+	turmasSnapshot?.docs.forEach((doc) => {
+		const data = doc.data() as { nome: string; ativo: boolean };
+		if (data.ativo) {
+			turmasAtivas.push({ id: doc.id, nome: data.nome });
+		}
+	});
+	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
 	let checklistsFinanceiro: ChecklistResumo[] = [];
+	let arquivadosFinanceiro = 0;
 	const itensCustomizadosFinanceiroPorId: Record<string, ChecklistItem[]> = {};
 	if (ritualDaSemana !== null && pendenciasAcionaveis !== null && fechamento !== null && customizadosFinanceiro !== null) {
 		const resumoRitual = resumoRitualFinanceiro(ritualDaSemana, pendenciasAcionaveis, preferenciasSistema["financeiro-ritual"]);
 		const resumoFechamento = resumoFechamentoMensal(fechamento, preferenciasSistema["financeiro-fechamento"]);
 		const resumosCustomizados = customizadosFinanceiro.map(resumoChecklistCustomizado);
-		checklistsFinanceiro = ordenarChecklists(
-			[resumoRitual, resumoFechamento, ...resumosCustomizados].filter((resumo) => resumo.arquivado === mostrarArquivados),
-		);
+		const todosFinanceiro = [resumoRitual, resumoFechamento, ...resumosCustomizados];
+		checklistsFinanceiro = ordenarChecklists(todosFinanceiro.filter((resumo) => resumo.arquivado === mostrarArquivados));
+		arquivadosFinanceiro = todosFinanceiro.filter((resumo) => resumo.arquivado).length;
 		customizadosFinanceiro.forEach((checklist) => {
 			itensCustomizadosFinanceiroPorId[checklist.id] = checklist.itens;
 		});
 	}
 
 	let checklistsComunicacao: ChecklistResumo[] = [];
+	let arquivadosComunicacao = 0;
 	const itensCustomizadosComunicacaoPorId: Record<string, ChecklistItem[]> = {};
 	if (checklistComunicacao !== null && customizadosComunicacao !== null) {
 		const resumoDia = resumoChecklistComunicacao(checklistComunicacao, preferenciasSistema["comunicacao-dia"]);
 		const resumosCustomizados = customizadosComunicacao.map(resumoChecklistCustomizado);
-		checklistsComunicacao = ordenarChecklists([resumoDia, ...resumosCustomizados].filter((resumo) => resumo.arquivado === mostrarArquivados));
+		const todosComunicacao = [resumoDia, ...resumosCustomizados];
+		checklistsComunicacao = ordenarChecklists(todosComunicacao.filter((resumo) => resumo.arquivado === mostrarArquivados));
+		arquivadosComunicacao = todosComunicacao.filter((resumo) => resumo.arquivado).length;
 		customizadosComunicacao.forEach((checklist) => {
 			itensCustomizadosComunicacaoPorId[checklist.id] = checklist.itens;
 		});
@@ -136,11 +151,11 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 
 				{podeVerFinanceiro && ritualDaSemana !== null && pendenciasAcionaveis !== null && pendenciasHerdadas !== null && fechamento !== null ? (
 					<TabsContent value="financeiro" className="mt-6">
-						<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-							<Suspense fallback={null}>
-								<AbaAtivosArquivados />
-							</Suspense>
-							<NovoChecklistDialog area="financeiro" />
+						<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+							<LinkVerArquivadas area="financeiro" mostrarArquivados={mostrarArquivados} quantidade={arquivadosFinanceiro} />
+							<div className="sm:ml-auto">
+								<NovoChecklistDialog area="financeiro" />
+							</div>
 						</div>
 
 						{checklistsFinanceiro.length > 0 ? (
@@ -176,17 +191,17 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 						(`/vagoes/materiais`), as ações específicas (criar/excluir item) continuam aqui dentro. */}
 						<div className="flex flex-col gap-3">
 							<h2 className="text-lg font-semibold text-foreground">Materiais</h2>
-							<ChecklistMateriais itens={itensMateriais} />
+							<ChecklistMateriais itens={itensMateriais} turmasAtivas={turmasAtivas} />
 						</div>
 
 						<div className="flex flex-col gap-3">
 							<h2 className="text-lg font-semibold text-foreground">Comunicação</h2>
 
-							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-								<Suspense fallback={null}>
-									<AbaAtivosArquivados />
-								</Suspense>
-								<NovoChecklistDialog area="comunicacao" />
+							<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+								<LinkVerArquivadas area="comunicacao" mostrarArquivados={mostrarArquivados} quantidade={arquivadosComunicacao} />
+								<div className="sm:ml-auto">
+									<NovoChecklistDialog area="comunicacao" />
+								</div>
 							</div>
 
 							{checklistsComunicacao.length > 0 ? (

@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const criarItemMaterialSchema = z.object({
 	titulo: z.string().min(1, "Título é obrigatório."),
+	/** `null` = "Geral" (item sem turma específica) — mesmo padrão de `SEM_TURMA` em `NovaPessoaDialog`. */
+	turmaId: z.string().nullable(),
+	turmaNome: z.string().nullable(),
 });
 
 export type CriarItemMaterialInput = z.infer<typeof criarItemMaterialSchema>;
@@ -26,4 +29,7 @@ export interface ItemMaterial {
 	comprado: boolean;
 	criadoEm: string | null;
 	compradoEm: string | null;
+	/** `null` = "Geral" — item 3 da 8ª rodada de feedback: turma escolhida na criação, pra permitir agrupar por turma quando a faixa própria de Materiais (spec-checklist-materiais.md) existir. */
+	turmaId: string | null;
+	turmaNome: string | null;
 }

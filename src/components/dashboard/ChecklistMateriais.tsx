@@ -13,6 +13,7 @@ import type { ItemMaterial } from "@/core/comunicacao/materiais/schema";
 
 interface ChecklistMateriaisProps {
 	itens: ItemMaterial[];
+	turmasAtivas: { id: string; nome: string }[];
 }
 
 /**
@@ -20,7 +21,7 @@ interface ChecklistMateriaisProps {
  * Feature nova, pedida pra substituir o antigo botão "Adicionar Material" do Checklist do Dia
  * (que só criava um item de texto livre genérico, sem esse fluxo de compra).
  */
-export function ChecklistMateriais({ itens }: ChecklistMateriaisProps): React.ReactElement {
+export function ChecklistMateriais({ itens, turmasAtivas }: ChecklistMateriaisProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
 	const comprados = itens.filter((item) => item.comprado).length;
 	const tudoComprado = itens.length > 0 && comprados === itens.length;
@@ -49,7 +50,7 @@ export function ChecklistMateriais({ itens }: ChecklistMateriaisProps): React.Re
 					</SheetHeader>
 
 					<div className="flex justify-end">
-						<AdicionarMaterialDialog />
+						<AdicionarMaterialDialog turmasAtivas={turmasAtivas} />
 					</div>
 					{itens.length > 0 ? (
 						<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
@@ -57,6 +58,7 @@ export function ChecklistMateriais({ itens }: ChecklistMateriaisProps): React.Re
 								<ChecklistItemToggle
 									key={item.id}
 									label={item.titulo}
+									meta={item.turmaNome ?? "Geral"}
 									concluido={item.comprado}
 									onToggle={(comprado) => alternarItemMaterial({ id: item.id, comprado })}
 									onExcluir={() => excluirItemMaterial({ id: item.id })}
