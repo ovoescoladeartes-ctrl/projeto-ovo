@@ -1,13 +1,14 @@
 "use client";
 
+import { AlertCircle, AlertTriangle, Calendar, Clock, FileText, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { alternarItemRitual } from "@/app/(protected)/caixa/checklist/actions";
-import { ResolverPendenciaManualButton } from "@/app/(protected)/caixa/pendencias/ResolverPendenciaManualButton";
+import { resolverPendenciaManual } from "@/app/(protected)/caixa/pendencias/actions";
+import { ChecklistAcaoRow } from "@/components/checklist/ChecklistAcaoRow";
 import { ChecklistCard } from "@/components/checklist/ChecklistCard";
 import { ChecklistItemToggle, type ChecklistToggleResult } from "@/components/checklist/ChecklistItemToggle";
 import { NovaPendenciaManualDialog } from "@/components/dashboard/NovaPendenciaManualDialog";
-import { PendenciaRow } from "@/components/dashboard/PendenciaRow";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { ChecklistResumo } from "@/core/checklist/schema";
 import type { PendenciaIcon } from "@/core/dashboard/types";
@@ -21,6 +22,16 @@ interface ChecklistFinanceiroProps {
 	pendenciasAcionaveis: PendenciaAcionavel[];
 	pendenciasHerdadas: RitualPendenciaHerdada[];
 }
+
+/** Mesmo mapeamento semântico ícone-chave → componente que `PendenciaRow` (aposentado) tinha — `ChecklistAcaoRow` só aceita o componente. */
+const ICONS: Record<PendenciaIcon, React.ComponentType<{ className?: string }>> = {
+	erro: XCircle,
+	aviso: AlertTriangle,
+	info: AlertCircle,
+	prazo: Clock,
+	documento: FileText,
+	calendario: Calendar,
+};
 
 /** Figma não mostra ícone nessas linhas — reaproveita a mesma semântica já usada pra pendências equivalentes em `core/dashboard/consultas.ts`. */
 function iconeDaPendenciaAcionavel(tipo: "repasse" | "recebimento"): PendenciaIcon {
@@ -62,23 +73,35 @@ export function ChecklistFinanceiro({
 		return resultados.find((resultado) => resultado.status === "error") ?? { status: "ok" };
 	}
 
-	function renderAcao(pendencia: PendenciaAcionavel): React.ReactElement {
-		return pendencia.tipo === "manual" && pendencia.pendenciaManualId !== null ? (
-			<div key={pendencia.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-				<div className="min-w-0">
-					<p className="truncate text-sm font-medium text-foreground">{pendencia.titulo}</p>
-					<p className="text-sm text-muted-foreground">{pendencia.meta}</p>
-				</div>
-				<ResolverPendenciaManualButton id={pendencia.pendenciaManualId} />
-			</div>
-		) : (
-			<PendenciaRow
+	/**
+	 * Card e painel têm comportamentos diferentes pro mesmo item de "Ações" sem página externa
+	 * (pendência manual, ex.: "Marcar como pago"): dentro do card compacto, clicar sempre tira a
+	 * pessoa do card — não existe página filtrada pra pendência manual, então o clique abre o painel
+	 * lateral em vez de executar a ação ali mesmo. Dentro do painel (já é "fora do card"), o clique
+	 * continua executando a ação na hora, como antes. Pendência com página real (repasse/recebimento
+	 * → `/caixa`) navega igual nos dois lugares, já que "sair do card" e "navegar" são a mesma coisa.
+	 */
+	function renderAcao(pendencia: PendenciaAcionavel, contexto: "card" | "sheet"): React.ReactElement {
+		if (pendencia.tipo === "manual" && pendencia.pendenciaManualId !== null) {
+			const pendenciaManualId = pendencia.pendenciaManualId;
+			return contexto === "card" ? (
+				<ChecklistAcaoRow key={pendencia.id} titulo={pendencia.titulo} meta={pendencia.meta} onAbrir={() => setOpen(true)} />
+			) : (
+				<ChecklistAcaoRow
+					key={pendencia.id}
+					titulo={pendencia.titulo}
+					meta={pendencia.meta}
+					onExecutar={() => resolverPendenciaManual({ id: pendenciaManualId })}
+				/>
+			);
+		}
+		return (
+			<ChecklistAcaoRow
 				key={pendencia.id}
-				icon={iconeDaPendenciaAcionavel(pendencia.tipo as "repasse" | "recebimento")}
+				icon={ICONS[iconeDaPendenciaAcionavel(pendencia.tipo as "repasse" | "recebimento")]}
 				titulo={pendencia.titulo}
 				meta={pendencia.meta}
 				href="/caixa"
-				actionLabel="Resolver"
 			/>
 		);
 	}
@@ -115,11 +138,22 @@ export function ChecklistFinanceiro({
 		<>
 			<ChecklistCard resumo={resumo} totalItens={totalItens} itensPendentes={itensPendentes} onAbrir={() => setOpen(true)}>
 				{totalItens > 0 ? (
-					<>
-						{pendenciasAcionaveis.map(renderAcao)}
-						{pendenciasHerdadas.map(renderHerdado)}
-						{passosRitual.map(renderRotina)}
-					</>
+					<div className="flex flex-col gap-3">
+						{/* Mesma separação por comportamento do painel completo (Ações primeiro, Conferência
+						depois) — sem o rótulo de texto aqui (pouco espaço no card): a ordem + cada grupo na sua
+						própria caixa com borda já comunicam o agrupamento (item 2 do pedido de ajuste visual). */}
+						{pendenciasAcionaveis.length > 0 ? (
+							<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+								{pendenciasAcionaveis.map((pendencia) => renderAcao(pendencia, "card"))}
+							</div>
+						) : null}
+						{pendenciasHerdadas.length > 0 || passosRitual.length > 0 ? (
+							<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+								{pendenciasHerdadas.map(renderHerdado)}
+								{passosRitual.map(renderRotina)}
+							</div>
+						) : null}
+					</div>
 				) : undefined}
 			</ChecklistCard>
 
@@ -130,9 +164,9 @@ export function ChecklistFinanceiro({
 					</SheetHeader>
 
 					{/* Duas seções por comportamento, não por categoria de negócio (item 6 do feedback de
-					revisão): "Ações" é todo item com botão de ação de verdade (Resolver/Marcar como pago);
-					"Conferência" é todo item que só precisa de checkbox. Uma seção some inteira (sem título)
-					quando não tem conteúdo. */}
+					revisão): "Ações" é todo item que executa/navega ao clicar na linha (`ChecklistAcaoRow`,
+					chevron à direita); "Conferência" é todo item que só precisa de checkbox. Uma seção some
+					inteira (sem título) quando não tem conteúdo. */}
 					{pendenciasAcionaveis.length > 0 ? (
 						<section>
 							<div className="mb-2 flex items-center justify-between gap-2">
@@ -140,7 +174,7 @@ export function ChecklistFinanceiro({
 								<NovaPendenciaManualDialog />
 							</div>
 							<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-								{pendenciasAcionaveis.map(renderAcao)}
+								{pendenciasAcionaveis.map((pendencia) => renderAcao(pendencia, "sheet"))}
 							</div>
 						</section>
 					) : (
