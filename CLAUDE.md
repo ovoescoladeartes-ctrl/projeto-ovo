@@ -36,4 +36,20 @@ Instruções para quem (ou qual agente) for mexer no projeto **ovo-escola**. Vá
 ## 5. Dev server
 
 - **Nunca** rodar `next dev` (mesmo em outra porta) ou `rm -rf .next` sem antes checar se já existe um servidor rodando neste diretório — o `.next` é compartilhado pelo diretório de trabalho, não pela porta, e derrubar/reconstruir corrompe a sessão de quem já está com o servidor no ar.
-- Para verificar corretude de TypeScript/build sem esse risco, usar `npx tsc --noEmit`.
+- **Nunca rodar `pnpm run build` (build de produção) na mesma pasta enquanto um `next dev` está no ar** — os dois escrevem em `.next` com estruturas incompatíveis entre si; um por cima do outro corrompe o cache do dev server (sintoma: erro `MODULE_NOT_FOUND` ao servir qualquer página) e força reiniciar. Se precisar confirmar que o build de produção passa, rode e, se o dev server quebrar por causa disso, reinicie-o depois (avise antes de reiniciar o servidor de quem já está com ele aberto).
+- Para verificar corretude de TypeScript sem esse risco, usar `npx tsc --noEmit` (não conflita com um `next dev` em execução).
+
+## 6. Cota do Firebase (plano gratuito) — cuidado em dia de iteração intensa
+
+O projeto está no plano gratuito do Firebase (Spark), com teto diário rígido de requisições — diferente do Blaze (pago sob demanda), não tem margem: ao bater no teto, o app inteiro fica fora do ar **para todo mundo** (não só quem estava testando), com erro `UNAUTHENTICATED`/`RESOURCE_EXHAUSTED` do lado do servidor, até resetar (meia-noite, horário do Pacífico) ou o plano ser trocado pra Blaze. Isso já aconteceu (2026-09-21, dia com várias rodadas de ajuste no motor de checklist testadas em produção) — o app não estava sendo mal usado, foi o volume de testes/deploys do próprio dia de trabalho que consumiu a cota.
+
+Por que o custo sobe rápido num dia assim:
+- O Dashboard (`src/app/(protected)/page.tsx`) já dispara **~13 consultas em paralelo por carregamento** (KPIs, pendências, Ritual, Fechamento, Materiais, checklists customizados), várias delas fazendo loop interno por semana — um carregamento só passa fácil de 30–50 leituras no Firestore.
+- **Todo `router.refresh()` nos componentes de checklist recarrega essa árvore inteira**, não só o item que mudou (`ChecklistItemToggle`, `ChecklistAcaoRow`, `FechamentoTarefaDetalhe` — busca de novo os dados do zero pra garantir consistência). Cada clique de teste custa o mesmo que abrir o Dashboard do zero.
+- Cada merge pra `developer`/`main` dispara build+deploy em **mais de um projeto Vercel** ligado a este repositório (hoje: `projeto-ovo` e `projeto-ovo-escola` — vale checar se os dois são realmente necessários ou se um é redundante).
+
+Práticas para reduzir o risco, num dia de trabalho com várias rodadas de mudança:
+- **Evitar reiniciar o servidor dev sem necessidade real** — cada reinício custa pelo menos um carregamento completo do Dashboard.
+- **Agrupar mudanças relacionadas antes de promover pra `developer`/`main`**, em vez de dar merge de cada rodada pequena separadamente — menos merges, menos deploys, menos carregamentos de verificação em produção.
+- **Testar localmente o quanto der antes de promover** — reservar o teste em produção pra confirmação final de um conjunto de mudanças, não pra cada iteração.
+- Se o uso real do app (não só desenvolvimento) já se aproximar da cota gratuita, considerar migrar pro plano Blaze — remove o corte duro, mantendo a mesma cota gratuita generosa como piso (não passa a cobrar do zero).
