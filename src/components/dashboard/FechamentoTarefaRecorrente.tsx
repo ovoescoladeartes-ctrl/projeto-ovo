@@ -1,6 +1,7 @@
 "use client";
 
-import { Download } from "lucide-react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronRight, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -59,15 +60,33 @@ export function FechamentoTarefaRecorrente({ tarefa }: FechamentoTarefaRecorrent
 		});
 	}
 
+	// Item de "Ações" (exportável) sempre mostra chevron-right, girando 180° quando expandido — mesmo
+	// padrão de rotação do `AccordionTrigger` padrão, só que com o ícone virado pra indicar "ação",
+	// não "revelar" (regra 1 do ajuste visual: itens de Ações nunca usam o chevron-down genérico).
+	// Item de Conferência (não exportável) não muda — continua o `AccordionTrigger` padrão do shadcn.
+	const gatilho = exportavel ? (
+		<AccordionPrimitive.Header className="flex">
+			<AccordionPrimitive.Trigger className="flex flex-1 items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset [&[data-state=open]>svg]:rotate-180">
+				<div className="flex flex-col items-start gap-0.5">
+					<span className="text-sm font-medium text-foreground">{tarefa.label}</span>
+					<span className="text-xs text-muted-foreground">{tarefa.periodoLabel}</span>
+				</div>
+				<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+			</AccordionPrimitive.Trigger>
+		</AccordionPrimitive.Header>
+	) : (
+		<AccordionTrigger className="px-4 py-3 hover:no-underline">
+			<div className="flex flex-col items-start gap-0.5 text-left">
+				<span className="text-sm font-medium text-foreground">{tarefa.label}</span>
+				<span className="text-xs text-muted-foreground">{tarefa.periodoLabel}</span>
+			</div>
+		</AccordionTrigger>
+	);
+
 	return (
 		<Accordion type="single" collapsible>
 			<AccordionItem value={tarefa.itemId} className="border-none">
-				<AccordionTrigger className="px-4 py-3 hover:no-underline">
-					<div className="flex flex-col items-start gap-0.5 text-left">
-						<span className="text-sm font-medium text-foreground">{tarefa.label}</span>
-						<span className="text-xs text-muted-foreground">{tarefa.periodoLabel}</span>
-					</div>
-				</AccordionTrigger>
+				{gatilho}
 				<AccordionContent className="px-4">
 					<div className="flex flex-col gap-3">
 						<div className="flex flex-col gap-2">

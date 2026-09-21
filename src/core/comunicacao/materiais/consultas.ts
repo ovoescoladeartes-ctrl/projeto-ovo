@@ -13,6 +13,8 @@ interface ItemMaterialDoc {
 	comprado: boolean;
 	criadoEm?: Timestamp;
 	compradoEm?: Timestamp;
+	turmaId?: string | null;
+	turmaNome?: string | null;
 }
 
 /** Lista todos os itens (comprados e não) — quem decide o que mostrar/ocultar é a UI (`ChecklistMateriais`), não esta consulta. */
@@ -26,6 +28,8 @@ export async function buscarItensMateriais(firestore: FirebaseFirestore.Firestor
 			comprado: data.comprado,
 			criadoEm: toIso(data.criadoEm ?? null),
 			compradoEm: toIso(data.compradoEm ?? null),
+			turmaId: data.turmaId ?? null,
+			turmaNome: data.turmaNome ?? null,
 		};
 	});
 }
