@@ -78,7 +78,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	// Ritual + Fechamento + customizados da área, ordenados por pin+score e sem os arquivados
 	// (seção 3/5.1/6 de spec-checklist-motor.md) — motor genérico de checklist, não cobre Materiais.
 	let checklistsFinanceiro: ChecklistResumo[] = [];
-	let itensChecklistsCustomizadosFinanceiro: Record<string, ChecklistItem[]> = {};
+	const itensChecklistsCustomizadosFinanceiro: Record<string, ChecklistItem[]> = {};
 	if (ritualDaSemana !== null && pendenciasAcionaveis !== null && fechamento !== null && customizadosFinanceiro !== null) {
 		const resumoRitual = resumoRitualFinanceiro(ritualDaSemana, pendenciasAcionaveis, preferenciasSistema?.["financeiro-ritual"]);
 		const resumoFechamento = resumoFechamentoMensal(fechamento, preferenciasSistema?.["financeiro-fechamento"]);
@@ -90,7 +90,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	}
 
 	let checklistsComunicacao: ChecklistResumo[] = [];
-	let itensChecklistsCustomizadosComunicacao: Record<string, ChecklistItem[]> = {};
+	const itensChecklistsCustomizadosComunicacao: Record<string, ChecklistItem[]> = {};
 	if (checklistComunicacao !== null && customizadosComunicacao !== null) {
 		const resumoDia = resumoChecklistComunicacao(checklistComunicacao, preferenciasSistema?.["comunicacao-dia"]);
 		const resumosCustomizados = customizadosComunicacao.map(resumoChecklistCustomizado);
