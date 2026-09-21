@@ -76,7 +76,10 @@ export async function alternarItemChecklistComunicacao(input: unknown): Promise<
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
+	// Também aparece em `/checklists` (`VagoesChecklist` reaproveitado lá) — sem revalidar essa
+	// rota, o badge de pendentes fica parado ao marcar um item por lá.
 	revalidatePath("/");
+	revalidatePath("/checklists");
 	return { status: "ok" };
 }
 
@@ -104,5 +107,6 @@ export async function criarItemManualChecklist(input: unknown): Promise<ActionRe
 	}
 
 	revalidatePath("/");
+	revalidatePath("/checklists");
 	return { status: "ok" };
 }

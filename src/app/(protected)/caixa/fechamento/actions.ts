@@ -46,6 +46,9 @@ export async function alternarItemFechamento(input: unknown): Promise<ActionResu
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
+	// Também aparece em `/checklists` (`ChecklistFechamento` reaproveitado lá) — sem revalidar
+	// essa rota, o badge de pendentes fica parado ao marcar um item por lá.
 	revalidatePath("/");
+	revalidatePath("/checklists");
 	return { status: "ok" };
 }

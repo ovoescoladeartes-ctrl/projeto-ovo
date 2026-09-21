@@ -16,12 +16,18 @@ export type RitualItemId = (typeof RITUAL_ITEM_IDS)[number];
 export interface RitualItemDefinicao {
 	id: RitualItemId;
 	label: string;
+	/** Texto de ajuda opcional (ícone de interrogação no item, item 8 do feedback de revisão) — só pros itens cujo nome sozinho não deixa claro o que fazer. */
+	explicacao?: string;
 }
 
 export const RITUAL_ITENS: readonly RitualItemDefinicao[] = [
 	{ id: "exportar-relatorio", label: "Exportar relatório semanal" },
 	{ id: "conferir-entradas", label: "Conferir entradas novas" },
-	{ id: "revisar-falhas", label: "Revisar falhas de cobrança" },
+	{
+		id: "revisar-falhas",
+		label: "Revisar falhas de cobrança",
+		explicacao: "Verificar no site se algum pagamento por cartão foi recusado ou estornado, e avisar o aluno pra tentar de novo.",
+	},
 ];
 
 export interface RitualItemEstado {
@@ -30,6 +36,7 @@ export interface RitualItemEstado {
 	concluido: boolean;
 	concluidoEm: string | null;
 	concluidoPor: string | null;
+	explicacao?: string;
 }
 
 export interface RitualSemana {
@@ -41,6 +48,8 @@ export interface RitualSemana {
 /** Pendência herdada de uma semana anterior do Ritual (`buscarPendenciasRitualHerdadas`) — carrega `semana` como campo próprio, não embutido só no `id`, pra quem consome não precisar recuperá-la fazendo parsing do `id`. */
 export interface RitualPendenciaHerdada extends PendenciaItem {
 	semana: string;
+	/** Ids dos passos do Ritual daquela semana ainda não concluídos — quem consome usa isso pra marcar todos como concluídos de uma vez (um checkbox só "resolve" a semana inteira, ver `ChecklistFinanceiro`). */
+	itensPendentesIds: RitualItemId[];
 }
 
 /** `semana` sempre tem o formato fixo "yyyy-MM-dd" (regex já garantiu isso antes de chamar). */

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { alternarItemMaterial } from "@/app/(protected)/vagoes/materiais/actions";
+import { alternarItemMaterial, excluirItemMaterial } from "@/app/(protected)/vagoes/materiais/actions";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { AdicionarMaterialDialog } from "@/components/dashboard/AdicionarMaterialDialog";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,7 @@ export function ChecklistMateriais({ itens }: ChecklistMateriaisProps): React.Re
 									label={item.titulo}
 									concluido={item.comprado}
 									onToggle={(comprado) => alternarItemMaterial({ id: item.id, comprado })}
+									onExcluir={() => excluirItemMaterial({ id: item.id })}
 								/>
 							))}
 						</div>

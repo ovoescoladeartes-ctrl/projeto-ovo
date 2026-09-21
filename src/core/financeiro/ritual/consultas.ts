@@ -47,6 +47,7 @@ function montarItensComEstado(doc: RitualSemanaDoc | undefined): RitualItemEstad
 			concluido: estado?.concluido ?? false,
 			concluidoEm: toIso(estado?.concluidoEm ?? null),
 			concluidoPor: estado?.concluidoPor ?? null,
+			explicacao: definicao.explicacao,
 		};
 	});
 }
@@ -83,14 +84,15 @@ export async function buscarPendenciasRitualHerdadas(firestore: FirebaseFirestor
 			}
 
 			const itens = montarItensComEstado(doc.data() as RitualSemanaDoc);
-			const temPendente = itens.some((item) => !item.concluido);
-			if (!temPendente) {
+			const itensPendentesIds = itens.filter((item) => !item.concluido).map((item) => item.id);
+			if (itensPendentesIds.length === 0) {
 				return null;
 			}
 
 			return {
 				id: `ritual-${semana}`,
 				semana,
+				itensPendentesIds,
 				icon: "calendario",
 				titulo: `Ritual de segunda: reconciliação da semana ${formatarDataCurta(segunda)} não concluída`,
 				meta: "Item herdado do ciclo anterior • Requer revisão manual",

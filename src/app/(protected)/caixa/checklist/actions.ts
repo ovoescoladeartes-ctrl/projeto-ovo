@@ -42,7 +42,10 @@ export async function alternarItemRitual(input: unknown): Promise<ActionResult> 
 	}
 
 	// Ritual alimenta as pendências herdadas e as linhas "Reconciliar Semana N" do Fechamento, ambos
-	// hoje cards da Home (`/`) — Ritual, Pendências e Fechamento não têm mais páginas próprias.
+	// hoje cards da Home (`/`) — Ritual, Pendências e Fechamento não têm mais páginas próprias. O
+	// card também aparece em `/checklists` (motor de checklist, `ChecklistFinanceiro` reaproveitado
+	// lá) — sem revalidar essa rota, o badge de pendentes fica parado ao marcar um item por lá.
 	revalidatePath("/");
+	revalidatePath("/checklists");
 	return { status: "ok" };
 }
