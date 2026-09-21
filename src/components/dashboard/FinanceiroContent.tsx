@@ -46,21 +46,16 @@ export function FinanceiroContent({
 		<div className="flex flex-col gap-6">
 			<KpiCardsGrid items={kpis} />
 
-			{/* Seção "Checklists" com fundo levemente diferente do resto da página, sem borda/sombra
-			(item 2 da 5ª rodada de feedback). Dois bugs reais encontrados na investigação:
-			(1) `bg-muted/50` é quase idêntico a `--background` (oklch 0.97 vs 0.976, mesma armadilha já
-			documentada em docs/design.md pro `--accent`) — trocado por `bg-subtle` (`--surface-hover`,
-			#e9e9e4), o token certo pra esse fim. (2) o box não fazia sangria até a borda da página, então
-			o padding próprio (`p-6`) somava com o padding da página e desalinhava o conteúdo em relação
-			às outras seções — agora sangra com margem negativa que cancela exatamente o padding
-			responsivo do layout (`p-6 sm:p-8`, `src/app/(protected)/layout.tsx`) e reaplica o mesmo
-			padding por dentro, então o conteúdo cai na mesma posição horizontal de tudo o mais na página
-			(a faixa mais abaixo, com `mr-[-1.5rem]`/`pr-6`, continua sangrando só à direita, agora contra
-			essa borda em vez da borda da página). */}
-			<div className="-mx-6 flex flex-col gap-4 bg-subtle px-6 py-6 sm:-mx-8 sm:px-8">
+			{/* Seção "Checklists" sem fundo/borda própria — se integra ao resto do dashboard, só
+			separada por espaçamento vertical (o `gap-6` do container pai), igual às outras seções da
+			página (item 1 da 8ª rodada de feedback: o fundo destacado e o título grande competiam
+			visualmente em vez de se integrar). Título no mesmo estilo de "Tendência de recebido"/
+			"Recebido por turma" logo abaixo (`text-sm font-medium text-foreground`), copiado do código
+			real dessas seções, não um valor novo. */}
+			<div className="flex flex-col gap-4">
 				{/* Título de seção + "ver tudo", acima do carrossel (padrão Netflix/iFood) — item 4 do feedback de revisão. */}
 				<div className="flex items-center justify-between gap-2">
-					<h2 className="text-lg font-semibold text-foreground">Checklists</h2>
+					<p className="text-sm font-medium text-foreground">Checklists</p>
 					<Link href="/checklists?aba=financeiro" className="text-sm font-medium text-primary hover:underline">
 						Ver todos os checklists →
 					</Link>
