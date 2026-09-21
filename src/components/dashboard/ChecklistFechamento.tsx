@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
-import { alternarItemRitual } from "@/app/(protected)/caixa/checklist/actions";
 import { alternarItemFechamento } from "@/app/(protected)/caixa/fechamento/actions";
+import { ChecklistAcaoRow } from "@/components/checklist/ChecklistAcaoRow";
 import { ChecklistCard } from "@/components/checklist/ChecklistCard";
-import { ChecklistItemToggle, type ChecklistToggleResult } from "@/components/checklist/ChecklistItemToggle";
+import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
+import { ordenarItensCard, type ItemOrdenavelCard } from "@/components/checklist/ordenarItensCard";
 import { FechamentoTarefaRecorrente } from "@/components/dashboard/FechamentoTarefaRecorrente";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { ChecklistResumo } from "@/core/checklist/schema";
@@ -23,9 +24,10 @@ const ITEM_EXPORTAVEL = "exportar-relatorio";
  * Fechamento Mensal — card resumido no dashboard, lista completa (6 itens fixos + as tarefas
  * recorrentes do Ritual ainda pendentes em alguma semana do mês) num painel aberto sob demanda.
  * Tarefas recorrentes são agrupadas por tarefa, não repetidas por semana (item 2 da 7ª rodada de
- * feedback) — expandem em accordion no painel completo (`FechamentoTarefaRecorrente`). No card
- * compacto, cada tarefa agrupada vira uma linha só com checkbox que resolve todas as semanas
- * pendentes de uma vez (mesma simplificação já usada pros itens herdados do Ritual).
+ * feedback) — expandem em accordion (`FechamentoTarefaRecorrente`), mas só dentro do painel
+ * completo: o card compacto nunca expande nada ali dentro (regra de consistência do card — só
+ * `chevron-right` estático, nunca a seta pra baixo do accordion), então lá o item acumulado é uma
+ * linha `ChecklistAcaoRow` que só abre o painel, onde o accordion de verdade mora.
  */
 export function ChecklistFechamento({ resumo, fechamento }: ChecklistFechamentoProps): React.ReactElement {
 	const [open, setOpen] = useState(false);
@@ -37,43 +39,41 @@ export function ChecklistFechamento({ resumo, fechamento }: ChecklistFechamentoP
 	// podem estar concluídos ou não.
 	const itensPendentes = fechamento.linhas.filter((linha) => !linha.concluido).length + totalItensTarefas;
 
-	/** Resolve todas as semanas pendentes de uma tarefa de uma vez — versão simplificada do accordion pro card compacto, mesmo espírito do "herdado" do Ritual (um checkbox só resolve tudo). */
-	async function resolverTarefaRecorrente(tarefa: FechamentoTarefaRecorrentePendente): Promise<ChecklistToggleResult> {
-		const resultados = await Promise.all(
-			tarefa.semanas.map((semana) => alternarItemRitual({ semana: semana.semana, itemId: tarefa.itemId, concluido: true })),
-		);
-		return resultados.find((resultado) => resultado.status === "error") ?? { status: "ok" };
-	}
-
 	const tarefasAcoes = fechamento.tarefasRecorrentesPendentes.filter((tarefa) => tarefa.itemId === ITEM_EXPORTAVEL);
 	const tarefasConferencia = fechamento.tarefasRecorrentesPendentes.filter((tarefa) => tarefa.itemId !== ITEM_EXPORTAVEL);
+
+	/** Linha do card compacto pro item acumulado — nunca expande ali, só abre o painel (onde vira `FechamentoTarefaRecorrente`, o accordion de verdade). */
+	function renderTarefaCard(tarefa: FechamentoTarefaRecorrentePendente): React.ReactElement {
+		return (
+			<ChecklistAcaoRow key={tarefa.itemId} titulo={tarefa.label} meta={tarefa.periodoLabel} explicacao={tarefa.explicacao} onAbrir={() => setOpen(true)} />
+		);
+	}
+
+	function renderLinhaCard(linha: FechamentoConsolidado["linhas"][number]): React.ReactElement {
+		return (
+			<ChecklistItemToggle
+				key={linha.id}
+				label={linha.label}
+				concluido={linha.concluido}
+				explicacao={linha.explicacao}
+				onToggle={(concluido) => alternarItemFechamento({ periodo: fechamento.periodo, itemId: linha.id, concluido })}
+			/>
+		);
+	}
+
+	// Uma lista só, ordenada por atraso > Ações > ordem original (regra 38 do design.md) — sem caixa
+	// separada por tipo dentro do card. Nenhum item aqui tem um "atraso" próprio (não há herdado no
+	// Fechamento), então a ordem final é só Ações primeiro, Conferência depois.
+	const itensCard: (ItemOrdenavelCard & { key: string; node: React.ReactElement })[] = [
+		...tarefasAcoes.map((tarefa) => ({ atraso: 0, tipo: "acao" as const, key: tarefa.itemId, node: renderTarefaCard(tarefa) })),
+		...tarefasConferencia.map((tarefa) => ({ atraso: 0, tipo: "conferencia" as const, key: tarefa.itemId, node: renderTarefaCard(tarefa) })),
+		...fechamento.linhas.map((linha) => ({ atraso: 0, tipo: "conferencia" as const, key: linha.id, node: renderLinhaCard(linha) })),
+	];
 
 	return (
 		<>
 			<ChecklistCard resumo={resumo} totalItens={totalItens} itensPendentes={itensPendentes} onAbrir={() => setOpen(true)}>
-				{totalItens > 0 ? (
-					<>
-						{fechamento.tarefasRecorrentesPendentes.map((tarefa) => (
-							<ChecklistItemToggle
-								key={tarefa.itemId}
-								label={tarefa.label}
-								meta={tarefa.periodoLabel}
-								concluido={false}
-								explicacao={tarefa.explicacao}
-								onToggle={() => resolverTarefaRecorrente(tarefa)}
-							/>
-						))}
-						{fechamento.linhas.map((linha) => (
-							<ChecklistItemToggle
-								key={linha.id}
-								label={linha.label}
-								concluido={linha.concluido}
-								explicacao={linha.explicacao}
-								onToggle={(concluido) => alternarItemFechamento({ periodo: fechamento.periodo, itemId: linha.id, concluido })}
-							/>
-						))}
-					</>
-				) : undefined}
+				{totalItens > 0 ? ordenarItensCard(itensCard).map((item) => item.node) : undefined}
 			</ChecklistCard>
 
 			<Sheet open={open} onOpenChange={setOpen}>
