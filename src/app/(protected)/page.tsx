@@ -57,6 +57,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		pendenciasHerdadas,
 		fechamento,
 		itensMateriais,
+		turmasSnapshot,
 		preferenciasSistema,
 		customizadosFinanceiro,
 		customizadosComunicacao,
@@ -70,10 +71,22 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
 		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
 		podeVerComunicacao ? buscarItensMateriais(firestore) : null,
+		podeVerComunicacao ? firestore.collection("turmas").get() : null,
 		podeVerFinanceiro || podeVerComunicacao ? buscarPreferenciasSistema(firestore, IDS_CHECKLISTS_SISTEMA) : null,
 		podeVerFinanceiro ? buscarChecklistsCustomizados(firestore, "financeiro") : null,
 		podeVerComunicacao ? buscarChecklistsCustomizados(firestore, "comunicacao") : null,
 	]);
+
+	// Turmas ativas pro seletor de "Adicionar material" (item 3 da 8ª rodada de feedback) — mesmo
+	// padrão inline já usado em `caixa/page.tsx`/`pessoas/page.tsx`, sem helper compartilhado.
+	const turmasAtivas: { id: string; nome: string }[] = [];
+	turmasSnapshot?.docs.forEach((doc) => {
+		const data = doc.data() as { nome: string; ativo: boolean };
+		if (data.ativo) {
+			turmasAtivas.push({ id: doc.id, nome: data.nome });
+		}
+	});
+	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	// Ritual + Fechamento + customizados da área, ordenados por pin+score e sem os arquivados
 	// (seção 3/5.1/6 de spec-checklist-motor.md) — motor genérico de checklist, não cobre Materiais.
@@ -153,17 +166,16 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
 
-							{/* Seção "Checklists" com fundo levemente diferente do resto da página, sem borda/sombra
-							(item 2 da 5ª rodada de feedback). Mesmos dois bugs corrigidos em `FinanceiroContent.tsx`:
-							`bg-muted/50` quase idêntico a `--background` (trocado por `bg-subtle`) e o box não fazia
-							sangria até a borda da página (padding próprio somava com o da página, desalinhando o
-							conteúdo) — agora sangra com margem negativa cancelando o padding responsivo do layout
-							(`p-6 sm:p-8`) e reaplica o mesmo padding por dentro. */}
-							<div className="-mx-6 flex flex-col gap-4 bg-subtle px-6 py-6 sm:-mx-8 sm:px-8">
+							{/* Seção "Checklists" sem fundo/borda própria — se integra ao resto do dashboard, só
+							separada por espaçamento vertical (o `gap-6` do container pai), igual às outras seções da
+							página (item 1 da 8ª rodada de feedback). Título no mesmo estilo das outras seções de
+							página (`text-sm font-medium text-foreground`), copiado do código real (ex.: "Tendência de
+							recebido" em `FinanceiroContent.tsx`), não um valor novo. */}
+							<div className="flex flex-col gap-4">
 								{/* Título de seção + "ver tudo", acima dos carrosséis (padrão Netflix/iFood) — item 4 do feedback
 								de revisão: um único link pra área, não um por faixa (Materiais não tem link próprio). */}
 								<div className="flex items-center justify-between gap-2">
-									<h2 className="text-lg font-semibold text-foreground">Checklists</h2>
+									<p className="text-sm font-medium text-foreground">Checklists</p>
 									<Link href="/checklists?aba=comunicacao" className="text-sm font-medium text-primary hover:underline">
 										Ver todos os checklists →
 									</Link>
@@ -174,7 +186,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 								item 4 do feedback de revisão. */}
 								<div className="flex flex-col gap-3">
 									<h3 className="text-sm font-medium text-muted-foreground">Materiais</h3>
-									<ChecklistMateriais itens={itensMateriais} />
+									<ChecklistMateriais itens={itensMateriais} turmasAtivas={turmasAtivas} />
 								</div>
 
 								<div className="flex flex-col gap-3">

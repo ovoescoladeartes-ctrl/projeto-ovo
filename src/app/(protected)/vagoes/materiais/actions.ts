@@ -35,7 +35,14 @@ export async function criarItemMaterial(input: unknown): Promise<ActionResult> {
 	try {
 		await getFirebaseAdminFirestore()
 			.collection(COLECAO)
-			.add({ titulo: parsed.data.titulo, comprado: false, criadoEm: new Date(), criadoPor: session.uid });
+			.add({
+				titulo: parsed.data.titulo,
+				turmaId: parsed.data.turmaId,
+				turmaNome: parsed.data.turmaNome,
+				comprado: false,
+				criadoEm: new Date(),
+				criadoPor: session.uid,
+			});
 	} catch {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
