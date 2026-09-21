@@ -4,15 +4,16 @@ import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 
 import { alternarItemChecklistComunicacao } from "@/app/(protected)/vagoes/checklist/actions";
+import { ChecklistCard } from "@/components/checklist/ChecklistCard";
 import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { AdicionarItemChecklistDialog } from "@/components/dashboard/AdicionarItemChecklistDialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import type { ChecklistResumo } from "@/core/checklist/schema";
 import type { ChecklistComunicacaoDia } from "@/core/comunicacao/checklist/schema";
 
 interface VagoesChecklistProps {
+	resumo: ChecklistResumo;
 	dia: string;
 	checklist: ChecklistComunicacaoDia;
 }
@@ -21,36 +22,64 @@ interface VagoesChecklistProps {
  * Checklist do Dia — card resumido no dashboard, lista completa (pendências anteriores, blocos de
  * horário, itens avulsos) num painel aberto sob demanda. Itens de contato são derivados ao vivo da
  * lógica de pendência de comunicação já existente; itens manuais são avulsos, adicionados por
- * `AdicionarItemChecklistDialog`.
+ * `AdicionarItemChecklistDialog`. O card mostra a lista inteira (item 4 do feedback de revisão),
+ * não um recorte — a área já tem altura fixa com scroll interno: `pendenciasAnteriores` (mais
+ * urgente, destaque) + `itensPendentesHoje` (já é "todo contato pendente hoje, agnóstico de bloco
+ * de horário") + todos os manuais (inclusive os já concluídos, pra bater com o total do badge).
  */
-export function VagoesChecklist({ dia, checklist }: VagoesChecklistProps): React.ReactElement {
-	const manuaisPendentes = checklist.manuais.filter((item) => !item.concluido).length;
-	const totalPendentes = checklist.pendenciasAnteriores.length + checklist.itensPendentesHoje.length + manuaisPendentes;
-
+export function VagoesChecklist({ resumo, dia, checklist }: VagoesChecklistProps): React.ReactElement {
+	const manuaisPendentes = checklist.manuais.filter((item) => !item.concluido);
 	const [open, setOpen] = useState(false);
+
+	// `pendenciasAnteriores`/`itensPendentesHoje` já são listas "só pendente" (contato resolvido some
+	// delas) — contam inteiras nos dois lados; só `manuais` tem itens concluídos que continuam na
+	// lista, daí o filtro (item 2 do feedback de revisão: X/Y sempre calculado na hora do render).
+	const totalItens = checklist.pendenciasAnteriores.length + checklist.itensPendentesHoje.length + checklist.manuais.length;
+	const itensPendentes = checklist.pendenciasAnteriores.length + checklist.itensPendentesHoje.length + manuaisPendentes.length;
+
+	const contatosCard = [
+		...checklist.pendenciasAnteriores.map((item) => ({ ...item, destaque: true })),
+		...checklist.itensPendentesHoje.map((item) => ({ ...item, destaque: false })),
+	];
 
 	return (
 		<>
-			<Card>
-				<CardHeader className="flex-row items-center gap-2 space-y-0">
-					<CardTitle className="text-base">Checklist do Dia</CardTitle>
-					<Badge variant="secondary">{totalPendentes} pendentes</Badge>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<p className="mb-3 text-sm text-muted-foreground">
-						Contatos aguardando resposta nos 3 horários de revisão, mais itens avulsos.
-					</p>
-					<Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-						Ver checklist completo
-					</Button>
-				</CardContent>
-			</Card>
+			<ChecklistCard resumo={resumo} totalItens={totalItens} itensPendentes={itensPendentes} onAbrir={() => setOpen(true)}>
+				{totalItens > 0 ? (
+					<>
+						{contatosCard.map((item) => (
+							<ChecklistItemToggle
+								key={item.contatoId}
+								label={item.nome}
+								meta={`${item.canal} · aguardando há ${item.diasAguardando} dia${item.diasAguardando === 1 ? "" : "s"}`}
+								concluido={item.concluido}
+								avatarNome={item.nome}
+								destaque={item.destaque}
+								onToggle={(concluido) => alternarItemChecklistComunicacao({ dia, tipo: "contato", itemId: item.contatoId, concluido })}
+							/>
+						))}
+						{checklist.manuais.map((item) => (
+							<ChecklistItemToggle
+								key={item.id}
+								label={item.titulo}
+								concluido={item.concluido}
+								onToggle={(concluido) => alternarItemChecklistComunicacao({ dia, tipo: "manual", itemId: item.id, concluido })}
+							/>
+						))}
+					</>
+				) : undefined}
+			</ChecklistCard>
 
 			<Sheet open={open} onOpenChange={setOpen}>
 				<SheetContent side="right" className="flex w-full flex-col gap-6 sm:max-w-lg">
 					<SheetHeader>
 						<SheetTitle>Checklist do Dia</SheetTitle>
 					</SheetHeader>
+
+					{/* Comunicação não tem item com ação de negócio própria (botão de resolver/deep-link) —
+					só a seção "Conferência" existe aqui (item 6 do feedback de revisão). A estrutura interna
+					(pendências anteriores em destaque, blocos de horário, itens avulsos) continua igual. */}
+					<h3 className="text-sm font-semibold text-foreground">Conferência</h3>
 
 					{checklist.pendenciasAnteriores.length > 0 ? (
 						<section className="overflow-hidden rounded-xl border border-red-200">
@@ -114,8 +143,8 @@ export function VagoesChecklist({ dia, checklist }: VagoesChecklistProps): React
 						<div className="mb-2 flex items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
 								<h3 className="text-sm font-semibold text-foreground">Outros itens</h3>
-								<Badge variant="secondary">
-									{manuaisPendentes} de {checklist.manuais.length} pendentes
+								<Badge variant={manuaisPendentes.length > 0 ? "secondary" : "outline"}>
+									{manuaisPendentes.length > 0 ? `${manuaisPendentes.length}/${checklist.manuais.length} pendentes` : "Tudo em dia"}
 								</Badge>
 							</div>
 							<AdicionarItemChecklistDialog dia={dia} />
