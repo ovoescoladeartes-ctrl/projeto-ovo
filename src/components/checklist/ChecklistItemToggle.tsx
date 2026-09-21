@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleHelp, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -25,6 +26,14 @@ interface ChecklistItemToggleProps {
 	/** Estilo vermelho de pendência atrasada (Figma: frame "4 · Checklist (vermelho)"). */
 	destaque?: boolean;
 	/**
+	 * Quando os dois estão presentes, mostra um botão navegável ao lado do checkbox (US-5 do
+	 * `spec-checklist-motor.md`) — diferente do `PendenciaRow` antigo, que sempre mostrava "Ver"
+	 * mesmo sem destino real. Sem `actionHref`, nenhum botão aparece (affordance honesta, seção
+	 * 5.4/5.7 da spec).
+	 */
+	actionHref?: string;
+	actionLabel?: string;
+	/**
 	 * Texto opcional de ajuda pra itens cujo nome sozinho não deixa claro o que fazer (ex.: "Revisar
 	 * falhas de cobrança") — item 8 do feedback de revisão. Sem explicação, nenhum ícone aparece.
 	 */
@@ -33,8 +42,7 @@ interface ChecklistItemToggleProps {
 	onExcluir?: () => Promise<ChecklistToggleResult>;
 }
 
-/** Exportado pra `ChecklistAcaoRow` reaproveitar — mesmo ícone de ajuda em item de "Ações" e de "Conferência". */
-export function IconeAjuda({ explicacao }: { explicacao: string }): React.ReactElement {
+function IconeAjuda({ explicacao }: { explicacao: string }): React.ReactElement {
 	return (
 		<TooltipProvider>
 			<Tooltip>
@@ -66,12 +74,8 @@ function iniciaisDoNome(nome: string): string {
 /**
  * Checkbox otimista genérico — estado local + `useTransition` + revert em erro, chamando
  * `onToggle` (a server action de cada domínio já parcialmente aplicada pelo caller). Cobre
- * Ritual/Fechamento (financeiro) e Checklist do Dia/Materiais (comunicação) — sempre item de
- * "Conferência" (checkbox); item de "Ações" (chevron, linha inteira clicável) usa
- * `ChecklistAcaoRow`, nunca este componente. Layout único — texto à esquerda, checkbox à direita
- * (avatar/meta/destaque são opcionais, sempre dentro dessa mesma estrutura); antes disso, um item
- * sem avatar/meta/destaque mostrava o checkbox à esquerda, um layout espelhado que parecia
- * inconsistência dentro da mesma lista.
+ * Ritual/Fechamento (financeiro) e Checklist do Dia/Materiais (comunicação): layout compacto por
+ * padrão, ou "rico" (avatar/meta/destaque) quando alguma dessas props é passada.
  */
 export function ChecklistItemToggle({
 	label,
@@ -80,6 +84,8 @@ export function ChecklistItemToggle({
 	meta,
 	avatarNome,
 	destaque = false,
+	actionHref,
+	actionLabel,
 	explicacao,
 	onExcluir,
 }: ChecklistItemToggleProps): React.ReactElement {
@@ -130,6 +136,26 @@ export function ChecklistItemToggle({
 		});
 	}
 
+	const rico = avatarNome !== undefined || meta !== undefined || destaque;
+	const botaoAcao =
+		actionHref !== undefined && actionLabel !== undefined ? (
+			<Button type="button" variant="outline" size="sm" asChild className="shrink-0">
+				<Link href={actionHref}>{actionLabel}</Link>
+			</Button>
+		) : null;
+
+	if (!rico) {
+		return (
+			<div className="flex items-center gap-3 px-4 py-3">
+				<Checkbox checked={marcado} disabled={isPending} onCheckedChange={handleCheckedChange} />
+				<span className={cn("flex-1 text-sm", marcado ? "text-muted-foreground line-through" : "text-foreground")}>{label}</span>
+				{explicacao !== undefined ? <IconeAjuda explicacao={explicacao} /> : null}
+				{botaoAcao}
+				{botaoExcluir}
+			</div>
+		);
+	}
+
 	return (
 		<div className={cn("flex items-center gap-3 px-4 py-3", destaque && !marcado && "border-l-4 border-l-red-600")}>
 			{avatarNome !== undefined ? (
@@ -148,6 +174,7 @@ export function ChecklistItemToggle({
 					<p className={cn("text-xs", marcado ? "text-muted-foreground" : destaque ? "text-red-600" : "text-muted-foreground")}>{meta}</p>
 				) : null}
 			</div>
+			{botaoAcao}
 			<Checkbox checked={marcado} disabled={isPending} onCheckedChange={handleCheckedChange} className="shrink-0" />
 			{botaoExcluir}
 		</div>
