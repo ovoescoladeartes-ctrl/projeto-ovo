@@ -4,6 +4,7 @@ import type { Timestamp } from "firebase-admin/firestore";
 
 import type { Estagio } from "@/core/comunicacao/contatos/schema";
 import { contatoEhPendente, diasDesde } from "@/core/comunicacao/pendencias";
+import type { ContatoResumo } from "@/core/db/contatos";
 import { toIso } from "@/core/shared/serialize";
 
 import { TIME_BLOCK_DEFINICOES, type ChecklistBloco, type ChecklistComunicacaoDia, type ChecklistContatoItem, type ChecklistManualItem } from "./schema";
@@ -12,14 +13,6 @@ const COLECAO = "checklistComunicacaoDias";
 
 /** Quantos dias anteriores checar em busca de item incompleto herdado — mesma ordem de grandeza de `SEMANAS_HISTORICO` do Ritual financeiro (8), adaptada de semanas pra dias porque aqui o ritmo é diário/3x-ao-dia, não semanal. */
 const DIAS_HISTORICO = 8;
-
-interface ContatoDoc {
-	nome: string;
-	canal: string;
-	estagio: string;
-	estagioAtualizadoEm?: Timestamp;
-	ativo: boolean;
-}
 
 interface ContatoPendenteResumo {
 	id: string;
@@ -59,20 +52,20 @@ function chaveDiaComOffset(dia: string, offsetDias: number): string {
 	return chaveDia(data);
 }
 
-async function listarContatosPendentes(firestore: FirebaseFirestore.Firestore, agora: Date): Promise<ContatoPendenteResumo[]> {
-	const snapshot = await firestore.collection("contatos").where("ativo", "==", true).orderBy("estagioAtualizadoEm", "asc").get();
-
-	return snapshot.docs
-		.map((doc) => {
-			const data = doc.data() as ContatoDoc;
-			return {
-				id: doc.id,
-				nome: data.nome,
-				canal: data.canal,
-				estagio: data.estagio as Estagio,
-				estagioAtualizadoEm: toIso(data.estagioAtualizadoEm ?? null),
-			};
-		})
+/**
+ * Filtra em memória os contatos pendentes a partir dos contatos ativos já lidos por
+ * `src/core/db/contatos.ts` (`lerContatosAtivos`) — não faz query própria, pra não duplicar a
+ * mesma leitura que `montarKpisEPendenciasComunicacao` já faz no mesmo render da Home.
+ */
+function listarContatosPendentes(contatosAtivos: readonly ContatoResumo[], agora: Date): ContatoPendenteResumo[] {
+	return contatosAtivos
+		.map((contato) => ({
+			id: contato.id,
+			nome: contato.nome,
+			canal: contato.canal,
+			estagio: contato.estagio as Estagio,
+			estagioAtualizadoEm: contato.estagioAtualizadoEm,
+		}))
 		.filter((contato) => contatoEhPendente(contato.estagio, contato.estagioAtualizadoEm, agora));
 }
 
@@ -165,9 +158,14 @@ async function buscarIdsIncompletosDiasAnteriores(firestore: FirebaseFirestore.F
  * isso consegue reconstruir qualquer semana; aqui o conjunto de itens é derivado ao vivo dos
  * contatos pendentes, então só "hoje" tem sentido de ser consultado).
  */
-export async function buscarChecklistComunicacaoDoDia(firestore: FirebaseFirestore.Firestore, dia: string, agora: Date): Promise<ChecklistComunicacaoDia> {
-	const [pendentes, docHoje, idsIncompletosAnteriores] = await Promise.all([
-		listarContatosPendentes(firestore, agora),
+export async function buscarChecklistComunicacaoDoDia(
+	firestore: FirebaseFirestore.Firestore,
+	contatosAtivos: readonly ContatoResumo[],
+	dia: string,
+	agora: Date,
+): Promise<ChecklistComunicacaoDia> {
+	const pendentes = listarContatosPendentes(contatosAtivos, agora);
+	const [docHoje, idsIncompletosAnteriores] = await Promise.all([
 		firestore.collection(COLECAO).doc(dia).get(),
 		buscarIdsIncompletosDiasAnteriores(firestore, dia),
 	]);

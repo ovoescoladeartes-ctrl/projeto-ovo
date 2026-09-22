@@ -1,16 +1,12 @@
-import "server-only";
-
-import type { Timestamp } from "firebase-admin/firestore";
-
 import { ROLES, type Role } from "@/core/auth/Role";
 import { BUCKETS, bucketKeyDe } from "@/core/comunicacao/buckets";
-import type { ArquivadoMotivo, Estagio } from "@/core/comunicacao/contatos/schema";
+import type { ContatoResumo } from "@/core/db/contatos";
 import type { FunnelStageCount, KpiCardData } from "@/core/dashboard/types";
-import type { RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
-import type { DestinoTipo, RepasseStatus } from "@/core/financeiro/repasses/schema";
+import type { Recebimento } from "@/core/financeiro/recebimentos/schema";
+import type { Repasse } from "@/core/financeiro/repasses/schema";
 import { calcularRecebidoNoMes, calcularSaldoVivo, listarRepassesAVencer } from "@/core/financeiro/saldo";
 import { calcularRecebidoPorTurma, calcularSerieMensalRecebido, type PontoSerieMensal, type RankingTurma } from "@/core/financeiro/series";
-import { toIso } from "@/core/shared/serialize";
+import type { Turma } from "@/core/turmas/schema";
 import { formatCentavos } from "@/lib/currency";
 
 export const CAIXA_ROLES: readonly Role[] = ["admin", "financeiro"];
@@ -26,106 +22,31 @@ const REPASSES_JANELA_DIAS = 7;
 const MESES_TENDENCIA = 6;
 const TOP_N_TURMAS = 5;
 
-interface RecebimentoDoc {
-	pessoaId: string;
-	turmaId: string | null;
-	valorCentavos: number;
-	status: string;
-	dataRecebimento?: Timestamp;
-	ativo: boolean;
+export interface DadosKpisFinanceiro {
+	// `calcularRecebidoNoMes`/`calcularSaldoVivo`/`listarRepassesAVencer`/`calcularSerieMensalRecebido`/
+	// `calcularRecebidoPorTurma` (core/financeiro/saldo.ts, series.ts) tipam os parâmetros como
+	// array mutável — mantido igual aqui pra aceitar o retorno de `lerRecebimentos()`/`lerRepasses()`
+	// sem exigir cópia.
+	recebimentos: Recebimento[];
+	repasses: Repasse[];
+	turmas: Turma[];
 }
 
-interface TurmaDoc {
-	nome: string;
-}
-
-interface RepasseDoc {
-	destinoTipo: string;
-	destinoPessoaId: string | null;
-	valorCentavos: number;
-	vencimento?: Timestamp;
-	status: string;
-	ativo: boolean;
-}
-
-interface ContatoDoc {
-	nome: string;
-	estagio: string;
-	arquivadoMotivo: string | null;
-	estagioAtualizadoEm?: Timestamp;
-	criadoEm?: Timestamp;
-	ativo: boolean;
-}
-
-interface RecebimentoResumo {
-	id: string;
-	pessoaId: string;
-	turmaId: string | null;
-	valorCentavos: number;
-	status: RecebimentoStatus;
-	dataRecebimento: string | null;
-}
-
-interface RepasseResumo {
-	id: string;
-	destinoTipo: DestinoTipo;
-	destinoPessoaId: string | null;
-	valorCentavos: number;
-	status: RepasseStatus;
-	vencimento: string | null;
-}
-
-interface ContatoResumo {
-	id: string;
-	nome: string;
-	estagio: Estagio;
-	arquivadoMotivo: ArquivadoMotivo | null;
-	estagioAtualizadoEm: string | null;
-	criadoEm: string | null;
-}
-
-export async function montarKpisEPendenciasFinanceiro(
-	firestore: FirebaseFirestore.Firestore,
+/** Pura — recebe os arrays já lidos por `src/core/db/` (`lerRecebimentos`, `lerRepasses`, `lerTurmas`), não acessa o Firestore. */
+export function montarKpisEPendenciasFinanceiro(
+	dados: DadosKpisFinanceiro,
 	agora: Date,
-): Promise<{
+): {
 	kpis: KpiCardData[];
 	tendencia: PontoSerieMensal[];
 	recebidoPorTurma: RankingTurma[];
-}> {
-	const [recebimentosSnapshot, repassesSnapshot, turmasSnapshot] = await Promise.all([
-		firestore.collection("recebimentos").get(),
-		firestore.collection("repasses").get(),
-		firestore.collection("turmas").get(),
-	]);
-
+} {
 	const turmasNomes: Record<string, string> = {};
-	turmasSnapshot.docs.forEach((doc) => {
-		turmasNomes[doc.id] = (doc.data() as TurmaDoc).nome;
+	dados.turmas.forEach((turma) => {
+		turmasNomes[turma.id] = turma.nome;
 	});
 
-	const recebimentos: RecebimentoResumo[] = recebimentosSnapshot.docs.map((doc) => {
-		const data = doc.data() as RecebimentoDoc;
-		return {
-			id: doc.id,
-			pessoaId: data.pessoaId,
-			turmaId: data.turmaId,
-			valorCentavos: data.valorCentavos,
-			status: data.status as RecebimentoStatus,
-			dataRecebimento: toIso(data.dataRecebimento ?? null),
-		};
-	});
-
-	const repasses: RepasseResumo[] = repassesSnapshot.docs.map((doc) => {
-		const data = doc.data() as RepasseDoc;
-		return {
-			id: doc.id,
-			destinoTipo: data.destinoTipo as DestinoTipo,
-			destinoPessoaId: data.destinoPessoaId,
-			valorCentavos: data.valorCentavos,
-			status: data.status as RepasseStatus,
-			vencimento: toIso(data.vencimento ?? null),
-		};
-	});
+	const { recebimentos, repasses } = dados;
 
 	const recebimentosPendentesTodos = recebimentos
 		.filter((recebimento) => recebimento.status === "pendente")
@@ -168,28 +89,11 @@ export async function montarKpisEPendenciasFinanceiro(
 	return { kpis, tendencia, recebidoPorTurma };
 }
 
-export async function montarKpisEPendenciasComunicacao(
-	firestore: FirebaseFirestore.Firestore,
+/** Pura — recebe os contatos ativos já lidos por `src/core/db/` (`lerContatosAtivos`), não acessa o Firestore. */
+export function montarKpisEPendenciasComunicacao(
+	contatos: ContatoResumo[],
 	agora: Date,
-): Promise<{ kpis: KpiCardData[]; funil: FunnelStageCount[] }> {
-	const contatosSnapshot = await firestore
-		.collection("contatos")
-		.where("ativo", "==", true)
-		.orderBy("estagioAtualizadoEm", "asc")
-		.get();
-
-	const contatos: ContatoResumo[] = contatosSnapshot.docs.map((doc) => {
-		const data = doc.data() as ContatoDoc;
-		return {
-			id: doc.id,
-			nome: data.nome,
-			estagio: data.estagio as Estagio,
-			arquivadoMotivo: data.arquivadoMotivo as ArquivadoMotivo | null,
-			estagioAtualizadoEm: toIso(data.estagioAtualizadoEm ?? null),
-			criadoEm: toIso(data.criadoEm ?? null),
-		};
-	});
-
+): { kpis: KpiCardData[]; funil: FunnelStageCount[] } {
 	const contagemPorBucket = new Map<string, number>();
 	BUCKETS.forEach((bucket) => contagemPorBucket.set(bucket.key, 0));
 	contatos.forEach((contato) => {

@@ -1,10 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import { alternarItemMaterialSchema, criarItemMaterialSchema, excluirItemMaterialSchema } from "@/core/comunicacao/materiais/schema";
 import { VAGOES_ROLES } from "@/core/dashboard/consultas";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -17,8 +16,7 @@ const COLECAO = "materiaisChecklist";
 // Materiais também aparece em `/checklists` (aba Comunicação, seção "Materiais" — item 4 do
 // feedback de revisão), além do card do dashboard — toda mutação revalida as duas rotas.
 function revalidarMateriais(): void {
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	revalidarColecoes(["materiaisChecklist"], ["/", "/checklists"]);
 }
 
 export async function criarItemMaterial(input: unknown): Promise<ActionResult> {

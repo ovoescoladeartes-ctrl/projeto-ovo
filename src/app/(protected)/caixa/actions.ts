@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { recebimentoInputSchema } from "@/core/financeiro/recebimentos/schema";
 import { repasseInputSchema } from "@/core/financeiro/repasses/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -45,10 +45,8 @@ export async function criarRecebimento(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/caixa");
-	// A Home (`/`) também lê recebimentos/repasses (Checklist Financeiro) — sem isso, fica
-	// mostrando dado desatualizado depois desta mutação.
-	revalidatePath("/");
+	// A Home (`/`) também lê recebimentos (Checklist Financeiro) — a tag cobre as duas.
+	revalidarColecoes(["recebimentos"], ["/caixa", "/"]);
 	return { status: "ok" };
 }
 
@@ -76,10 +74,8 @@ export async function criarRepasse(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/caixa");
-	// A Home (`/`) também lê recebimentos/repasses (Checklist Financeiro) — sem isso, fica
-	// mostrando dado desatualizado depois desta mutação.
-	revalidatePath("/");
+	// A Home (`/`) também lê repasses (Checklist Financeiro) — a tag cobre as duas.
+	revalidarColecoes(["repasses"], ["/caixa", "/"]);
 	return { status: "ok" };
 }
 
@@ -116,9 +112,7 @@ export async function marcarRepasseComoPago(id: unknown): Promise<ActionResult> 
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/caixa");
-	// A Home (`/`) também lê recebimentos/repasses (Checklist Financeiro) — sem isso, fica
-	// mostrando dado desatualizado depois desta mutação.
-	revalidatePath("/");
+	// A Home (`/`) também lê repasses (Checklist Financeiro) — a tag cobre as duas.
+	revalidarColecoes(["repasses"], ["/caixa", "/"]);
 	return { status: "ok" };
 }

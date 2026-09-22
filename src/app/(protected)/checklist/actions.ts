@@ -2,8 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { ChecklistDoc, ChecklistItemDoc } from "@/core/checklist/consultas";
@@ -18,6 +16,7 @@ import {
 	type ChecklistPreferenciasDoc,
 } from "@/core/checklist/schema";
 import { CAIXA_ROLES, VAGOES_ROLES } from "@/core/dashboard/consultas";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -50,9 +49,10 @@ function areaDoChecklistSistema(id: string): ChecklistArea {
 
 function revalidarChecklists(): void {
 	// `/checklists` serve as duas áreas na mesma rota (abas Financeiro/Comunicação) — revalidar
-	// sempre, independente da área do checklist alterado.
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	// sempre, independente da área do checklist alterado. As duas coleções (customizados e
+	// preferências) são invalidadas juntas porque as funções que chamam isto escrevem numa ou
+	// noutra dependendo de `origem`, e a checagem daria mais linhas do que economiza.
+	revalidarColecoes(["checklists", "checklistsPreferencias"], ["/", "/checklists"]);
 }
 
 export async function criarChecklist(input: unknown): Promise<ActionResult> {

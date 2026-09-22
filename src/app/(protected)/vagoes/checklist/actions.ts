@@ -2,11 +2,10 @@
 
 import { randomUUID } from "node:crypto";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import { alternarItemChecklistSchema, criarItemManualSchema } from "@/core/comunicacao/checklist/schema";
 import { VAGOES_ROLES } from "@/core/dashboard/consultas";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -78,8 +77,7 @@ export async function alternarItemChecklistComunicacao(input: unknown): Promise<
 
 	// Também aparece em `/checklists` (`VagoesChecklist` reaproveitado lá) — sem revalidar essa
 	// rota, o badge de pendentes fica parado ao marcar um item por lá.
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	revalidarColecoes(["checklistComunicacaoDias"], ["/", "/checklists"]);
 	return { status: "ok" };
 }
 
@@ -106,7 +104,6 @@ export async function criarItemManualChecklist(input: unknown): Promise<ActionRe
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	revalidarColecoes(["checklistComunicacaoDias"], ["/", "/checklists"]);
 	return { status: "ok" };
 }

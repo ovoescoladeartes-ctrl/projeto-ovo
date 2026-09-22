@@ -1,11 +1,11 @@
 "use server";
 
 import { FieldValue, type Firestore, type Timestamp } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { matriculaInputSchema, matriculaUpdateInputSchema } from "@/core/matriculas/schema";
 import { gerarProximoNumeroMatricula } from "@/core/pessoas/numeroMatricula";
@@ -156,9 +156,7 @@ export async function matricular(input: unknown): Promise<ActionResult> {
 
 	await recalcularStatusAluno(firestore, parsed.data.pessoaId);
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
-	revalidatePath("/vagoes");
+	revalidarColecoes(["matriculas", "pessoas", "contatos"], ["/pessoas", `/pessoas/${parsed.data.pessoaId}`, "/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -185,8 +183,7 @@ export async function atualizarMatricula(input: unknown): Promise<ActionResult> 
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
+	revalidarColecoes(["matriculas"], ["/pessoas", `/pessoas/${parsed.data.pessoaId}`]);
 	return { status: "ok" };
 }
 
@@ -245,9 +242,7 @@ export async function encerrarMatricula(input: unknown): Promise<ActionResult> {
 		await sincronizarContatoDaPessoa(firestore, parsed.data.pessoaId, { estagio: "arquivado", arquivadoMotivo: "ex_aluno" });
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
-	revalidatePath("/vagoes");
+	revalidarColecoes(["matriculas", "pessoas", "contatos"], ["/pessoas", `/pessoas/${parsed.data.pessoaId}`, "/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -310,8 +305,6 @@ export async function restaurarMatricula(input: unknown): Promise<ActionResult> 
 		await sincronizarContatoDaPessoa(firestore, parsed.data.pessoaId, { estagio: "convertido", arquivadoMotivo: null });
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data.pessoaId}`);
-	revalidatePath("/vagoes");
+	revalidarColecoes(["matriculas", "pessoas", "contatos"], ["/pessoas", `/pessoas/${parsed.data.pessoaId}`, "/vagoes"]);
 	return { status: "ok" };
 }

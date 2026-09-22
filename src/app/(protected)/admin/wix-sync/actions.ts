@@ -1,10 +1,10 @@
 "use server";
 
 import { FieldValue } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { recalcularStatusAluno } from "@/core/pessoas/recalcularStatusAluno";
 import { queryContactsByIds } from "@/core/wix/contacts";
@@ -462,10 +462,10 @@ export async function confirmarSincronizacaoWix(): Promise<ConfirmWixResult> {
 		}),
 	);
 
-	revalidatePath("/pessoas");
-	revalidatePath("/pessoas/turmas");
-	revalidatePath("/caixa");
-	revalidatePath("/vagoes");
+	revalidarColecoes(
+		["pessoas", "turmas", "matriculas", "recebimentos", "contatos"],
+		["/pessoas", "/pessoas/turmas", "/caixa", "/vagoes"],
+	);
 
 	return {
 		status: "ok",

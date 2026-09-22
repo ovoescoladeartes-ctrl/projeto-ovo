@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { fechamentoAlternarItemSchema } from "@/core/financeiro/fechamento/schema";
 import { montarEstadoConclusaoChecklist } from "@/core/financeiro/shared";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -48,7 +47,6 @@ export async function alternarItemFechamento(input: unknown): Promise<ActionResu
 
 	// Também aparece em `/checklists` (`ChecklistFechamento` reaproveitado lá) — sem revalidar
 	// essa rota, o badge de pendentes fica parado ao marcar um item por lá.
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	revalidarColecoes(["fechamentosMensais"], ["/", "/checklists"]);
 	return { status: "ok" };
 }

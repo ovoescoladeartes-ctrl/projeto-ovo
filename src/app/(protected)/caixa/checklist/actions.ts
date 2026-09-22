@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { ritualAlternarItemSchema } from "@/core/financeiro/ritual/schema";
 import { montarEstadoConclusaoChecklist } from "@/core/financeiro/shared";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
@@ -45,7 +44,6 @@ export async function alternarItemRitual(input: unknown): Promise<ActionResult> 
 	// hoje cards da Home (`/`) — Ritual, Pendências e Fechamento não têm mais páginas próprias. O
 	// card também aparece em `/checklists` (motor de checklist, `ChecklistFinanceiro` reaproveitado
 	// lá) — sem revalidar essa rota, o badge de pendentes fica parado ao marcar um item por lá.
-	revalidatePath("/");
-	revalidatePath("/checklists");
+	revalidarColecoes(["ritualSemanas"], ["/", "/checklists"]);
 	return { status: "ok" };
 }

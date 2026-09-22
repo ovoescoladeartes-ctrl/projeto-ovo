@@ -1,12 +1,12 @@
 "use server";
 
 import { FieldValue, type Timestamp } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { matriculaInputSchema } from "@/core/matriculas/schema";
 import { pessoaInputSchema } from "@/core/pessoas/schema";
@@ -109,8 +109,7 @@ export async function criarPessoa(input: unknown): Promise<ActionResult> {
 		}
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath("/vagoes");
+	revalidarColecoes(["pessoas", "contatos"], ["/pessoas", "/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -193,8 +192,7 @@ export async function inativarPessoa(id: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data}`);
+	revalidarColecoes(["pessoas"], ["/pessoas", `/pessoas/${parsed.data}`]);
 	return { status: "ok" };
 }
 
@@ -216,8 +214,7 @@ export async function reativarPessoa(id: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data}`);
+	revalidarColecoes(["pessoas"], ["/pessoas", `/pessoas/${parsed.data}`]);
 	return { status: "ok" };
 }
 
@@ -334,9 +331,7 @@ export async function atualizarPessoa(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath(`/pessoas/${parsed.data.id}`);
-	revalidatePath("/vagoes");
+	revalidarColecoes(["pessoas", "contatos"], ["/pessoas", `/pessoas/${parsed.data.id}`, "/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -408,7 +403,7 @@ export async function excluirPessoaPermanentemente(id: unknown): Promise<ActionR
 		return { status: "error", message: "Não foi possível excluir. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas");
+	revalidarColecoes(["pessoas"], ["/pessoas"]);
 	return { status: "ok" };
 }
 

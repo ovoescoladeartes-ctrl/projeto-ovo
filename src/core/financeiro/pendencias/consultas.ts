@@ -1,63 +1,19 @@
-import "server-only";
-
-import type { Timestamp } from "firebase-admin/firestore";
-
-import { destinoRepasseLabel, formatarDataCurta, type Origem } from "@/core/financeiro/shared";
+import type { Recebimento } from "@/core/financeiro/recebimentos/schema";
+import type { Repasse } from "@/core/financeiro/repasses/schema";
+import { destinoRepasseLabel, formatarDataCurta } from "@/core/financeiro/shared";
 import { listarRepassesAVencer } from "@/core/financeiro/saldo";
-import { toIso } from "@/core/shared/serialize";
+import type { Pessoa } from "@/core/pessoas/schema";
 import { formatCentavos } from "@/lib/currency";
 
-import type { PendenciaAcionavel, PendenciaManual, PendenciaManualStatus } from "./schema";
+import type { PendenciaAcionavel, PendenciaManual } from "./schema";
 
-const COLECAO = "pendenciasManuais";
 const REPASSES_JANELA_DIAS = 7;
 
-interface PendenciaManualDoc {
-	titulo: string;
-	meta: string;
-	status: PendenciaManualStatus;
-	criadoEm?: Timestamp;
-	resolvidoEm?: Timestamp;
-}
-
-interface RecebimentoDoc {
-	pessoaId: string;
-	valorCentavos: number;
-	formaPagamento: string;
-	status: string;
-	origem: string;
-	ativo: boolean;
-}
-
-interface RepasseDoc {
-	destinoTipo: string;
-	destinoPessoaId: string | null;
-	valorCentavos: number;
-	vencimento?: Timestamp;
-	status: string;
-	origem: string;
-	ativo: boolean;
-}
-
-interface PessoaDoc {
-	nome: string;
-}
-
-/** Busca pendências lançadas manualmente e ainda abertas (ex.: "Nota fiscal faltando"). */
-export async function buscarPendenciasManuais(firestore: FirebaseFirestore.Firestore): Promise<PendenciaManual[]> {
-	const snapshot = await firestore.collection(COLECAO).where("status", "==", "aberta").get();
-
-	return snapshot.docs.map((doc) => {
-		const data = doc.data() as PendenciaManualDoc;
-		return {
-			id: doc.id,
-			titulo: data.titulo,
-			meta: data.meta,
-			status: data.status,
-			criadoEm: toIso(data.criadoEm ?? null),
-			resolvidoEm: toIso(data.resolvidoEm ?? null),
-		};
-	});
+export interface DadosPendenciasAcionaveis {
+	repasses: readonly Repasse[];
+	recebimentos: readonly Recebimento[];
+	pessoas: readonly Pessoa[];
+	pendenciasManuais: readonly PendenciaManual[];
 }
 
 /**
@@ -66,37 +22,18 @@ export async function buscarPendenciasManuais(firestore: FirebaseFirestore.Fires
  * manuais abertas. "Falha de cobrança" do Figma não tem hoje um status equivalente em
  * `RecebimentoStatus` (só confirmado/pendente/cancelado) — por ora esse tipo só entra via
  * pendência manual, até existir um sinal real de falha de cobrança nos dados.
+ *
+ * Pura — recebe os arrays já lidos por `src/core/db/` (`lerRepasses`, `lerRecebimentos`,
+ * `lerPessoas`, `lerPendenciasManuaisAbertas`), não acessa o Firestore diretamente.
  */
-export async function montarPendenciasAcionaveis(firestore: FirebaseFirestore.Firestore, agora: Date): Promise<PendenciaAcionavel[]> {
-	const [repassesSnapshot, recebimentosSnapshot, pessoasSnapshot, pendenciasManuais] = await Promise.all([
-		firestore.collection("repasses").get(),
-		firestore.collection("recebimentos").get(),
-		firestore.collection("pessoas").get(),
-		buscarPendenciasManuais(firestore),
-	]);
-
+export function montarPendenciasAcionaveis(dados: DadosPendenciasAcionaveis, agora: Date): PendenciaAcionavel[] {
 	const pessoasNomes: Record<string, string> = {};
-	pessoasSnapshot.docs.forEach((doc) => {
-		pessoasNomes[doc.id] = (doc.data() as PessoaDoc).nome;
+	dados.pessoas.forEach((pessoa) => {
+		pessoasNomes[pessoa.id] = pessoa.nome;
 	});
 
-	const repasses = repassesSnapshot.docs
-		.map((doc) => {
-			const data = doc.data() as RepasseDoc;
-			return {
-				id: doc.id,
-				destinoTipo: data.destinoTipo as "educador" | "espaco" | "outro",
-				destinoPessoaId: data.destinoPessoaId,
-				valorCentavos: data.valorCentavos,
-				status: data.status as "pendente" | "pago",
-				vencimento: toIso(data.vencimento ?? null),
-				origem: data.origem as Origem,
-				ativo: data.ativo,
-			};
-		})
-		.filter((repasse) => repasse.ativo);
-
-	const repassesAVencer = listarRepassesAVencer(repasses, REPASSES_JANELA_DIAS, agora);
+	const repassesAtivos = dados.repasses.filter((repasse) => repasse.ativo);
+	const repassesAVencer = listarRepassesAVencer(repassesAtivos, REPASSES_JANELA_DIAS, agora);
 
 	const itensRepasse: PendenciaAcionavel[] = repassesAVencer.map((repasse) => {
 		const destino = destinoRepasseLabel(repasse, pessoasNomes);
@@ -111,22 +48,18 @@ export async function montarPendenciasAcionaveis(firestore: FirebaseFirestore.Fi
 		};
 	});
 
-	const itensPix: PendenciaAcionavel[] = recebimentosSnapshot.docs
-		.map((doc) => {
-			const data = doc.data() as RecebimentoDoc;
-			return { id: doc.id, ...data };
-		})
+	const itensPix: PendenciaAcionavel[] = dados.recebimentos
 		.filter((recebimento) => recebimento.ativo && recebimento.status === "pendente" && recebimento.formaPagamento === "pix")
 		.map((recebimento) => ({
 			id: `recebimento-${recebimento.id}`,
 			titulo: "Pix pendente",
 			meta: `${pessoasNomes[recebimento.pessoaId] ?? "Pessoa"} · ${formatCentavos(recebimento.valorCentavos)} aguardando confirmação`,
-			origem: recebimento.origem as Origem,
+			origem: recebimento.origem,
 			tipo: "recebimento",
 			pendenciaManualId: null,
 		}));
 
-	const itensManuais: PendenciaAcionavel[] = pendenciasManuais.map((pendencia) => ({
+	const itensManuais: PendenciaAcionavel[] = dados.pendenciasManuais.map((pendencia) => ({
 		id: `manual-${pendencia.id}`,
 		titulo: pendencia.titulo,
 		meta: pendencia.meta,
