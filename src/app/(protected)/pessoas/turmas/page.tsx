@@ -1,4 +1,3 @@
-import type { Timestamp } from "firebase-admin/firestore";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,10 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { lerMatriculas } from "@/core/db/matriculas";
+import { lerPessoas } from "@/core/db/pessoas";
+import { lerTurmas } from "@/core/db/turmas";
 import type { PessoaBusca } from "@/core/pessoas/actions";
 import type { Turma } from "@/core/turmas/schema";
-import { toIso } from "@/core/shared/serialize";
 import { formatCentavos, parseCentavosInput } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
@@ -35,36 +35,6 @@ export const dynamic = "force-dynamic";
 
 const TURMAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 const ITENS_POR_PAGINA = 25;
-
-interface TurmaDoc {
-	nome: string;
-	assunto?: string;
-	tipo?: Turma["tipo"];
-	mensalidadeCentavos: number;
-	repasseTipo: string;
-	repasseValor: number;
-	dataInicio?: Timestamp;
-	dataFim?: Timestamp | null;
-	educadorPessoaId: string | null;
-	capacidadeMaxima?: number | null;
-	ativo: boolean;
-	wixProductId?: string | null;
-	origem?: Turma["origem"];
-}
-
-interface PessoaResumoDoc {
-	nome: string;
-	ehAluno: boolean;
-	ehProfessor: boolean;
-}
-
-interface MatriculaResumoDoc {
-	pessoaId: string;
-	turmaId: string;
-	dataMatricula?: Timestamp;
-	status: string;
-}
-
 
 type CampoOrdenar = "nome" | "tipo" | "assunto" | "mensalidade" | "repasse" | "periodo" | "vagas";
 
@@ -158,22 +128,14 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 	const filtros = await searchParams;
 	const mostrarArquivados = filtros.arquivados === "1";
 
-	const firestore = getFirebaseAdminFirestore();
-	// Arquivadas mostra só ativo===false, nunca "todo mundo" (mesmo bug já corrigido em pessoas/page.tsx).
-	const turmasQuery = firestore.collection("turmas").where("ativo", "==", !mostrarArquivados);
-	const [turmasSnapshot, pessoasSnapshot, matriculasAtivasSnapshot] = await Promise.all([
-		turmasQuery.get(),
-		firestore.collection("pessoas").get(),
-		firestore.collection("matriculas").where("status", "==", "ativa").get(),
-	]);
+	const [turmasLidas, pessoas, matriculasLidas] = await Promise.all([lerTurmas(), lerPessoas(), lerMatriculas()]);
 
 	const pessoasNomes = new Map<string, string>();
 	const colaboradoresPorId = new Map<string, PessoaBusca>();
-	pessoasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as PessoaResumoDoc;
-		pessoasNomes.set(doc.id, data.nome);
-		if (data.ehProfessor) {
-			colaboradoresPorId.set(doc.id, { id: doc.id, nome: data.nome, ehAluno: data.ehAluno, ehProfessor: true });
+	pessoas.forEach((pessoa) => {
+		pessoasNomes.set(pessoa.id, pessoa.nome);
+		if (pessoa.ehProfessor) {
+			colaboradoresPorId.set(pessoa.id, { id: pessoa.id, nome: pessoa.nome, ehAluno: pessoa.ehAluno, ehProfessor: true });
 		}
 	});
 
@@ -181,37 +143,21 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps): Pro
 		string,
 		{ matriculaId: string; pessoaId: string; pessoaNome: string; dataMatricula: string | null }[]
 	>();
-	matriculasAtivasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as MatriculaResumoDoc;
-		const lista = matriculasPorTurma.get(data.turmaId) ?? [];
-		lista.push({
-			matriculaId: doc.id,
-			pessoaId: data.pessoaId,
-			pessoaNome: pessoasNomes.get(data.pessoaId) ?? "(pessoa removida)",
-			dataMatricula: toIso(data.dataMatricula ?? null),
+	matriculasLidas
+		.filter((matricula) => matricula.status === "ativa")
+		.forEach((matricula) => {
+			const lista = matriculasPorTurma.get(matricula.turmaId) ?? [];
+			lista.push({
+				matriculaId: matricula.id,
+				pessoaId: matricula.pessoaId,
+				pessoaNome: pessoasNomes.get(matricula.pessoaId) ?? "(pessoa removida)",
+				dataMatricula: matricula.dataMatricula,
+			});
+			matriculasPorTurma.set(matricula.turmaId, lista);
 		});
-		matriculasPorTurma.set(data.turmaId, lista);
-	});
 
-	const todasTurmas: Turma[] = turmasSnapshot.docs.map((doc) => {
-		const data = doc.data() as TurmaDoc;
-		return {
-			id: doc.id,
-			nome: data.nome,
-			assunto: data.assunto ?? "",
-			tipo: data.tipo ?? null,
-			mensalidadeCentavos: data.mensalidadeCentavos,
-			repasseTipo: data.repasseTipo as Turma["repasseTipo"],
-			repasseValor: data.repasseValor,
-			dataInicio: toIso(data.dataInicio ?? null),
-			dataFim: toIso(data.dataFim ?? null),
-			educadorPessoaId: data.educadorPessoaId ?? null,
-			capacidadeMaxima: data.capacidadeMaxima ?? null,
-			ativo: data.ativo,
-			wixProductId: data.wixProductId ?? null,
-			origem: data.origem ?? "manual",
-		};
-	});
+	// Arquivadas mostra só ativo===false, nunca "todo mundo" (mesmo bug já corrigido em pessoas/page.tsx).
+	const todasTurmas: Turma[] = turmasLidas.filter((turma) => turma.ativo === !mostrarArquivados);
 
 	// Opções dos Selects de filtro vêm dos dados reais (mesmo padrão de `opcoesInteresse`/
 	// `opcoesTurma` em pessoas/page.tsx) — só oferece filtrar por um Assunto que alguma turma

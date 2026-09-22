@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import type { Mensagem, MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
-import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import type { MensagemCategoria } from "@/core/comunicacao/mensagens/schema";
+import { lerMensagensAtivas } from "@/core/db/mensagens";
 
 import { MensagemEditDialog } from "./MensagemEditDialog";
 import { MensagemInativarMenuItem } from "./MensagemInativarMenuItem";
@@ -22,13 +22,6 @@ const CATEGORIA_LABELS: Record<MensagemCategoria, string> = {
 	faixa_etaria: "Faixa etária",
 };
 
-interface MensagemDoc {
-	categoria: string;
-	titulo: string;
-	texto: string;
-	ativo: boolean;
-}
-
 export default async function MensagensPage(): Promise<React.ReactElement> {
 	const session = await getServerSession();
 
@@ -37,20 +30,8 @@ export default async function MensagensPage(): Promise<React.ReactElement> {
 		redirect("/");
 	}
 
-	const snapshot = await getFirebaseAdminFirestore().collection("mensagens").where("ativo", "==", true).get();
-
-	const mensagens: Mensagem[] = snapshot.docs.map((doc) => {
-		const data = doc.data() as MensagemDoc;
-		return {
-			id: doc.id,
-			categoria: data.categoria as MensagemCategoria,
-			titulo: data.titulo,
-			texto: data.texto,
-			ativo: data.ativo,
-		};
-	});
-
-	mensagens.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
+	const mensagensLidas = await lerMensagensAtivas();
+	const mensagens = [...mensagensLidas].sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
 
 	const novaMensagemCta = <NovaMensagemDialog />;
 

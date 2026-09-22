@@ -1,15 +1,11 @@
 import "server-only";
 
-import type { Timestamp } from "firebase-admin/firestore";
-
 import type { Estagio } from "@/core/comunicacao/contatos/schema";
 import { contatoEhPendente, diasDesde } from "@/core/comunicacao/pendencias";
+import type { ChecklistDiaLido } from "@/core/db/checklistComunicacao";
 import type { ContatoResumo } from "@/core/db/contatos";
-import { toIso } from "@/core/shared/serialize";
 
 import { TIME_BLOCK_DEFINICOES, type ChecklistBloco, type ChecklistComunicacaoDia, type ChecklistContatoItem, type ChecklistManualItem } from "./schema";
-
-const COLECAO = "checklistComunicacaoDias";
 
 /** Quantos dias anteriores checar em busca de item incompleto herdado — mesma ordem de grandeza de `SEMANAS_HISTORICO` do Ritual financeiro (8), adaptada de semanas pra dias porque aqui o ritmo é diário/3x-ao-dia, não semanal. */
 const DIAS_HISTORICO = 8;
@@ -20,21 +16,6 @@ interface ContatoPendenteResumo {
 	canal: string;
 	estagio: Estagio;
 	estagioAtualizadoEm: string | null;
-}
-
-interface EstadoItemDoc {
-	concluido: boolean;
-	concluidoEm?: Timestamp;
-	concluidoPor?: string | null;
-}
-
-interface ManualItemDoc extends EstadoItemDoc {
-	titulo: string;
-}
-
-interface ChecklistDiaDoc {
-	contatos?: Record<string, EstadoItemDoc>;
-	manuais?: Record<string, ManualItemDoc>;
 }
 
 /** Chave do dia (yyyy-MM-dd) a partir de uma data qualquer, no fuso local. */
@@ -52,12 +33,18 @@ function chaveDiaComOffset(dia: string, offsetDias: number): string {
 	return chaveDia(data);
 }
 
+/** As `DIAS_HISTORICO` chaves de dia anteriores a `dia`, na ordem em que `buscarChecklistComunicacaoDoDia` espera — quem chama usa isso pra saber quais dias ler via `lerChecklistDia` antes de montar o checklist. */
+export function diasAnterioresParaHistorico(dia: string): string[] {
+	return Array.from({ length: DIAS_HISTORICO }, (_, indice) => chaveDiaComOffset(dia, -(indice + 1)));
+}
+
 /**
  * Filtra em memória os contatos pendentes a partir dos contatos ativos já lidos por
  * `src/core/db/contatos.ts` (`lerContatosAtivos`) — não faz query própria, pra não duplicar a
- * mesma leitura que `montarKpisEPendenciasComunicacao` já faz no mesmo render da Home.
+ * mesma leitura que `montarKpisEPendenciasComunicacao` já faz no mesmo render da Home. Também usada
+ * por quem chama pra saber quais ids materializar (ver `materializar.ts`).
  */
-function listarContatosPendentes(contatosAtivos: readonly ContatoResumo[], agora: Date): ContatoPendenteResumo[] {
+export function listarContatosPendentes(contatosAtivos: readonly ContatoResumo[], agora: Date): ContatoPendenteResumo[] {
 	return contatosAtivos
 		.map((contato) => ({
 			id: contato.id,
@@ -84,72 +71,16 @@ function removerMarcacaoHtml(texto: string): string {
 		.trim();
 }
 
-function montarItem(contato: ContatoPendenteResumo, estado: EstadoItemDoc | undefined, agora: Date): ChecklistContatoItem {
+function montarItem(contato: ContatoPendenteResumo, estado: { concluido: boolean; concluidoEm: string | null; concluidoPor: string | null } | undefined, agora: Date): ChecklistContatoItem {
 	return {
 		contatoId: contato.id,
 		nome: removerMarcacaoHtml(contato.nome),
 		canal: contato.canal,
 		diasAguardando: diasDesde(contato.estagioAtualizadoEm, agora),
 		concluido: estado?.concluido ?? false,
-		concluidoEm: toIso(estado?.concluidoEm ?? null),
+		concluidoEm: estado?.concluidoEm ?? null,
 		concluidoPor: estado?.concluidoPor ?? null,
 	};
-}
-
-/**
- * Materializa (upsert transacional, idempotente) cada contato de `pendentesIds` que ainda não tem
- * entrada no doc do dia, com `concluido:false` — sem isso, um contato nunca marcado não deixaria
- * rastro pros dias seguintes saberem que ele já estava pendente e migrar pra "Pendências
- * anteriores". O Ritual financeiro não precisa disso porque seus itens são um conjunto fixo
- * conhecido de antemão; aqui o conjunto é dinâmico.
- *
- * Roda dentro de uma transação porque esta função só escreve os ids que **ela mesma** confirma
- * estarem ausentes no momento do commit — sem isso, uma leitura desatualizada poderia sobrescrever
- * com `concluido:false` uma conclusão genuína que acabou de chegar por `alternarItemChecklistComunicacao`
- * (mesmo contato, mesmo dia). O SDK do Firestore já reexecuta a transação sozinho se o doc mudar
- * entre a leitura e o commit, então uma corrida com o toggle nunca perde a marcação real.
- */
-async function materializarChecklistDoDia(firestore: FirebaseFirestore.Firestore, dia: string, pendentesIds: readonly string[]): Promise<void> {
-	if (pendentesIds.length === 0) {
-		return;
-	}
-
-	const docRef = firestore.collection(COLECAO).doc(dia);
-	await firestore.runTransaction(async (tx) => {
-		const snapshot = await tx.get(docRef);
-		const existentes = (snapshot.exists ? (snapshot.data() as ChecklistDiaDoc) : undefined)?.contatos ?? {};
-		const faltantes = pendentesIds.filter((id) => existentes[id] === undefined);
-		if (faltantes.length === 0) {
-			return;
-		}
-
-		const seed: Record<string, EstadoItemDoc> = {};
-		faltantes.forEach((id) => {
-			seed[`contatos.${id}`] = { concluido: false };
-		});
-		tx.set(docRef, seed, { merge: true });
-	});
-}
-
-/** Ids de contato com item incompleto (`concluido:false`) em algum dos `DIAS_HISTORICO` dias anteriores a `dia` — um dia sem doc (app não aberto naquele dia) não interrompe a busca, diferente de checar só "ontem". */
-async function buscarIdsIncompletosDiasAnteriores(firestore: FirebaseFirestore.Firestore, dia: string): Promise<Set<string>> {
-	const chavesAnteriores = Array.from({ length: DIAS_HISTORICO }, (_, indice) => chaveDiaComOffset(dia, -(indice + 1)));
-
-	const snapshots = await Promise.all(chavesAnteriores.map((chave) => firestore.collection(COLECAO).doc(chave).get()));
-
-	const ids = new Set<string>();
-	snapshots.forEach((snapshot) => {
-		if (!snapshot.exists) {
-			return;
-		}
-		const contatos = (snapshot.data() as ChecklistDiaDoc).contatos ?? {};
-		Object.entries(contatos).forEach(([id, estado]) => {
-			if (!estado.concluido) {
-				ids.add(id);
-			}
-		});
-	});
-	return ids;
 }
 
 /**
@@ -157,26 +88,31 @@ async function buscarIdsIncompletosDiasAnteriores(firestore: FirebaseFirestore.F
  * navegação pra dias passados na v1 (diferente do Ritual financeiro, que tem itens fixos e por
  * isso consegue reconstruir qualquer semana; aqui o conjunto de itens é derivado ao vivo dos
  * contatos pendentes, então só "hoje" tem sentido de ser consultado).
+ *
+ * Função pura (Fase 2.3 do plano de redução de leituras) — recebe `docHoje` e os
+ * `diasAnteriores` (na ordem de `diasAnterioresParaHistorico`) já lidos via `lerChecklistDia`, não
+ * toca o Firestore. A materialização (escrita) saiu daqui — ver `materializar.ts` e o `after()` em
+ * quem chama (`page.tsx`).
  */
-export async function buscarChecklistComunicacaoDoDia(
-	firestore: FirebaseFirestore.Firestore,
+export function buscarChecklistComunicacaoDoDia(
 	contatosAtivos: readonly ContatoResumo[],
 	dia: string,
 	agora: Date,
-): Promise<ChecklistComunicacaoDia> {
+	docHoje: ChecklistDiaLido,
+	diasAnteriores: readonly ChecklistDiaLido[],
+): ChecklistComunicacaoDia {
 	const pendentes = listarContatosPendentes(contatosAtivos, agora);
-	const [docHoje, idsIncompletosAnteriores] = await Promise.all([
-		firestore.collection(COLECAO).doc(dia).get(),
-		buscarIdsIncompletosDiasAnteriores(firestore, dia),
-	]);
 
-	await materializarChecklistDoDia(
-		firestore,
-		dia,
-		pendentes.map((contato) => contato.id),
-	);
+	const idsIncompletosAnteriores = new Set<string>();
+	diasAnteriores.forEach((diaLido) => {
+		Object.entries(diaLido.contatos).forEach(([id, estado]) => {
+			if (!estado.concluido) {
+				idsIncompletosAnteriores.add(id);
+			}
+		});
+	});
 
-	const contatosHoje = (docHoje.exists ? (docHoje.data() as ChecklistDiaDoc) : undefined)?.contatos ?? {};
+	const contatosHoje = docHoje.contatos;
 	const idsAnteriores = new Set(pendentes.filter((contato) => idsIncompletosAnteriores.has(contato.id)).map((contato) => contato.id));
 
 	const pendenciasAnteriores = pendentes
@@ -200,13 +136,12 @@ export async function buscarChecklistComunicacaoDoDia(
 		};
 	});
 
-	const manuaisDoc = (docHoje.exists ? (docHoje.data() as ChecklistDiaDoc) : undefined)?.manuais ?? {};
-	const manuais: ChecklistManualItem[] = Object.entries(manuaisDoc).map(([id, item]) => ({
+	const manuais: ChecklistManualItem[] = Object.entries(docHoje.manuais).map(([id, item]) => ({
 		id,
 		titulo: item.titulo,
 		concluido: item.concluido,
-		concluidoEm: toIso(item.concluidoEm ?? null),
-		concluidoPor: item.concluidoPor ?? null,
+		concluidoEm: item.concluidoEm,
+		concluidoPor: item.concluidoPor,
 	}));
 
 	return { dia, blocos, itensPendentesHoje, pendenciasAnteriores, manuais };

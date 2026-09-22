@@ -3,16 +3,9 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { PENDING_ACCESS } from "@/core/auth/Role";
-import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { lerUsuarios } from "@/core/db/users";
 
 import { RoleEditDialog } from "./RoleEditDialog";
-
-interface UsuarioRow {
-	uid: string;
-	nome: string;
-	email: string | null;
-	role: string;
-}
 
 // Cores indicativas de status (regra 18 do design.md): amarelo=pendente (acesso incompleto),
 // azul=papel concedido (admin/financeiro/comunicacao/educador — categórico, não é bom nem ruim).
@@ -32,20 +25,7 @@ export default async function AdminUsuariosPage(): Promise<React.ReactElement> {
 		redirect("/");
 	}
 
-	const snapshot = await getFirebaseAdminFirestore()
-		.collection("users")
-		.orderBy("criadoEm", "desc")
-		.get();
-
-	const usuarios: UsuarioRow[] = snapshot.docs.map((doc) => {
-		const data = doc.data() as { nome?: string; email?: string | null; role?: string };
-		return {
-			uid: doc.id,
-			nome: data.nome ?? "(sem nome)",
-			email: data.email ?? null,
-			role: data.role ?? PENDING_ACCESS,
-		};
-	});
+	const usuarios = await lerUsuarios();
 
 	return (
 		<div>
