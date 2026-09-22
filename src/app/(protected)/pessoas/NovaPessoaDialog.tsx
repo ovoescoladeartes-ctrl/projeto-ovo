@@ -74,9 +74,11 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 
 	// Busca de duplicata por nome parecido enquanto digita — mesmo padrão de debounce que o
 	// PessoaCombobox já usa, aviso não-bloqueante, nunca impede o cadastro de continuar.
+	// 3 caracteres + 400ms (em vez de 2/200ms): buscarPessoas() lê a coleção "pessoas" inteira no
+	// servidor a cada chamada — reduz quantas vezes isso dispara por nome digitado.
 	useEffect(() => {
 		const termo = nome.trim();
-		if (termo.length < 2) {
+		if (termo.length < 3) {
 			setDuplicatas([]);
 			return;
 		}
@@ -85,7 +87,7 @@ export function NovaPessoaDialog({ opcoesInteresse, turmasAtivas }: NovaPessoaDi
 				const encontradas = await buscarPessoas(termo);
 				setDuplicatas(encontradas);
 			});
-		}, 200);
+		}, 400);
 		return () => clearTimeout(timer);
 	}, [nome]);
 

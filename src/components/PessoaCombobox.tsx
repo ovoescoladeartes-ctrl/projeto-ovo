@@ -40,12 +40,14 @@ export function PessoaCombobox({
 		if (!open) {
 			return;
 		}
+		// 400ms (em vez de 200ms): buscarPessoas() lê a coleção "pessoas" inteira no servidor a
+		// cada chamada — reduz quantas vezes isso dispara por tecla digitada.
 		const timer = setTimeout(() => {
 			startTransition(async () => {
 				const pessoas = await buscarPessoas(termo, papel);
 				setResultados(pessoas);
 			});
-		}, 200);
+		}, 400);
 		return () => clearTimeout(timer);
 	}, [termo, papel, open]);
 
