@@ -25,7 +25,11 @@ const GRUPO_LABELS: Record<ResultadoBuscaTipo, string> = {
 };
 
 const ORDEM_GRUPOS: readonly ResultadoBuscaTipo[] = ["pessoa", "turma", "contato"];
-const TAMANHO_MINIMO_TERMO = 2;
+// 3 caracteres + 400ms (em vez de 2/250ms): cada busca varre pessoas+turmas+contatos inteiros no
+// servidor (~130 leituras Firestore por round-trip) — ver src/core/search/actions.ts. Reduz o
+// número de round-trips por sessão de digitação; a redução de custo por leitura vem do cache em
+// src/core/db/.
+const TAMANHO_MINIMO_TERMO = 3;
 
 interface GlobalSearchDialogProps {
 	role: Role;
@@ -64,7 +68,7 @@ export function GlobalSearchDialog({ role }: GlobalSearchDialogProps): React.Rea
 			startTransition(async () => {
 				setResultados(await buscarGlobal(termoAtual));
 			});
-		}, 250);
+		}, 400);
 		return () => clearTimeout(timer);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [termo, termoValido]);
