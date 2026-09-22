@@ -1,7 +1,6 @@
 "use server";
 
 import { FieldValue } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
@@ -13,6 +12,7 @@ import {
 	novoContatoInputSchema,
 	registrarInteracaoInputSchema,
 } from "@/core/comunicacao/contatos/schema";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -96,8 +96,7 @@ export async function criarContato(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes");
-	revalidatePath("/pessoas");
+	revalidarColecoes(["contatos", "pessoas"], ["/vagoes", "/pessoas"]);
 	return { status: "ok" };
 }
 
@@ -132,7 +131,7 @@ export async function editarContato(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes");
+	revalidarColecoes(["contatos"], ["/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -163,7 +162,7 @@ export async function registrarInteracaoContato(input: unknown): Promise<ActionR
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes");
+	revalidarColecoes(["contatos"], ["/vagoes"]);
 	return { status: "ok" };
 }
 
@@ -250,8 +249,7 @@ async function converterContatoEmPessoa(contatoId: string): Promise<ActionResult
 		return { status: "error", message: "Não foi possível converter. Tente novamente." };
 	}
 
-	revalidatePath("/vagoes");
-	revalidatePath("/pessoas");
+	revalidarColecoes(["contatos", "pessoas"], ["/vagoes", "/pessoas"]);
 	return { status: "ok" };
 }
 
@@ -294,6 +292,7 @@ export async function moverEstagioContato(input: unknown): Promise<ActionResult>
 	// Não cobre o caso raro de um contato nunca convertido (sem nenhuma Matrícula real) ser
 	// arquivado direto como "ex_aluno" — viraria "ex_aluno" mesmo sem nunca ter sido aluno de
 	// fato; não tratado aqui, ver design.md.
+	const pathsExtras: string[] = [];
 	if (parsed.data.estagio === "arquivado" && parsed.data.arquivadoMotivo === "ex_aluno") {
 		const contatoDoc = await contatoRef.get();
 		const contatoData = contatoDoc.data() as { pessoaId?: string | null } | undefined;
@@ -311,11 +310,10 @@ export async function moverEstagioContato(input: unknown): Promise<ActionResult>
 				}
 				tx.set(pessoaRef, { statusAluno: "ex_aluno" }, { merge: true });
 			});
-			revalidatePath(`/pessoas/${pessoaId}`);
+			pathsExtras.push(`/pessoas/${pessoaId}`);
 		}
 	}
 
-	revalidatePath("/vagoes");
-	revalidatePath("/pessoas");
+	revalidarColecoes(["contatos", "pessoas"], ["/vagoes", "/pessoas", ...pathsExtras]);
 	return { status: "ok" };
 }

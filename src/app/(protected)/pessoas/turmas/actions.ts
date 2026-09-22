@@ -1,11 +1,11 @@
 "use server";
 
 import type { Timestamp } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { upsertInteresse } from "@/core/interesses/actions";
 import { recalcularStatusProfessor } from "@/core/pessoas/recalcularStatusProfessor";
@@ -85,7 +85,7 @@ export async function criarTurma(input: unknown): Promise<ActionResult> {
 		// Ignorado de propósito.
 	}
 
-	revalidatePath("/pessoas/turmas");
+	revalidarColecoes(["turmas", "pessoas", "interesses"], ["/pessoas/turmas"]);
 	return { status: "ok" };
 }
 
@@ -131,7 +131,7 @@ export async function atualizarTurma(input: unknown): Promise<ActionResult> {
 		// Ignorado de propósito.
 	}
 
-	revalidatePath("/pessoas/turmas");
+	revalidarColecoes(["turmas", "pessoas", "interesses"], ["/pessoas/turmas"]);
 	return { status: "ok" };
 }
 
@@ -181,7 +181,7 @@ export async function inativarTurma(id: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas/turmas");
+	revalidarColecoes(["turmas", "matriculas", "pessoas"], ["/pessoas/turmas"]);
 	return { status: "ok" };
 }
 
@@ -249,7 +249,7 @@ export async function excluirTurmaPermanentemente(id: unknown): Promise<ActionRe
 		return { status: "error", message: "Não foi possível excluir. Tente novamente." };
 	}
 
-	revalidatePath("/pessoas/turmas");
+	revalidarColecoes(["turmas"], ["/pessoas/turmas"]);
 	return { status: "ok" };
 }
 

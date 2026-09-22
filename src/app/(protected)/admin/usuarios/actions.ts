@@ -1,11 +1,11 @@
 "use server";
 
 import { FieldValue } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import { PENDING_ACCESS, isAccessRole } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminAuth, getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface UpdateUserRoleResult {
@@ -52,7 +52,7 @@ export async function updateUserRole(uid: string, role: string): Promise<UpdateU
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/admin/usuarios");
+	revalidarColecoes(["users"], ["/admin/usuarios"]);
 
 	return { status: "ok" };
 }

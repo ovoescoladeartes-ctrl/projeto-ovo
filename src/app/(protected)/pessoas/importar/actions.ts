@@ -2,10 +2,10 @@
 
 import { parse } from "csv-parse/sync";
 import { FieldValue } from "firebase-admin/firestore";
-import { revalidatePath } from "next/cache";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import { contatoInicialDeAluno } from "@/core/comunicacao/contatos/contatoDeAluno";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { ALUNO_STATUS, PROFESSOR_STATUS } from "@/core/pessoas/schema";
 
@@ -369,7 +369,6 @@ export async function confirmarImportacaoCsv(csvTexto: string): Promise<ConfirmR
 		return { status: "error", message: "Falha ao gravar. Nenhuma linha adicional foi importada após o erro." };
 	}
 
-	revalidatePath("/pessoas");
-	revalidatePath("/vagoes");
+	revalidarColecoes(["pessoas", "contatos", "matriculas"], ["/pessoas", "/vagoes"]);
 	return { status: "ok", importadas };
 }

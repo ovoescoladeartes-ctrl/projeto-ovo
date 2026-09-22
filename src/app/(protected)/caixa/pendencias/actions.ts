@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { criarPendenciaManualSchema, resolverPendenciaManualSchema } from "@/core/financeiro/pendencias/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
@@ -38,7 +37,7 @@ export async function criarPendenciaManual(input: unknown): Promise<ActionResult
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/");
+	revalidarColecoes(["pendenciasManuais"], ["/"]);
 	return { status: "ok" };
 }
 
@@ -73,6 +72,6 @@ export async function resolverPendenciaManual(input: unknown): Promise<ActionRes
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/");
+	revalidarColecoes(["pendenciasManuais"], ["/"]);
 	return { status: "ok" };
 }

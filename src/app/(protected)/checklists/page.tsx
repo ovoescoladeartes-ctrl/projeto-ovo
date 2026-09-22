@@ -11,11 +11,19 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
-import { buscarChecklistsCustomizados, buscarPreferenciasSistema, ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
+import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
 import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
-import { buscarItensMateriais } from "@/core/comunicacao/materiais/consultas";
 import { CAIXA_ROLES, VAGOES_ROLES } from "@/core/dashboard/consultas";
+import { lerChecklistsCustomizados } from "@/core/db/checklistsCustomizados";
+import { lerPreferenciasSistema } from "@/core/db/checklistsPreferencias";
+import { lerContatosAtivos } from "@/core/db/contatos";
+import { lerItensMateriais } from "@/core/db/materiais";
+import { lerPendenciasManuaisAbertas } from "@/core/db/pendenciasManuais";
+import { lerPessoas } from "@/core/db/pessoas";
+import { lerRecebimentos } from "@/core/db/recebimentos";
+import { lerRepasses } from "@/core/db/repasses";
+import { lerTurmas } from "@/core/db/turmas";
 import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
 import { montarPendenciasAcionaveis } from "@/core/financeiro/pendencias/consultas";
 import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
@@ -55,41 +63,41 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 	const abaPadrao = filtros.aba === "comunicacao" && podeVerComunicacao ? "comunicacao" : podeVerFinanceiro ? "financeiro" : "comunicacao";
 
 	const agora = new Date();
-	const firestore = getFirebaseAdminFirestore();
+	const dia = chaveDia(agora);
 
-	const [
-		ritualDaSemana,
-		pendenciasAcionaveis,
-		pendenciasHerdadas,
-		fechamento,
-		customizadosFinanceiro,
-		checklistComunicacao,
-		customizadosComunicacao,
-		itensMateriais,
-		turmasSnapshot,
-		preferenciasSistema,
-	] = await Promise.all([
-		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
-		podeVerFinanceiro ? montarPendenciasAcionaveis(firestore, agora) : null,
-		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
-		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
-		podeVerFinanceiro ? buscarChecklistsCustomizados(firestore, "financeiro") : null,
-		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, chaveDia(agora), agora) : null,
-		podeVerComunicacao ? buscarChecklistsCustomizados(firestore, "comunicacao") : null,
-		podeVerComunicacao ? buscarItensMateriais(firestore) : null,
-		podeVerComunicacao ? firestore.collection("turmas").get() : null,
-		buscarPreferenciasSistema(firestore, IDS_CHECKLISTS_SISTEMA),
+	// Leituras cacheadas (src/core/db/) — mesmo padrão da Home (src/app/(protected)/page.tsx):
+	// uma leitura por coleção, mesmo array servindo `montarPendenciasAcionaveis` e o resto.
+	const [pessoas, turmas, recebimentos, repasses, contatosAtivos, pendenciasManuaisAbertas, itensMateriais, preferenciasSistema] = await Promise.all([
+		podeVerFinanceiro ? lerPessoas() : Promise.resolve([]),
+		podeVerComunicacao || podeVerFinanceiro ? lerTurmas() : Promise.resolve([]),
+		podeVerFinanceiro ? lerRecebimentos() : Promise.resolve([]),
+		podeVerFinanceiro ? lerRepasses() : Promise.resolve([]),
+		podeVerComunicacao ? lerContatosAtivos() : Promise.resolve([]),
+		podeVerFinanceiro ? lerPendenciasManuaisAbertas() : Promise.resolve([]),
+		podeVerComunicacao ? lerItensMateriais() : Promise.resolve([]),
+		lerPreferenciasSistema(IDS_CHECKLISTS_SISTEMA),
 	]);
+	const pendenciasAcionaveis = podeVerFinanceiro
+		? montarPendenciasAcionaveis({ repasses, recebimentos, pessoas, pendenciasManuais: pendenciasManuaisAbertas }, agora)
+		: null;
 
 	// Turmas ativas pro seletor de "Adicionar material" (item 3 da 8ª rodada de feedback).
-	const turmasAtivas: { id: string; nome: string }[] = [];
-	turmasSnapshot?.docs.forEach((doc) => {
-		const data = doc.data() as { nome: string; ativo: boolean };
-		if (data.ativo) {
-			turmasAtivas.push({ id: doc.id, nome: data.nome });
-		}
-	});
-	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+	const turmasAtivas = turmas
+		.filter((turma) => turma.ativo)
+		.map((turma) => ({ id: turma.id, nome: turma.nome }))
+		.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+	// Ainda não cacheado (Fase 2): doc-gets por chave (semana/mês/dia) do Ritual, Fechamento e
+	// Checklist do Dia — mesma ressalva da Home.
+	const firestore = getFirebaseAdminFirestore();
+	const [ritualDaSemana, pendenciasHerdadas, fechamento, customizadosFinanceiro, checklistComunicacao, customizadosComunicacao] = await Promise.all([
+		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
+		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
+		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
+		podeVerFinanceiro ? lerChecklistsCustomizados("financeiro") : null,
+		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, contatosAtivos, dia, agora) : null,
+		podeVerComunicacao ? lerChecklistsCustomizados("comunicacao") : null,
+	]);
 
 	let checklistsFinanceiro: ChecklistResumo[] = [];
 	let arquivadosFinanceiro = 0;

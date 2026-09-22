@@ -1,35 +1,8 @@
-import "server-only";
-
-import type { Timestamp } from "firebase-admin/firestore";
-
 import { contarAlunosMatriculados, contarProfessoresAtivos } from "@/core/pessoas/contadores";
 import type { Pessoa } from "@/core/pessoas/schema";
+import type { Matricula } from "@/core/matriculas/schema";
+import type { Turma } from "@/core/turmas/schema";
 import { gerarJanelaMeses } from "@/core/shared/mesesJanela";
-import { toIso } from "@/core/shared/serialize";
-
-interface TurmaDoc {
-	nome: string;
-	ativo: boolean;
-}
-
-interface MatriculaDoc {
-	pessoaId: string;
-	turmaId: string;
-	status: string;
-	dataMatricula?: Timestamp;
-	dataEncerramento?: Timestamp | null;
-	/** Só preenchido pelo import CSV — sinaliza que `dataMatricula` é aproximada (data do import, não a real). */
-	observacoes?: string | null;
-}
-
-interface PessoaDoc {
-	nome: string;
-	ehAluno: boolean;
-	statusAluno: string | null;
-	ehProfessor: boolean;
-	statusProfessor: string | null;
-	ativo: boolean;
-}
 
 export interface RankingAlunos {
 	turmaId: string | null;
@@ -80,35 +53,29 @@ function anoMesDe(iso: string): string {
 	return iso.slice(0, 7);
 }
 
-export async function montarVisaoGeral(firestore: FirebaseFirestore.Firestore, agora: Date): Promise<VisaoGeralData> {
-	const [turmasSnapshot, matriculasSnapshot, pessoasSnapshot] = await Promise.all([
-		firestore.collection("turmas").get(),
-		firestore.collection("matriculas").get(),
-		firestore.collection("pessoas").get(),
-	]);
+export interface DadosVisaoGeral {
+	turmas: Turma[];
+	matriculas: Matricula[];
+	// `contarAlunosMatriculados`/`contarProfessoresAtivos` (core/pessoas/contadores.ts) tipam o
+	// parâmetro como array mutável — mantido igual aqui pra aceitar o retorno de `lerPessoas()`
+	// sem exigir cópia.
+	pessoas: Pessoa[];
+}
 
+/** Pura — recebe os arrays já lidos por `src/core/db/` (`lerTurmas`, `lerMatriculas`, `lerPessoas`), não acessa o Firestore. */
+export function montarVisaoGeral(dados: DadosVisaoGeral, agora: Date): VisaoGeralData {
 	const turmasNomes: Record<string, string> = {};
 	let turmasAtivas = 0;
-	turmasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as TurmaDoc;
-		turmasNomes[doc.id] = data.nome;
-		if (data.ativo) {
+	dados.turmas.forEach((turma) => {
+		turmasNomes[turma.id] = turma.nome;
+		if (turma.ativo) {
 			turmasAtivas += 1;
 		}
 	});
 
 	const pessoasNomes: Record<string, string> = {};
-	const pessoas: Pick<Pessoa, "ehAluno" | "statusAluno" | "ehProfessor" | "statusProfessor" | "ativo">[] = [];
-	pessoasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as PessoaDoc;
-		pessoasNomes[doc.id] = data.nome;
-		pessoas.push({
-			ehAluno: data.ehAluno,
-			statusAluno: data.statusAluno as Pessoa["statusAluno"],
-			ehProfessor: data.ehProfessor,
-			statusProfessor: data.statusProfessor as Pessoa["statusProfessor"],
-			ativo: data.ativo,
-		});
+	dados.pessoas.forEach((pessoa) => {
+		pessoasNomes[pessoa.id] = pessoa.nome;
 	});
 
 	interface MatriculaResumo {
@@ -120,17 +87,14 @@ export async function montarVisaoGeral(firestore: FirebaseFirestore.Firestore, a
 		dataConfiavel: boolean;
 	}
 
-	const matriculas: MatriculaResumo[] = matriculasSnapshot.docs.map((doc) => {
-		const data = doc.data() as MatriculaDoc;
-		return {
-			pessoaId: data.pessoaId,
-			turmaId: data.turmaId,
-			status: data.status,
-			dataMatricula: toIso(data.dataMatricula ?? null),
-			dataEncerramento: toIso(data.dataEncerramento ?? null),
-			dataConfiavel: data.observacoes === undefined || data.observacoes === null,
-		};
-	});
+	const matriculas: MatriculaResumo[] = dados.matriculas.map((matricula) => ({
+		pessoaId: matricula.pessoaId,
+		turmaId: matricula.turmaId,
+		status: matricula.status,
+		dataMatricula: matricula.dataMatricula,
+		dataEncerramento: matricula.dataEncerramento,
+		dataConfiavel: matricula.observacoes === undefined || matricula.observacoes === null,
+	}));
 
 	// Highlights do topo da aba.
 	const anoMesAtual = anoMesDe(agora.toISOString());
@@ -139,10 +103,10 @@ export async function montarVisaoGeral(firestore: FirebaseFirestore.Firestore, a
 			matricula.dataConfiavel && matricula.dataMatricula !== null && anoMesDe(matricula.dataMatricula) === anoMesAtual,
 	).length;
 	const highlights: HighlightsGerais = {
-		alunosAtivos: contarAlunosMatriculados(pessoas),
+		alunosAtivos: contarAlunosMatriculados(dados.pessoas),
 		turmasAtivas,
 		novosAlunosNoMes,
-		professoresAtivos: contarProfessoresAtivos(pessoas),
+		professoresAtivos: contarProfessoresAtivos(dados.pessoas),
 	};
 
 	// Turmas com mais alunos — só matrícula ativa, mesmo padrão de vagasOcupadas em pessoas/turmas/page.tsx.

@@ -1,11 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import { mensagemInputSchema } from "@/core/comunicacao/mensagens/schema";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 
 export interface ActionResult {
@@ -38,7 +38,7 @@ export async function criarMensagem(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/mensagens");
+	revalidarColecoes(["mensagens"], ["/mensagens"]);
 	return { status: "ok" };
 }
 
@@ -64,7 +64,7 @@ export async function atualizarMensagem(input: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/mensagens");
+	revalidarColecoes(["mensagens"], ["/mensagens"]);
 	return { status: "ok" };
 }
 
@@ -87,6 +87,6 @@ export async function inativarMensagem(id: unknown): Promise<ActionResult> {
 		return { status: "error", message: "Não foi possível salvar. Tente novamente." };
 	}
 
-	revalidatePath("/mensagens");
+	revalidarColecoes(["mensagens"], ["/mensagens"]);
 	return { status: "ok" };
 }

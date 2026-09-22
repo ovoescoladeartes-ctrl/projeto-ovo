@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { toIso } from "@/core/shared/serialize";
 import type { Interesse } from "./schema";
@@ -76,6 +77,7 @@ export async function upsertInteresse(nomeBruto: unknown): Promise<UpsertInteres
 			ativo: true,
 			criadoEm: FieldValue.serverTimestamp(),
 		});
+		revalidarColecoes(["interesses"]);
 		return { status: "ok", interesse: { id: ref.id, nome, ativo: true, criadoEm: null } };
 	} catch {
 		return { status: "error", message: "Não foi possível cadastrar o interesse. Tente novamente." };
