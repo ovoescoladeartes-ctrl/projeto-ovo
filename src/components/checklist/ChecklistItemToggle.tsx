@@ -33,16 +33,40 @@ interface ChecklistItemToggleProps {
 	onExcluir?: () => Promise<ChecklistToggleResult>;
 }
 
-/** Exportado pra `ChecklistAcaoRow` reaproveitar — mesmo ícone de ajuda em item de "Ações" e de "Conferência". */
+/**
+ * Exportado pra `ChecklistAcaoRow` reaproveitar — mesmo ícone de ajuda em item de "Ações" e de "Conferência".
+ *
+ * Mora dentro de uma linha inteira clicável (`ChecklistAcaoRow`: `div role="button"` ou `Link`), então
+ * nenhum evento dele pode chegar na linha: `stopPropagation` barra o `onClick`/`onKeyDown` da linha e
+ * `preventDefault` barra a navegação nativa do `<a>` (o `Link` também respeita `defaultPrevented`).
+ * O `preventDefault` também pula os handlers do próprio Radix (compostos depois dos nossos), que
+ * fechariam o tooltip no pointerdown/clique — aqui o clique/toque *abre* (no toque não existe hover);
+ * fecha ao tocar fora ou tirar o mouse.
+ */
 export function IconeAjuda({ explicacao }: { explicacao: string }): React.ReactElement {
+	const [aberto, setAberto] = useState(false);
+
 	return (
 		<TooltipProvider>
-			<Tooltip>
+			<Tooltip open={aberto} onOpenChange={setAberto}>
 				<TooltipTrigger asChild>
 					<button
 						type="button"
 						className="shrink-0 text-muted-foreground hover:text-foreground"
 						aria-label="Ajuda sobre este item"
+						onPointerDown={(event) => {
+							event.stopPropagation();
+							event.preventDefault();
+						}}
+						onClick={(event) => {
+							event.stopPropagation();
+							event.preventDefault();
+							setAberto(true);
+						}}
+						onKeyDown={(event) => {
+							// Enter/Espaço continuam ativando este botão (vira `onClick` acima) — só não sobem pra linha.
+							event.stopPropagation();
+						}}
 					>
 						<CircleHelp className="h-3.5 w-3.5" />
 					</button>
