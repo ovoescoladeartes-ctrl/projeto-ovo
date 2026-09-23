@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { Timestamp } from "firebase-admin/firestore";
-
 import type { ChecklistCustomizado, ChecklistDoc, ChecklistItemDoc } from "@/core/checklist/consultas";
 import type { ChecklistArea } from "@/core/checklist/schema";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
