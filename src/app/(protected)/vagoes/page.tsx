@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
+import { nivelPendencia } from "@/core/comunicacao/pendencias";
+import { parseNivelPendencia } from "@/core/comunicacao/urgencia";
 import { lerMatriculas } from "@/core/db/matriculas";
 import { lerMensagensAtivas } from "@/core/db/mensagens";
 import { lerTurmas } from "@/core/db/turmas";
@@ -42,7 +44,7 @@ interface ContatoDoc {
 }
 
 interface VagoesPageProps {
-	searchParams: Promise<{ interesse?: string; contato?: string }>;
+	searchParams: Promise<{ interesse?: string; urgencia?: string; contato?: string; novo?: string }>;
 }
 
 export default async function VagoesPage({ searchParams }: VagoesPageProps): Promise<React.ReactElement> {
@@ -90,6 +92,14 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		contatos = contatos.filter((contato) => contato.interesses.includes(filtros.interesse as string));
 	}
 
+	// Mesma seleção da contagem do Checklist do Dia (`contarAguardandoPorUrgencia`) — o N da linha
+	// "N aguardando resposta — urgente" bate com o board depois do clique. Valor inválido é ignorado.
+	const urgencia = parseNivelPendencia(filtros.urgencia);
+	if (urgencia !== null) {
+		const agora = new Date();
+		contatos = contatos.filter((contato) => nivelPendencia(contato.estagio, contato.estagioAtualizadoEm, agora) === urgencia);
+	}
+
 	// Card mostra "o curso" — antes de convertido é o interesseInicial (o que a pessoa
 	// perguntou); a partir de convertido, o dado que importa é o curso em que ela está
 	// matriculada de verdade, então buscamos isso via matriculas/turmas e sobrescrevemos
@@ -128,7 +138,7 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			<Suspense fallback={null}>
 				<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
 			</Suspense>
-			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
+			<NovoContatoDialog opcoesInteresse={opcoesInteresse} abertoInicial={filtros.novo === "1"} />
 		</>
 	);
 
