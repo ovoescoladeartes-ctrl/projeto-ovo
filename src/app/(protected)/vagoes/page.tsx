@@ -133,18 +133,20 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		return cursoAtual !== undefined ? { ...contato, interesseInicial: cursoAtual } : contato;
 	});
 
-	const cta = (
-		<>
-			<Suspense fallback={null}>
-				<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
-			</Suspense>
-			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
-		</>
-	);
+	const cta = <NovoContatoDialog opcoesInteresse={opcoesInteresse} />;
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={cta} />
+
+			{/* Filtros numa linha própria abaixo do header, nunca na linha do H1 (regra 15 do design.md) —
+			na linha do H1 dividiam espaço com a busca global (min 500px) sem poder quebrar, e o terceiro
+			controle (Urgência) ficava cortado. Aqui quebram linha quando não cabem. */}
+			<div className="mb-6 flex flex-wrap items-center gap-3">
+				<Suspense fallback={null}>
+					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+				</Suspense>
+			</div>
 
 			{/* Abertura via `?novo=1` (atalho do Checklist do Dia) numa instância única, fora do CTA —
 			ver `mostrarGatilho` em NovoContatoDialog. Ao fechar, o `?novo=1` sai da URL e ela desmonta. */}
