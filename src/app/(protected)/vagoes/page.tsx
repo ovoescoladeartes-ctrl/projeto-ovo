@@ -138,13 +138,17 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			<Suspense fallback={null}>
 				<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
 			</Suspense>
-			<NovoContatoDialog opcoesInteresse={opcoesInteresse} abertoInicial={filtros.novo === "1"} />
+			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
 		</>
 	);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={cta} />
+
+			{/* Abertura via `?novo=1` (atalho do Checklist do Dia) numa instância única, fora do CTA —
+			ver `mostrarGatilho` em NovoContatoDialog. Ao fechar, o `?novo=1` sai da URL e ela desmonta. */}
+			{filtros.novo === "1" ? <NovoContatoDialog opcoesInteresse={opcoesInteresse} abertoInicial mostrarGatilho={false} /> : null}
 
 			<div className="min-h-0 flex-1">
 				<Board

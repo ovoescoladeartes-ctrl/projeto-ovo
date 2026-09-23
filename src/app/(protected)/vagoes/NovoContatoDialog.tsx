@@ -36,9 +36,17 @@ interface NovoContatoDialogProps {
 	opcoesInteresse: string[];
 	/** `true` quando a página veio com `?novo=1` (atalho "Cadastrar novos contatos" do Checklist do Dia) — abre o formulário direto. */
 	abertoInicial?: boolean;
+	/**
+	 * `false` = sem o botão "Novo contato" (instância só pra abertura via `?novo=1`). Nunca passar
+	 * `abertoInicial` pra instância do CTA do `PageHeader`: o CTA é renderizado duas vezes (desktop
+	 * + header mobile via `PageBreadcrumb`/`SidebarShell`, este só escondido por CSS), e o conteúdo
+	 * do Dialog vai pra um portal no `<body>` — as duas abririam juntas, com dois overlays e dois
+	 * travamentos de scroll empilhados.
+	 */
+	mostrarGatilho?: boolean;
 }
 
-export function NovoContatoDialog({ opcoesInteresse, abertoInicial = false }: NovoContatoDialogProps): React.ReactElement {
+export function NovoContatoDialog({ opcoesInteresse, abertoInicial = false, mostrarGatilho = true }: NovoContatoDialogProps): React.ReactElement {
 	const [open, setOpenState] = useState(abertoInicial);
 	const router = useRouter();
 	const pathname = usePathname();
@@ -80,9 +88,11 @@ export function NovoContatoDialog({ opcoesInteresse, abertoInicial = false }: No
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button type="button">Novo contato</Button>
-			</DialogTrigger>
+			{mostrarGatilho ? (
+				<DialogTrigger asChild>
+					<Button type="button">Novo contato</Button>
+				</DialogTrigger>
+			) : null}
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Novo contato</DialogTitle>
