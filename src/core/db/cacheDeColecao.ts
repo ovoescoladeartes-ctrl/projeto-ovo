@@ -33,8 +33,7 @@ import { type Colecao, TTL_SEGUNDOS } from "./tags";
  *    cache faz `JSON.stringify`/`parse` por baixo. `toIso()` já cobre `Timestamp`; usar `?? null`
  *    em todo campo opcional, porque `undefined` não sobrevive à volta.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mesma forma do `Callback` interno
-// de `unstable_cache` (`args: any[]`) e do `cache()` do React; é uma função identidade genérica.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mesma forma do `Callback` interno de `unstable_cache` (`args: any[]`) e do `cache()` do React; é uma função identidade genérica.
 export function cacheDeColecao<T extends (...args: any[]) => Promise<unknown>>(nome: string, colecao: Colecao, ler: T): T {
 	return cache(unstable_cache(ler, [`db:${nome}`], { tags: [colecao], revalidate: TTL_SEGUNDOS })) as T;
 }
