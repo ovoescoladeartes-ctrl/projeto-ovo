@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
 import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
@@ -14,7 +15,8 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
 import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
-import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
+import { buscarChecklistComunicacaoDoDia, chaveDia, diasAnterioresParaHistorico, listarContatosPendentes } from "@/core/comunicacao/checklist/consultas";
+import { materializarChecklistDoDia } from "@/core/comunicacao/checklist/materializar";
 import {
 	CAIXA_ROLES,
 	GERAL_ROLES,
@@ -23,6 +25,7 @@ import {
 	VAGOES_ROLES,
 } from "@/core/dashboard/consultas";
 import { montarVisaoGeral } from "@/core/dashboard/visaoGeral";
+import { lerChecklistDia } from "@/core/db/checklistComunicacao";
 import { lerChecklistsCustomizados } from "@/core/db/checklistsCustomizados";
 import { lerPreferenciasSistema } from "@/core/db/checklistsPreferencias";
 import { lerContatosAtivos } from "@/core/db/contatos";
@@ -33,6 +36,7 @@ import { lerPessoas } from "@/core/db/pessoas";
 import { lerRecebimentos } from "@/core/db/recebimentos";
 import { lerRepasses } from "@/core/db/repasses";
 import { lerTurmas } from "@/core/db/turmas";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
 import { montarPendenciasAcionaveis } from "@/core/financeiro/pendencias/consultas";
 import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
@@ -89,15 +93,35 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		? montarPendenciasAcionaveis({ repasses, recebimentos, pessoas, pendenciasManuais: pendenciasManuaisAbertas }, agora)
 		: null;
 
-	// Ainda não cacheado (Fase 2 do plano de redução de leituras): doc-gets por chave (dia/semana/
-	// mês) do Ritual, Checklist e Fechamento, e a materialização transacional do Checklist do Dia.
-	const firestore = getFirebaseAdminFirestore();
-	const [checklistComunicacao, ritualDaSemana, pendenciasHerdadas, fechamento] = await Promise.all([
-		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, contatosAtivos, dia, agora) : null,
-		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
-		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
-		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
+	// Fase 2 do plano de redução de leituras: doc-gets por chave (dia/semana/mês) do Ritual,
+	// Checklist e Fechamento, agora todos via repositório cacheado (`src/core/db/`). A
+	// materialização (escrita) do Checklist do Dia saiu do caminho de leitura — roda em `after()`,
+	// depois da resposta ser enviada, só quando há algo novo a semear.
+	const diasHistoricoChecklist = podeVerComunicacao ? diasAnterioresParaHistorico(dia) : [];
+	const [checklistDocHoje, checklistDiasAnteriores, ritualDaSemana, pendenciasHerdadas, fechamento] = await Promise.all([
+		podeVerComunicacao ? lerChecklistDia(dia) : null,
+		podeVerComunicacao ? Promise.all(diasHistoricoChecklist.map((diaAnterior) => lerChecklistDia(diaAnterior))) : null,
+		podeVerFinanceiro ? buscarRitualDaSemana(chaveSemana(segundaFeiraDaSemana(agora))) : null,
+		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(agora) : null,
+		podeVerFinanceiro ? buscarFechamentoDoMes(chavePeriodoDoMes(agora)) : null,
 	]);
+
+	const checklistComunicacao =
+		podeVerComunicacao && checklistDocHoje !== null && checklistDiasAnteriores !== null
+			? buscarChecklistComunicacaoDoDia(contatosAtivos, dia, agora, checklistDocHoje, checklistDiasAnteriores)
+			: null;
+
+	if (podeVerComunicacao) {
+		const idsParaMaterializar = listarContatosPendentes(contatosAtivos, agora).map((contato) => contato.id);
+		if (idsParaMaterializar.length > 0) {
+			after(async () => {
+				const semeados = await materializarChecklistDoDia(getFirebaseAdminFirestore(), dia, idsParaMaterializar);
+				if (semeados > 0) {
+					revalidarColecoes(["checklistComunicacaoDias"]);
+				}
+			});
+		}
+	}
 
 	// Turmas ativas pro seletor de "Adicionar material" (item 3 da 8ª rodada de feedback) — mesmo
 	// array já lido pra `montarVisaoGeral`/`montarKpisEPendenciasFinanceiro`, só filtrado em memória.

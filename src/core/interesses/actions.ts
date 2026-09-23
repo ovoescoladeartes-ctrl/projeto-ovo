@@ -1,13 +1,13 @@
 "use server";
 
-import { FieldValue, type Timestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
+import { lerInteresses } from "@/core/db/interesses";
 import { revalidarColecoes } from "@/core/db/revalidar";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
-import { toIso } from "@/core/shared/serialize";
 import type { Interesse } from "./schema";
 
 const INTERESSES_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
@@ -20,17 +20,12 @@ function normalizar(valor: string): string {
 	return valor.trim().toLowerCase();
 }
 
-interface InteresseDoc {
-	nome: string;
-	ativo: boolean;
-	criadoEm?: Timestamp;
-}
-
 /** Vocabulário de tags: fonte de verdade é a coleção `interesses`, nunca derivada de Turma em tempo de leitura. */
 export async function listarInteressesAtivos(): Promise<string[]> {
-	const snapshot = await getFirebaseAdminFirestore().collection("interesses").where("ativo", "==", true).get();
-	return snapshot.docs
-		.map((doc) => (doc.data() as InteresseDoc).nome)
+	const interesses = await lerInteresses();
+	return interesses
+		.filter((interesse) => interesse.ativo)
+		.map((interesse) => interesse.nome)
 		.sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
@@ -62,14 +57,10 @@ export async function upsertInteresse(nomeBruto: unknown): Promise<UpsertInteres
 
 	const firestore = getFirebaseAdminFirestore();
 	try {
-		const snapshot = await firestore.collection("interesses").get();
-		const existente = snapshot.docs.find((doc) => normalizar((doc.data() as InteresseDoc).nome) === chave);
+		const interesses = await lerInteresses();
+		const existente = interesses.find((interesse) => normalizar(interesse.nome) === chave);
 		if (existente) {
-			const data = existente.data() as InteresseDoc;
-			return {
-				status: "ok",
-				interesse: { id: existente.id, nome: data.nome, ativo: data.ativo, criadoEm: toIso(data.criadoEm ?? null) },
-			};
+			return { status: "ok", interesse: existente };
 		}
 
 		const ref = await firestore.collection("interesses").add({

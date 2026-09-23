@@ -1,12 +1,12 @@
-import type { Timestamp } from "firebase-admin/firestore";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
+import { lerMatriculas } from "@/core/db/matriculas";
+import { lerPessoas } from "@/core/db/pessoas";
+import { lerTurmas } from "@/core/db/turmas";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
-import { toIso } from "@/core/shared/serialize";
 
 import { PessoasListagem, type PessoaListagemRow } from "./PessoasListagem";
 
@@ -17,34 +17,6 @@ export const dynamic = "force-dynamic";
 
 const PESSOAS_ROLES: readonly Role[] = ["admin", "comunicacao", "financeiro"];
 const ITENS_POR_PAGINA = 25;
-
-interface PessoaDoc {
-	nome: string;
-	ehAluno: boolean;
-	ehProfessor: boolean;
-	statusAluno: string | null;
-	statusProfessor: string | null;
-	ativo: boolean;
-	criadoViaContatoId: string | null;
-	criadoEm?: Timestamp;
-	interesses?: string[];
-	numeroMatriculaAluno?: string | null;
-	numeroMatriculaProfessor?: string | null;
-	email?: string | null;
-	telefone?: string | null;
-}
-
-interface TurmaResumoDoc {
-	nome: string;
-	mensalidadeCentavos: number;
-	ativo: boolean;
-}
-
-interface MatriculaResumoDoc {
-	pessoaId: string;
-	turmaId: string;
-	status: string;
-}
 
 interface PessoasPageProps {
 	searchParams: Promise<{
@@ -72,22 +44,23 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	const filtros = await searchParams;
 	const mostrarArquivados = filtros.arquivados === "1";
 
-	const firestore = getFirebaseAdminFirestore();
-	// Arquivados mostra só ativo===false, nunca "todo mundo" — bug real do round 3, não era cache.
-	const pessoasQuery = firestore.collection("pessoas").where("ativo", "==", !mostrarArquivados);
-	const [pessoasSnapshot, turmasSnapshot, matriculasAtivasSnapshot, opcoesInteresse] = await Promise.all([
-		pessoasQuery.get(),
-		firestore.collection("turmas").where("ativo", "==", true).get(),
-		firestore.collection("matriculas").where("status", "==", "ativa").get(),
+	const [todasPessoas, todasTurmas, todasMatriculas, opcoesInteresse] = await Promise.all([
+		lerPessoas(),
+		lerTurmas(),
+		lerMatriculas(),
 		listarInteressesAtivos(),
 	]);
 
+	// Arquivados mostra só ativo===false, nunca "todo mundo" — bug real do round 3, não era cache.
+	const pessoasFiltradas = todasPessoas.filter((pessoa) => pessoa.ativo === !mostrarArquivados);
+	const turmasAtivasDocs = todasTurmas.filter((turma) => turma.ativo);
+	const matriculasAtivas = todasMatriculas.filter((matricula) => matricula.status === "ativa");
+
 	const turmasNomes = new Map<string, string>();
 	const turmasAtivas: { id: string; nome: string; mensalidadeCentavos: number }[] = [];
-	turmasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as TurmaResumoDoc;
-		turmasNomes.set(doc.id, data.nome);
-		turmasAtivas.push({ id: doc.id, nome: data.nome, mensalidadeCentavos: data.mensalidadeCentavos });
+	turmasAtivasDocs.forEach((turma) => {
+		turmasNomes.set(turma.id, turma.nome);
+		turmasAtivas.push({ id: turma.id, nome: turma.nome, mensalidadeCentavos: turma.mensalidadeCentavos });
 	});
 	// `turmasNomes` é por id — duas turmas com o mesmo nome (IDs diferentes) duplicariam a
 	// opção no filtro (mesmo `key`/`value` no Select), daí o dedupe via `Set` antes de ordenar.
@@ -95,34 +68,30 @@ export default async function PessoasPage({ searchParams }: PessoasPageProps): P
 	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 	const turmasPorPessoa = new Map<string, string[]>();
-	matriculasAtivasSnapshot.docs.forEach((doc) => {
-		const data = doc.data() as MatriculaResumoDoc;
-		const nome = turmasNomes.get(data.turmaId);
+	matriculasAtivas.forEach((matricula) => {
+		const nome = turmasNomes.get(matricula.turmaId);
 		if (nome === undefined) {
 			return;
 		}
-		const lista = turmasPorPessoa.get(data.pessoaId) ?? [];
+		const lista = turmasPorPessoa.get(matricula.pessoaId) ?? [];
 		lista.push(nome);
-		turmasPorPessoa.set(data.pessoaId, lista);
+		turmasPorPessoa.set(matricula.pessoaId, lista);
 	});
 
-	let pessoas: PessoaFiltravel[] = pessoasSnapshot.docs.map((doc) => {
-		const data = doc.data() as PessoaDoc;
-		return {
-			id: doc.id,
-			nome: data.nome,
-			// `?? false`/`?? null` defensivos — documento legado de antes do papel duplo não teria
-			// esses campos gravados; sem isso a linha renderiza Tipo/Status vazios silenciosamente.
-			ehAluno: data.ehAluno ?? false,
-			ehProfessor: data.ehProfessor ?? false,
-			statusAluno: data.statusAluno ?? null,
-			statusProfessor: data.statusProfessor ?? null,
-			ativo: data.ativo,
-			criadoEm: toIso(data.criadoEm ?? null),
-			turmas: turmasPorPessoa.get(doc.id) ?? [],
-			interesses: data.interesses ?? [],
-		};
-	});
+	let pessoas: PessoaFiltravel[] = pessoasFiltradas.map((pessoa) => ({
+		id: pessoa.id,
+		nome: pessoa.nome,
+		// `?? false`/`?? null` defensivos — documento legado de antes do papel duplo não teria
+		// esses campos gravados; sem isso a linha renderiza Tipo/Status vazios silenciosamente.
+		ehAluno: pessoa.ehAluno ?? false,
+		ehProfessor: pessoa.ehProfessor ?? false,
+		statusAluno: pessoa.statusAluno ?? null,
+		statusProfessor: pessoa.statusProfessor ?? null,
+		ativo: pessoa.ativo,
+		criadoEm: pessoa.criadoEm,
+		turmas: turmasPorPessoa.get(pessoa.id) ?? [],
+		interesses: pessoa.interesses ?? [],
+	}));
 
 	const marcouAluno = filtros.aluno === "1";
 	const marcouProfessor = filtros.professor === "1";

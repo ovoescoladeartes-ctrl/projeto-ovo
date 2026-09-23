@@ -3,11 +3,11 @@ import { notFound, redirect } from "next/navigation";
 
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
-import type { FormaPagamento, Recebimento, RecebimentoStatus } from "@/core/financeiro/recebimentos/schema";
-import type { Origem } from "@/core/financeiro/shared";
+import { lerMatriculas } from "@/core/db/matriculas";
+import { lerRecebimentos } from "@/core/db/recebimentos";
+import { lerTurmas } from "@/core/db/turmas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
-import type { Matricula, MatriculaStatus } from "@/core/matriculas/schema";
 import type { Pessoa } from "@/core/pessoas/schema";
 import { toIso } from "@/core/shared/serialize";
 import { formatCentavos } from "@/lib/currency";
@@ -32,38 +32,6 @@ interface PessoaDoc {
 	telefone?: string | null;
 	wixContactId?: string | null;
 	origem?: Pessoa["origem"];
-}
-
-interface TurmaResumoDoc {
-	nome: string;
-	mensalidadeCentavos: number;
-	educadorPessoaId: string | null;
-	ativo: boolean;
-}
-
-interface MatriculaDoc {
-	pessoaId: string;
-	turmaId: string;
-	dataMatricula?: Timestamp;
-	dataEncerramento?: Timestamp;
-	mensalidadeCombinadaCentavos: number;
-	motivo?: string | null;
-	status: string;
-	ativo: boolean;
-}
-
-interface RecebimentoDoc {
-	pessoaId: string;
-	turmaId: string | null;
-	matriculaId?: string | null;
-	valorCentavos: number;
-	formaPagamento: string;
-	origem: string;
-	status: string;
-	dataRecebimento?: Timestamp;
-	ativo: boolean;
-	wixOrderId?: string | null;
-	wixLineItemId?: string | null;
 }
 
 const RECEBIMENTO_STATUS_LABELS: Record<string, string> = {
@@ -114,19 +82,23 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 	const papelParaAdicionarInicial =
 		filtros.papelParaAdicionar === "aluno" || filtros.papelParaAdicionar === "professor" ? filtros.papelParaAdicionar : null;
 
-	const firestore = getFirebaseAdminFirestore();
-
-	const [pessoaDoc, turmasSnapshot, matriculasSnapshot, recebimentosSnapshot, opcoesInteresse] = await Promise.all([
-		firestore.collection("pessoas").doc(id).get(),
-		firestore.collection("turmas").get(),
-		firestore.collection("matriculas").where("pessoaId", "==", id).get(),
-		firestore.collection("recebimentos").where("pessoaId", "==", id).get(),
+	// Doc da própria pessoa continua leitura direta (não `lerPessoas()`) — rota pouco acessada,
+	// leitura única já é mais barata que puxar a coleção inteira só pra achar 1 registro (Fase 3 do
+	// plano de redução de leituras).
+	const [pessoaDoc, todasTurmas, todasMatriculas, todosRecebimentos, opcoesInteresse] = await Promise.all([
+		getFirebaseAdminFirestore().collection("pessoas").doc(id).get(),
+		lerTurmas(),
+		lerMatriculas(),
+		lerRecebimentos(),
 		listarInteressesAtivos(),
 	]);
 
 	if (!pessoaDoc.exists) {
 		notFound();
 	}
+
+	const matriculasSnapshotDocs = todasMatriculas.filter((matricula) => matricula.pessoaId === id);
+	const recebimentosSnapshotDocs = todosRecebimentos.filter((recebimento) => recebimento.pessoaId === id);
 
 	const data = pessoaDoc.data() as PessoaDoc;
 	const pessoa: Pessoa = {
@@ -151,57 +123,25 @@ export default async function PessoaDetalhePage({ params, searchParams }: Pessoa
 	const turmasNomes = new Map<string, string>();
 	const turmasAtivas: { id: string; nome: string; mensalidadeCentavos: number }[] = [];
 	const turmasLecionadas: { id: string; nome: string; ativo: boolean }[] = [];
-	turmasSnapshot.docs.forEach((turmaDoc) => {
-		const turmaData = turmaDoc.data() as TurmaResumoDoc;
-		turmasNomes.set(turmaDoc.id, turmaData.nome);
-		if (turmaData.ativo) {
-			turmasAtivas.push({ id: turmaDoc.id, nome: turmaData.nome, mensalidadeCentavos: turmaData.mensalidadeCentavos });
+	todasTurmas.forEach((turma) => {
+		turmasNomes.set(turma.id, turma.nome);
+		if (turma.ativo) {
+			turmasAtivas.push({ id: turma.id, nome: turma.nome, mensalidadeCentavos: turma.mensalidadeCentavos });
 		}
-		if (turmaData.educadorPessoaId === id) {
-			turmasLecionadas.push({ id: turmaDoc.id, nome: turmaData.nome, ativo: turmaData.ativo });
+		if (turma.educadorPessoaId === id) {
+			turmasLecionadas.push({ id: turma.id, nome: turma.nome, ativo: turma.ativo });
 		}
 	});
 	turmasAtivas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 	turmasLecionadas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
-	const matriculas: Matricula[] = matriculasSnapshot.docs.map((matriculaDoc) => {
-		const matriculaData = matriculaDoc.data() as MatriculaDoc;
-		return {
-			id: matriculaDoc.id,
-			pessoaId: matriculaData.pessoaId,
-			turmaId: matriculaData.turmaId,
-			dataMatricula: toIso(matriculaData.dataMatricula ?? null),
-			dataEncerramento: toIso(matriculaData.dataEncerramento ?? null),
-			mensalidadeCombinadaCentavos: matriculaData.mensalidadeCombinadaCentavos,
-			motivo: matriculaData.motivo ?? null,
-			status: matriculaData.status as MatriculaStatus,
-			ativo: matriculaData.ativo,
-		};
-	});
-	matriculas.sort((a, b) => (b.dataMatricula ?? "").localeCompare(a.dataMatricula ?? ""));
+	const matriculas = [...matriculasSnapshotDocs].sort((a, b) => (b.dataMatricula ?? "").localeCompare(a.dataMatricula ?? ""));
 	const matriculasComTurma = matriculas.map((matricula) => ({
 		matricula,
 		turmaNome: turmasNomes.get(matricula.turmaId) ?? "(turma removida)",
 	}));
 
-	const recebimentos: Recebimento[] = recebimentosSnapshot.docs.map((recebimentoDoc) => {
-		const recebimentoData = recebimentoDoc.data() as RecebimentoDoc;
-		return {
-			id: recebimentoDoc.id,
-			pessoaId: recebimentoData.pessoaId,
-			turmaId: recebimentoData.turmaId,
-			matriculaId: recebimentoData.matriculaId ?? null,
-			valorCentavos: recebimentoData.valorCentavos,
-			formaPagamento: recebimentoData.formaPagamento as FormaPagamento,
-			origem: recebimentoData.origem as Origem,
-			status: recebimentoData.status as RecebimentoStatus,
-			dataRecebimento: toIso(recebimentoData.dataRecebimento ?? null),
-			ativo: recebimentoData.ativo,
-			wixOrderId: recebimentoData.wixOrderId ?? null,
-			wixLineItemId: recebimentoData.wixLineItemId ?? null,
-		};
-	});
-	recebimentos.sort((a, b) => (b.dataRecebimento ?? "").localeCompare(a.dataRecebimento ?? ""));
+	const recebimentos = [...recebimentosSnapshotDocs].sort((a, b) => (b.dataRecebimento ?? "").localeCompare(a.dataRecebimento ?? ""));
 
 	return (
 		<div>

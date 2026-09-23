@@ -1,29 +1,11 @@
 import "server-only";
 
-import type { Timestamp } from "firebase-admin/firestore";
-
+import { lerFechamentoMes } from "@/core/db/fechamento";
 import { formatarDataCurta } from "@/core/financeiro/shared";
 import { buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
 import { RITUAL_ITENS } from "@/core/financeiro/ritual/schema";
-import { toIso } from "@/core/shared/serialize";
 
-import {
-	FECHAMENTO_ITENS,
-	type FechamentoConsolidado,
-	type FechamentoItemId,
-	type FechamentoLinhaEstado,
-	type FechamentoTarefaRecorrentePendente,
-} from "./schema";
-
-const COLECAO = "fechamentosMensais";
-
-interface FechamentoItemDoc {
-	concluido: boolean;
-	concluidoEm?: Timestamp;
-	concluidoPor?: string | null;
-}
-
-type FechamentoMesDoc = Partial<Record<FechamentoItemId, FechamentoItemDoc>>;
+import { type FechamentoConsolidado, type FechamentoTarefaRecorrentePendente } from "./schema";
 
 /** `periodo` sempre tem o formato fixo "yyyy-MM" (ver `periodoSchema`) — `slice` evita a checagem de índice de array que `split("-")` exigiria sob `noUncheckedIndexedAccess`. */
 function parsePeriodo(periodo: string): { ano: number; mes: number } {
@@ -66,15 +48,15 @@ function segundasDoMes(periodo: string): Date[] {
  * lista de semanas pendentes dentro (pra expandir e marcar/exportar). Tarefa concluída em todas as
  * semanas do mês não aparece em lugar nenhum.
  */
-export async function buscarFechamentoDoMes(firestore: FirebaseFirestore.Firestore, periodo: string): Promise<FechamentoConsolidado> {
+export async function buscarFechamentoDoMes(periodo: string): Promise<FechamentoConsolidado> {
 	const segundas = segundasDoMes(periodo);
 
-	const [doc, semanas] = await Promise.all([
-		firestore.collection(COLECAO).doc(periodo).get(),
+	const [linhas, semanas] = await Promise.all([
+		lerFechamentoMes(periodo),
 		Promise.all(
 			segundas.map(async (segunda, index) => {
 				const semana = chaveSemana(segundaFeiraDaSemana(segunda));
-				const ritual = await buscarRitualDaSemana(firestore, semana);
+				const ritual = await buscarRitualDaSemana(semana);
 				const domingo = new Date(segunda);
 				domingo.setDate(domingo.getDate() + 6);
 				return {
@@ -87,20 +69,6 @@ export async function buscarFechamentoDoMes(firestore: FirebaseFirestore.Firesto
 			}),
 		),
 	]);
-
-	const fechamentoDoc = doc.exists ? (doc.data() as FechamentoMesDoc) : undefined;
-
-	const linhas: FechamentoLinhaEstado[] = FECHAMENTO_ITENS.map((definicao) => {
-		const estado = fechamentoDoc?.[definicao.id];
-		return {
-			id: definicao.id,
-			label: definicao.label,
-			concluido: estado?.concluido ?? false,
-			concluidoEm: toIso(estado?.concluidoEm ?? null),
-			concluidoPor: estado?.concluidoPor ?? null,
-			explicacao: definicao.explicacao,
-		};
-	});
 
 	const tarefasRecorrentesPendentes: FechamentoTarefaRecorrentePendente[] = [];
 	for (const definicao of RITUAL_ITENS) {

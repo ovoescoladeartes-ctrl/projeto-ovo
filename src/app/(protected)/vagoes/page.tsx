@@ -6,7 +6,9 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
-import type { Mensagem } from "@/core/comunicacao/mensagens/schema";
+import { lerMatriculas } from "@/core/db/matriculas";
+import { lerMensagensAtivas } from "@/core/db/mensagens";
+import { lerTurmas } from "@/core/db/turmas";
 import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { listarInteressesAtivos } from "@/core/interesses/actions";
 import { toIso } from "@/core/shared/serialize";
@@ -39,13 +41,6 @@ interface ContatoDoc {
 	historico?: InteracaoContatoDoc[];
 }
 
-interface MensagemDoc {
-	categoria: string;
-	titulo: string;
-	texto: string;
-	ativo: boolean;
-}
-
 interface VagoesPageProps {
 	searchParams: Promise<{ interesse?: string; contato?: string }>;
 }
@@ -59,14 +54,15 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 	}
 
 	const filtros = await searchParams;
-	const firestore = getFirebaseAdminFirestore();
 
+	// Contatos continua leitura direta (não `lerContatosAtivos()`) — é o único consumidor que
+	// precisa de `historico`, de propósito fora do repositório cacheado (ver `src/core/db/contatos.ts`).
 	// Uma única query, agrupada em memória nos 6 baldes visuais (ver src/core/comunicacao/buckets.ts).
 	// Exige o índice composto (ativo ASC, estagioAtualizadoEm ASC) — se o Firestore ainda não tiver
 	// esse índice, o erro traz um link para criá-lo automaticamente no Console.
-	const [contatosSnapshot, mensagensSnapshot, opcoesInteresse] = await Promise.all([
-		firestore.collection("contatos").where("ativo", "==", true).orderBy("estagioAtualizadoEm", "asc").get(),
-		firestore.collection("mensagens").where("ativo", "==", true).get(),
+	const [contatosSnapshot, mensagensLidas, opcoesInteresse] = await Promise.all([
+		getFirebaseAdminFirestore().collection("contatos").where("ativo", "==", true).orderBy("estagioAtualizadoEm", "asc").get(),
+		lerMensagensAtivas(),
 		listarInteressesAtivos(),
 	]);
 
@@ -105,41 +101,26 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 	const cursoAtualPorPessoaId = new Map<string, string>();
 
 	if (pessoaIdsConvertidos.length > 0) {
-		const [matriculasSnapshot, turmasSnapshot] = await Promise.all([
-			firestore.collection("matriculas").where("status", "==", "ativa").get(),
-			firestore.collection("turmas").get(),
-		]);
+		const [matriculasAtivas, todasTurmas] = await Promise.all([lerMatriculas(), lerTurmas()]);
 
-		const nomeTurmaPorId = new Map(
-			turmasSnapshot.docs.map((doc) => [doc.id, (doc.data() as { nome: string }).nome]),
-		);
+		const nomeTurmaPorId = new Map(todasTurmas.map((turma) => [turma.id, turma.nome]));
 
-		matriculasSnapshot.docs.forEach((doc) => {
-			const data = doc.data() as { pessoaId: string; turmaId: string };
-			if (cursoAtualPorPessoaId.has(data.pessoaId)) {
-				return;
-			}
-			const nomeTurma = nomeTurmaPorId.get(data.turmaId);
-			if (nomeTurma !== undefined) {
-				cursoAtualPorPessoaId.set(data.pessoaId, nomeTurma);
-			}
-		});
+		matriculasAtivas
+			.filter((matricula) => matricula.status === "ativa")
+			.forEach((matricula) => {
+				if (cursoAtualPorPessoaId.has(matricula.pessoaId)) {
+					return;
+				}
+				const nomeTurma = nomeTurmaPorId.get(matricula.turmaId);
+				if (nomeTurma !== undefined) {
+					cursoAtualPorPessoaId.set(matricula.pessoaId, nomeTurma);
+				}
+			});
 	}
 
 	const contatosComCurso: Contato[] = contatos.map((contato) => {
 		const cursoAtual = contato.pessoaId !== null ? cursoAtualPorPessoaId.get(contato.pessoaId) : undefined;
 		return cursoAtual !== undefined ? { ...contato, interesseInicial: cursoAtual } : contato;
-	});
-
-	const mensagens: Mensagem[] = mensagensSnapshot.docs.map((doc) => {
-		const data = doc.data() as MensagemDoc;
-		return {
-			id: doc.id,
-			categoria: data.categoria as Mensagem["categoria"],
-			titulo: data.titulo,
-			texto: data.texto,
-			ativo: data.ativo,
-		};
 	});
 
 	const cta = (
@@ -158,7 +139,7 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 			<div className="min-h-0 flex-1">
 				<Board
 					contatos={contatosComCurso}
-					mensagens={mensagens}
+					mensagens={mensagensLidas}
 					opcoesInteresse={opcoesInteresse}
 					contatoIdInicial={filtros.contato ?? null}
 				/>

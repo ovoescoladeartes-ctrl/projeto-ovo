@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
 import { LinkVerArquivadas } from "@/components/checklist/LinkVerArquivadas";
@@ -13,8 +14,10 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
 import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
-import { buscarChecklistComunicacaoDoDia, chaveDia } from "@/core/comunicacao/checklist/consultas";
+import { buscarChecklistComunicacaoDoDia, chaveDia, diasAnterioresParaHistorico, listarContatosPendentes } from "@/core/comunicacao/checklist/consultas";
+import { materializarChecklistDoDia } from "@/core/comunicacao/checklist/materializar";
 import { CAIXA_ROLES, VAGOES_ROLES } from "@/core/dashboard/consultas";
+import { lerChecklistDia } from "@/core/db/checklistComunicacao";
 import { lerChecklistsCustomizados } from "@/core/db/checklistsCustomizados";
 import { lerPreferenciasSistema } from "@/core/db/checklistsPreferencias";
 import { lerContatosAtivos } from "@/core/db/contatos";
@@ -24,6 +27,7 @@ import { lerPessoas } from "@/core/db/pessoas";
 import { lerRecebimentos } from "@/core/db/recebimentos";
 import { lerRepasses } from "@/core/db/repasses";
 import { lerTurmas } from "@/core/db/turmas";
+import { revalidarColecoes } from "@/core/db/revalidar";
 import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
 import { montarPendenciasAcionaveis } from "@/core/financeiro/pendencias/consultas";
 import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
@@ -87,17 +91,36 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 		.map((turma) => ({ id: turma.id, nome: turma.nome }))
 		.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
-	// Ainda não cacheado (Fase 2): doc-gets por chave (semana/mês/dia) do Ritual, Fechamento e
-	// Checklist do Dia — mesma ressalva da Home.
-	const firestore = getFirebaseAdminFirestore();
-	const [ritualDaSemana, pendenciasHerdadas, fechamento, customizadosFinanceiro, checklistComunicacao, customizadosComunicacao] = await Promise.all([
-		podeVerFinanceiro ? buscarRitualDaSemana(firestore, chaveSemana(segundaFeiraDaSemana(agora))) : null,
-		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(firestore, agora) : null,
-		podeVerFinanceiro ? buscarFechamentoDoMes(firestore, chavePeriodoDoMes(agora)) : null,
-		podeVerFinanceiro ? lerChecklistsCustomizados("financeiro") : null,
-		podeVerComunicacao ? buscarChecklistComunicacaoDoDia(firestore, contatosAtivos, dia, agora) : null,
-		podeVerComunicacao ? lerChecklistsCustomizados("comunicacao") : null,
-	]);
+	// Fase 2 do plano de redução de leituras: doc-gets por chave (semana/mês/dia) do Ritual,
+	// Fechamento e Checklist do Dia, via repositório cacheado — mesmo padrão da Home.
+	const diasHistoricoChecklist = podeVerComunicacao ? diasAnterioresParaHistorico(dia) : [];
+	const [ritualDaSemana, pendenciasHerdadas, fechamento, customizadosFinanceiro, checklistDocHoje, checklistDiasAnteriores, customizadosComunicacao] =
+		await Promise.all([
+			podeVerFinanceiro ? buscarRitualDaSemana(chaveSemana(segundaFeiraDaSemana(agora))) : null,
+			podeVerFinanceiro ? buscarPendenciasRitualHerdadas(agora) : null,
+			podeVerFinanceiro ? buscarFechamentoDoMes(chavePeriodoDoMes(agora)) : null,
+			podeVerFinanceiro ? lerChecklistsCustomizados("financeiro") : null,
+			podeVerComunicacao ? lerChecklistDia(dia) : null,
+			podeVerComunicacao ? Promise.all(diasHistoricoChecklist.map((diaAnterior) => lerChecklistDia(diaAnterior))) : null,
+			podeVerComunicacao ? lerChecklistsCustomizados("comunicacao") : null,
+		]);
+
+	const checklistComunicacao =
+		podeVerComunicacao && checklistDocHoje !== null && checklistDiasAnteriores !== null
+			? buscarChecklistComunicacaoDoDia(contatosAtivos, dia, agora, checklistDocHoje, checklistDiasAnteriores)
+			: null;
+
+	if (podeVerComunicacao) {
+		const idsParaMaterializar = listarContatosPendentes(contatosAtivos, agora).map((contato) => contato.id);
+		if (idsParaMaterializar.length > 0) {
+			after(async () => {
+				const semeados = await materializarChecklistDoDia(getFirebaseAdminFirestore(), dia, idsParaMaterializar);
+				if (semeados > 0) {
+					revalidarColecoes(["checklistComunicacaoDias"]);
+				}
+			});
+		}
+	}
 
 	let checklistsFinanceiro: ChecklistResumo[] = [];
 	let arquivadosFinanceiro = 0;
