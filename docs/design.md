@@ -160,10 +160,11 @@ sidebar como um drawer.
 
 | Elemento visual | Primitivo shadcn | Wrapper customizado |
 |---|---|---|
-| Cards de KPI, pendências, ritual | `Card` | `KpiCard`, `PendenciaRow` (dentro de `PendenciasList`) |
+| Cards de KPI | `Card` | `KpiCard` |
 | Abas de seção de página (Comunicação/Financeiro, Recebimentos/Repasses) | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` — **variante sublinhada**, não a pill padrão do shadcn (ver regra MANDATÓRIA abaixo) | — |
 | Badge de contagem ("3"), badge "3/5 concluídos" | `Badge` | — |
-| Itens do checklist "Ritual de segunda" | `Checkbox` + `Label` (`checked`+`disabled`) | `RitualChecklistItem`, `RitualChecklist` |
+| Card compacto de checklist (dashboard) e o painel lateral que ele abre — Ritual, Fechamento, Comunicação, customizados | `Card`, `Sheet`, `Checkbox` | `ChecklistCard`, item de "Conferência" (`ChecklistItemToggle`) e item de "Ações" (`ChecklistAcaoRow`) — ver regra 38 |
+| Detalhe de item agrupado dentro do painel lateral (hoje só o Fechamento — tarefa recorrente com N semanas pendentes) | `Checkbox`, `Button` | `FechamentoTarefaDetalhe` (`src/components/dashboard/`) — ver regra 39 |
 | Botões "Ver", "Abrir pessoa" | `Button` (`variant="outline"` / `variant="default"` sobre fundo escuro) | — |
 | Avatar do usuário | `Avatar`, `AvatarFallback` | — |
 | Menu do avatar (logout) | `DropdownMenu` | `UserMenu` |
@@ -963,6 +964,83 @@ desta conversa:
     colados. `gap` funciona nas duas direções (`column`/`row`), então cobre mobile e desktop com
     uma classe só. Vale pros três primitivos (`src/components/ui/dialog.tsx`,
     `alert-dialog.tsx`, `sheet.tsx`) — mesmo padrão de rodapé, mesmo bug, mesma correção.
+38. **Item de checklist (card compacto do dashboard e painel lateral que ele abre) tem uma
+    anatomia única, sem exceção: título + linha secundária opcional em cinza + controle à
+    direita.** Decidido em 2026-09-21, depois de três rodadas de ajuste visual no motor de
+    checklist genérico (Ritual, Fechamento, Comunicação, customizados) — a versão final substitui
+    todas as anteriores (caixa por tipo, cor/barra lateral por estado, texto de rótulo por
+    controle). Princípio: o card não muda de regra visual conforme o conteúdo do item.
+    - **Dois tipos de controle, nunca mais que isso.** "Conferência" usa `Checkbox` — só
+      marca/desmarca, nunca navega (`ChecklistItemToggle`, `src/components/checklist/`). "Ações"
+      usa `ChevronRight` (lucide) — a linha inteira é clicável e sempre tira a pessoa de onde está:
+      `href` navega pra uma página já filtrada, `onExecutar` roda a ação na hora (só dentro do
+      painel — nunca no card compacto), `onAbrir` abre o painel lateral do próprio checklist
+      (usado no card compacto sempre que o item não tem página filtrada real, ex.: pendência
+      manual, item acumulado do Fechamento) (`ChecklistAcaoRow`, mesma pasta). Nenhum outro ícone
+      aparece nesse controle — em especial, nunca um chevron-down/accordion, nem no card compacto
+      nem no painel lateral (revogado pela regra 39: nenhuma lista, compacta ou completa, expande
+      item inline — item agrupado leva pro detalhe dele, dentro do próprio painel).
+    - **Card compacto: uma única caixa com borda, divisórias finas (`divide-y`) entre todos os
+      itens** — sem caixa separada por tipo Ações/Conferência, sem rótulo de texto por grupo (o
+      controle à direita já diz o tipo). Ordenação única, aplicada num só lugar (nunca repetida
+      por checklist): (1) mais atrasado primeiro — item herdado/atrasado de um ciclo anterior no
+      topo, o mais antigo primeiro entre eles —, (2) em empate, Ações antes de Conferência, (3) em
+      empate, ordem original do checklist.
+    - **Painel lateral (Sheet): mantém a separação com rótulo de texto** (`h3` "Ações"/
+      "Conferência"), mais um grupo "Atrasados" no topo (mesmo tratamento, só rótulo — sem cor
+      especial) quando existir item atrasado/herdado; grupo vazio não aparece.
+    - **Nenhum item individual leva cor, borda, fundo ou badge diferente dos demais** — nada de
+      barra lateral vermelha, texto vermelho, nem qualquer outro sinal por item. Vermelho/laranja
+      continuam reservados a urgência crítica em outras partes do app (ex.: badge de status da
+      regra 18), não a item de checklist. Dentro do card, o único sinal de atenção é o badge
+      "X/Y pendentes" (âmbar) do `ChecklistCard` — prioridade se comunica só por posição na lista
+      e pelo texto da linha secundária cinza (ex.: "Herdado · há 2 semanas", sempre singular
+      quando N=1).
+39. **O tipo de item de checklist ("Ações" vs. "Conferência") vem só do comportamento ao clicar,
+    nunca da origem/categoria de negócio do item — e nenhuma lista (card ou painel) expande item
+    inline.** Decidido em 2026-09-21, corrigindo um bug real do painel do Fechamento: "Exportar
+    relatório semanal" tinha chevron `>` (não expandia), mas "Conferir entradas novas"/"Revisar
+    falhas de cobrança" tinham chevron-down `v` que expandia um accordion — a diferença vinha de
+    qual `itemId` fixo era, não do comportamento real (as três são igualmente "item agrupado", com
+    N semanas pendentes). Revoga a permissão de accordion dentro do painel lateral que a regra 38
+    ainda citava.
+    - **Checkbox** (Conferência) só marca/desmarca, nunca navega — item avulso, sem sub-itens.
+    - **Chevron `>`** (Ações), sempre o mesmo ícone — item cujo clique tira a pessoa da lista:
+      pra uma página já filtrada, ou pro **detalhe do item dentro do próprio painel** (ver abaixo).
+      **Item agrupado (tem sub-itens — ex.: as semanas pendentes de uma tarefa recorrente do
+      Fechamento) é sempre Ações**, nunca Conferência, mesmo que a ação final seja só "marcar como
+      concluído" — o agrupamento em si já é motivo pra levar a um detalhe, não pra expandir.
+    - **Classificação implementada numa função só, chamada tanto pela montagem do card quanto pela
+      do painel** — nenhum dos dois decide por conta própria (`classificarTarefaRecorrente` em
+      `ChecklistFechamento.tsx`, hoje o único checklist com item agrupado).
+    - **Painel lateral (`Sheet`) tem dois estados, nunca um terceiro (expandido inline):**
+      **lista** (como a regra 38 já descrevia — rótulos "Ações"/"Conferência", grupo "Atrasados"
+      no topo só quando existe item herdado/atrasado — item agrupado **nunca** entra em
+      "Atrasados", mesmo que a tarefa recorrente venha de longe) e **detalhe de um item agrupado**,
+      que substitui a lista inteira (cabeçalho incluso) dentro do mesmo `Sheet`: botão voltar
+      (`ChevronLeft`, ícone só) + título do checklist ao lado, título do item + linha secundária
+      cinza abaixo, uma linha por sub-item (mesma anatomia do item de Conferência: texto à
+      esquerda, `Checkbox` à direita — mas com seleção local, não `ChecklistItemToggle`: várias
+      linhas são resolvidas juntas com um botão só, não uma persistida por clique), e um botão de
+      ação no rodapé ("Marcar como resolvidas (N)"/"Exportar selecionadas (N)", desabilitado com
+      0 selecionadas). Voltar retorna à lista; o **X** do `Sheet` fecha tudo (sem lembrar o estado
+      pra próxima abertura). Depois da ação, fica no detalhe atualizado — se não sobrar nenhum
+      sub-item pendente, a visão cai pra lista sozinha (derivado do dado mais recente a cada
+      render, sem `useEffect`: se o item já não existe mais na lista de pendentes, a visão
+      "detalhe" simplesmente não tem o que mostrar e a lista aparece no lugar).
+    - **Tabela de destino do clique**, vale pra card e painel:
+
+      | Onde | Destino é página | Destino é detalhe de item |
+      |---|---|---|
+      | Chevron no card | Navega direto, não abre o painel | Abre o painel já no detalhe |
+      | Chevron na lista do painel | Navega e fecha o painel | Troca o conteúdo pro detalhe |
+      | "Ver checklist completo" | — | Abre o painel na lista |
+    - **Badge "X/Y pendentes" conta linhas exibidas, não sub-itens**: um item agrupado conta como
+      **1** pendente até todos os seus sub-itens serem resolvidos (aí ele some da lista e para de
+      contar) — a magnitude em sub-itens continua visível só na linha secundária cinza do item
+      (ex.: "4 semanas pendentes (07/09 a 04/10)"). Contar sub-itens individuais no badge
+      (comportamento anterior, corrigido nesta rodada) fazia a contagem não bater com o que a
+      pessoa via na lista.
 
 ---
 
