@@ -36,10 +36,12 @@ export function VagoesFiltroBar({ opcoesInteresse }: VagoesFiltroBarProps): Reac
 		router.push(query.length > 0 ? `${pathname}?${query}` : pathname);
 	}
 
+	// `max-w-[12rem]`: o valor já corta em 1 linha (`line-clamp-1` do SelectTrigger) — sem teto, um
+	// interesse de nome longo alargaria o filtro e poderia estourar a linha do H1 (ver `vagoes/page.tsx`).
 	return (
 		<>
 			<Select value={interesse} onValueChange={(valor) => atualizarFiltro("interesse", valor)} disabled={opcoesInteresse.length === 0}>
-				<SelectTrigger className="w-auto min-w-[10rem]">
+				<SelectTrigger className="w-auto min-w-[10rem] max-w-[12rem]">
 					<SelectValue placeholder="Interesse: todos" />
 				</SelectTrigger>
 				<SelectContent>
@@ -52,7 +54,7 @@ export function VagoesFiltroBar({ opcoesInteresse }: VagoesFiltroBarProps): Reac
 				</SelectContent>
 			</Select>
 			<Select value={urgencia} onValueChange={(valor) => atualizarFiltro("urgencia", valor)}>
-				<SelectTrigger className="w-auto min-w-[10rem]">
+				<SelectTrigger className="w-auto min-w-[10rem] max-w-[12rem]">
 					<SelectValue placeholder="Urgência: todas" />
 				</SelectTrigger>
 				<SelectContent>

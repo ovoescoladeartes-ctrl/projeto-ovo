@@ -133,16 +133,28 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		return cursoAtual !== undefined ? { ...contato, interesseInicial: cursoAtual } : contato;
 	});
 
-	const cta = <NovoContatoDialog opcoesInteresse={opcoesInteresse} />;
+	// Filtros + "Novo contato" numa linha só (na linha do H1) só a partir de `2xl` (1536px) — abaixo
+	// disso os 3 controles não cabem ao lado do título + busca global (min 500px): a conta dá ~1450px
+	// de viewport com a sidebar aberta, e o wrapper de conteúdo tem `overflow-x-hidden`, então o que
+	// sobra fica cortado sem rolagem (Bug F do PR #68). Abaixo de `2xl` os filtros descem pra linha
+	// própria (regra 15 do design.md). Mesmo componente nos dois lugares, só CSS decide qual aparece.
+	const cta = (
+		<>
+			<div className="hidden items-center gap-2 2xl:flex">
+				<Suspense fallback={null}>
+					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+				</Suspense>
+			</div>
+			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
+		</>
+	);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={cta} />
 
-			{/* Filtros numa linha própria abaixo do header, nunca na linha do H1 (regra 15 do design.md) —
-			na linha do H1 dividiam espaço com a busca global (min 500px) sem poder quebrar, e o terceiro
-			controle (Urgência) ficava cortado. Aqui quebram linha quando não cabem. */}
-			<div className="mb-6 flex flex-wrap items-center gap-3">
+			{/* Abaixo de `2xl`: filtros numa linha própria, com quebra quando não cabem (ver `cta` acima). */}
+			<div className="mb-6 flex flex-wrap items-center gap-3 2xl:hidden">
 				<Suspense fallback={null}>
 					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
 				</Suspense>
