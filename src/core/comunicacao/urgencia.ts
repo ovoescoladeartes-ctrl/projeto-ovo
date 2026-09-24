@@ -1,5 +1,14 @@
 export type NivelUrgencia = "recente" | "atencao" | "urgente";
 
+/** Níveis que contam como pendência ("recente" não é pendência) — valores aceitos no filtro `?urgencia=` de Vagões. */
+export const NIVEIS_PENDENCIA = ["atencao", "urgente"] as const;
+export type NivelPendencia = (typeof NIVEIS_PENDENCIA)[number];
+
+/** Valor de `?urgencia=` inválido/ausente vira `null` (filtro ignorado, sem erro). */
+export function parseNivelPendencia(valor: string | null | undefined): NivelPendencia | null {
+	return NIVEIS_PENDENCIA.find((nivel) => nivel === valor) ?? null;
+}
+
 /**
  * Urgência conta desde `estagioAtualizadoEm`, nunca desde a última mensagem (decisão
  * fechada). Limiares (<24h / 24–72h / >72h) são provisórios — precisam validação com a

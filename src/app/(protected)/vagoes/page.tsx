@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { getServerSession } from "@/core/auth/getServerSession";
 import type { Role } from "@/core/auth/Role";
 import type { Contato } from "@/core/comunicacao/contatos/schema";
+import { nivelPendencia } from "@/core/comunicacao/pendencias";
+import { parseNivelPendencia } from "@/core/comunicacao/urgencia";
 import { lerMatriculas } from "@/core/db/matriculas";
 import { lerMensagensAtivas } from "@/core/db/mensagens";
 import { lerTurmas } from "@/core/db/turmas";
@@ -42,7 +44,7 @@ interface ContatoDoc {
 }
 
 interface VagoesPageProps {
-	searchParams: Promise<{ interesse?: string; contato?: string }>;
+	searchParams: Promise<{ interesse?: string; urgencia?: string; contato?: string; novo?: string }>;
 }
 
 export default async function VagoesPage({ searchParams }: VagoesPageProps): Promise<React.ReactElement> {
@@ -90,6 +92,14 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		contatos = contatos.filter((contato) => contato.interesses.includes(filtros.interesse as string));
 	}
 
+	// Mesma seleção da contagem do Checklist do Dia (`contarAguardandoPorUrgencia`) — o N da linha
+	// "N aguardando resposta — urgente" bate com o board depois do clique. Valor inválido é ignorado.
+	const urgencia = parseNivelPendencia(filtros.urgencia);
+	if (urgencia !== null) {
+		const agora = new Date();
+		contatos = contatos.filter((contato) => nivelPendencia(contato.estagio, contato.estagioAtualizadoEm, agora) === urgencia);
+	}
+
 	// Card mostra "o curso" — antes de convertido é o interesseInicial (o que a pessoa
 	// perguntou); a partir de convertido, o dado que importa é o curso em que ela está
 	// matriculada de verdade, então buscamos isso via matriculas/turmas e sobrescrevemos
@@ -123,11 +133,18 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 		return cursoAtual !== undefined ? { ...contato, interesseInicial: cursoAtual } : contato;
 	});
 
+	// Filtros + "Novo contato" numa linha só (na linha do H1) só a partir de `2xl` (1536px) — abaixo
+	// disso os 3 controles não cabem ao lado do título + busca global (min 500px): a conta dá ~1450px
+	// de viewport com a sidebar aberta, e o wrapper de conteúdo tem `overflow-x-hidden`, então o que
+	// sobra fica cortado sem rolagem (Bug F do PR #68). Abaixo de `2xl` os filtros descem pra linha
+	// própria (regra 15 do design.md). Mesmo componente nos dois lugares, só CSS decide qual aparece.
 	const cta = (
 		<>
-			<Suspense fallback={null}>
-				<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
-			</Suspense>
+			<div className="hidden items-center gap-2 2xl:flex">
+				<Suspense fallback={null}>
+					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+				</Suspense>
+			</div>
 			<NovoContatoDialog opcoesInteresse={opcoesInteresse} />
 		</>
 	);
@@ -135,6 +152,17 @@ export default async function VagoesPage({ searchParams }: VagoesPageProps): Pro
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Vagões" }]} title="Vagões" cta={cta} />
+
+			{/* Abaixo de `2xl`: filtros numa linha própria, com quebra quando não cabem (ver `cta` acima). */}
+			<div className="mb-6 flex flex-wrap items-center gap-3 2xl:hidden">
+				<Suspense fallback={null}>
+					<VagoesFiltroBar opcoesInteresse={opcoesInteresse} />
+				</Suspense>
+			</div>
+
+			{/* Abertura via `?novo=1` (atalho do Checklist do Dia) numa instância única, fora do CTA —
+			ver `mostrarGatilho` em NovoContatoDialog. Ao fechar, o `?novo=1` sai da URL e ela desmonta. */}
+			{filtros.novo === "1" ? <NovoContatoDialog opcoesInteresse={opcoesInteresse} abertoInicial mostrarGatilho={false} /> : null}
 
 			<div className="min-h-0 flex-1">
 				<Board

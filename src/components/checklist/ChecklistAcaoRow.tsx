@@ -57,7 +57,9 @@ export function ChecklistAcaoRow({ titulo, meta, explicacao, icon: Icon, href, o
 			{Icon !== undefined ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
 			<div className="min-w-0 flex-1">
 				<div className="flex items-center gap-1.5">
-					<p className="truncate text-sm font-medium text-foreground">{titulo}</p>
+					{/* Até 2 linhas, nunca `truncate` de uma linha só — no card compacto (coluna estreita) cortava
+					o fim do título, que é justamente o dado mais importante (ex.: "— urgente"). */}
+					<p className="line-clamp-2 min-w-0 break-words text-sm font-medium text-foreground">{titulo}</p>
 					{explicacao !== undefined ? <IconeAjuda explicacao={explicacao} /> : null}
 				</div>
 				{meta !== undefined ? <p className="truncate text-xs text-muted-foreground">{meta}</p> : null}
@@ -79,10 +81,27 @@ export function ChecklistAcaoRow({ titulo, meta, explicacao, icon: Icon, href, o
 		);
 	}
 
+	// `div role="button"`, não `<button>`: a linha pode conter o `IconeAjuda`, que é um `<button>` de
+	// verdade — `<button>` dentro de `<button>` é HTML inválido (erro de hidratação no React). Mesmo
+	// padrão de `ContatoCard` (Vagões): Enter/Espaço ativam como num botão nativo; tecla vinda de um
+	// filho focado (o próprio ícone de ajuda) é ignorada.
 	return (
-		<button type="button" className={classesLinha} disabled={isPending} onClick={handleClick}>
+		<div
+			role="button"
+			tabIndex={isPending ? -1 : 0}
+			aria-disabled={isPending}
+			className={classesLinha}
+			onClick={handleClick}
+			onKeyDown={(event) => {
+				if (isPending || event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) {
+					return;
+				}
+				event.preventDefault();
+				handleClick();
+			}}
+		>
 			{conteudo}
 			<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-		</button>
+		</div>
 	);
 }

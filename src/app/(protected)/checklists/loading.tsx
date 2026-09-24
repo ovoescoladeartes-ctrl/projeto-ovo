@@ -1,4 +1,5 @@
 import { CardGridSkeleton } from "@/components/skeletons/CardGridSkeleton";
+import { COLUNAS_GRADE_CHECKLISTS } from "@/components/checklist/gradeChecklists";
 import { PageHeaderSkeleton } from "@/components/skeletons/PageHeaderSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -22,7 +23,7 @@ export default function Loading(): React.ReactElement {
 				<Skeleton className="h-9 w-36" />
 			</div>
 
-			<CardGridSkeleton count={3} colsClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variant="funil" />
+			<CardGridSkeleton count={3} colsClassName={`grid-cols-1 ${COLUNAS_GRADE_CHECKLISTS}`} variant="funil" />
 		</div>
 	);
 }

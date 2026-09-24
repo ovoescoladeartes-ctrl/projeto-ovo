@@ -6,7 +6,7 @@ import type { ChecklistPreferenciasDoc, ChecklistResumo, ChecklistResumoComSinai
 import type { PendenciaAcionavel } from "@/core/financeiro/pendencias/schema";
 import type { RitualSemana } from "@/core/financeiro/ritual/schema";
 import type { FechamentoConsolidado } from "@/core/financeiro/fechamento/schema";
-import type { ChecklistComunicacaoDia } from "@/core/comunicacao/checklist/schema";
+import type { ContagemAguardandoResposta } from "@/core/comunicacao/pendencias";
 
 /**
  * Adaptadores dos 3 checklists de sistema cobertos por esta spec (Ritual, Fechamento, Checklist do
@@ -72,11 +72,12 @@ export function resumoFechamentoMensal(fechamento: FechamentoConsolidado, prefer
 	return { ...comSinais, score: calcularScore(comSinais) };
 }
 
-export function resumoChecklistComunicacao(checklist: ChecklistComunicacaoDia, preferencias?: ChecklistPreferenciasDoc): ChecklistResumo {
+export function resumoChecklistComunicacao(aguardando: ContagemAguardandoResposta, preferencias?: ChecklistPreferenciasDoc): ChecklistResumo {
 	const { pinado, arquivado } = lerPreferencias(preferencias);
-	const manuaisPendentes = checklist.manuais.filter((item) => !item.concluido).length;
-	const totalPendentes = checklist.pendenciasAnteriores.length + checklist.itensPendentesHoje.length + manuaisPendentes;
-	const temItens = checklist.blocos.some((bloco) => bloco.itens.length > 0) || checklist.manuais.length > 0 || checklist.pendenciasAnteriores.length > 0;
+	const totalPendentes = aguardando.atencao + aguardando.urgente;
+	// Sempre tem itens — as duas linhas de urgência são fixas (somem só visualmente com N = 0) e o
+	// atalho de cadastro é permanente; zero pendência é "Tudo em dia", nunca "Sem itens".
+	const temItens = true;
 
 	const comSinais: ChecklistResumoComSinais = {
 		id: "comunicacao-dia",
@@ -84,7 +85,7 @@ export function resumoChecklistComunicacao(checklist: ChecklistComunicacaoDia, p
 		area: "comunicacao",
 		titulo: "Checklist do Dia",
 		tema: "Comunicação do Dia",
-		descricao: "Contatos aguardando resposta nos 3 horários de revisão, mais itens avulsos.",
+		descricao: "Contatos aguardando resposta por nível de urgência, com atalho pro board de Vagões.",
 		totalPendentes,
 		temItens,
 		pinado,

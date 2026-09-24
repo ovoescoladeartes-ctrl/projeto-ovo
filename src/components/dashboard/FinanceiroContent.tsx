@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RankingHorizontal } from "@/components/dashboard/charts/RankingHorizontal";
 import { SerieMensalBarras } from "@/components/dashboard/charts/SerieMensalBarras";
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
+import { FAIXA_CHECKLISTS, ITEM_FAIXA_CHECKLISTS } from "@/components/checklist/gradeChecklists";
 import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
 import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
 import { KpiCardsGrid } from "@/components/dashboard/KpiCardsGrid";
@@ -61,10 +62,10 @@ export function FinanceiroContent({
 					</Link>
 				</div>
 
-				{/* Faixa rolável (mobile) / grade (desktop) de checklists — seção 5.1 da spec-checklist-motor.md. */}
-				<div className="mr-[-1.5rem] flex snap-x snap-mandatory gap-4 overflow-x-auto pr-6 pb-2 sm:mr-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
+				{/* Faixa de checklists (seção 5.1 da spec-checklist-motor.md): lado a lado quando cabe, rolagem horizontal quando não — nunca empilhada. Ver `FAIXA_CHECKLISTS`. */}
+				<div className={FAIXA_CHECKLISTS}>
 					{checklistsFinanceiro.map((resumo) => (
-						<div key={resumo.id} className="w-[85vw] shrink-0 snap-start sm:w-auto">
+						<div key={resumo.id} className={ITEM_FAIXA_CHECKLISTS}>
 							{resumo.id === "financeiro-ritual" ? (
 								<ChecklistFinanceiro
 									resumo={resumo}
