@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
+import { COLUNAS_GRADE_CHECKLISTS } from "@/components/checklist/gradeChecklists";
 import { LinkVerArquivadas } from "@/components/checklist/LinkVerArquivadas";
 import { NovoChecklistDialog } from "@/components/checklist/NovoChecklistDialog";
 import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
@@ -166,7 +167,7 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 						</div>
 
 						{checklistsFinanceiro.length > 0 ? (
-							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							<div className={`grid grid-cols-1 gap-4 ${COLUNAS_GRADE_CHECKLISTS}`}>
 								{checklistsFinanceiro.map((resumo) => (
 									<div key={resumo.id}>
 										{resumo.id === "financeiro-ritual" ? (
@@ -212,7 +213,7 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 							</div>
 
 							{checklistsComunicacao.length > 0 ? (
-								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+								<div className={`grid grid-cols-1 gap-4 ${COLUNAS_GRADE_CHECKLISTS}`}>
 									{checklistsComunicacao.map((resumo) => (
 										<div key={resumo.id}>
 											{resumo.id === "comunicacao-dia" ? (

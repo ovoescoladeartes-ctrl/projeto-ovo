@@ -96,12 +96,13 @@ export function ChecklistCard({ resumo, totalItens, itensPendentes, onAbrir, chi
 						<p className="p-3 text-sm text-muted-foreground">{resumo.descricao}</p>
 					)}
 				</div>
-				{/* `flex-wrap`: o botão é `whitespace-nowrap` e, em card estreito (ex.: grade de 3 colunas
-				entre ~1024px e ~1300px, ou a faixa rolável do mobile), badge + botão não cabem lado a lado —
-				sem quebra, o botão vazava pra fora da borda do card. Quebrando, o botão desce e fica à direita. */}
+				{/* `flex-wrap`: o botão é `whitespace-nowrap` e, em card mais estreito que o mínimo da grade
+				(`COLUNAS_GRADE_CHECKLISTS`, ex.: faixa rolável do mobile), badge + botão não cabem lado a lado —
+				sem quebra, o botão vazava pra fora da borda do card. Quebrando, o botão desce e fica à
+				esquerda, no mesmo eixo do badge (nunca em diagonal: badge à esquerda, botão à direita). */}
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<Badge className={corBadgeContagem(totalItens, itensPendentes)}>{rotuloContagem(totalItens, itensPendentes)}</Badge>
-					<Button type="button" variant="outline" size="sm" className="ml-auto" onClick={onAbrir}>
+					<Button type="button" variant="outline" size="sm" onClick={onAbrir}>
 						Ver checklist completo
 					</Button>
 				</div>
