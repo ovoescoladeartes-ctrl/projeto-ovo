@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
 import { FAIXA_CHECKLISTS, ITEM_FAIXA_CHECKLISTS } from "@/components/checklist/gradeChecklists";
-import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
+import { AdicionarMaterialDialog } from "@/components/dashboard/AdicionarMaterialDialog";
+import { ChecklistMateriaisTurma } from "@/components/dashboard/ChecklistMateriaisTurma";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
 import { FunnelStageRow } from "@/components/dashboard/FunnelStageRow";
@@ -15,6 +16,7 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
 import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
+import { agruparMateriaisPendentesPorTurma } from "@/core/comunicacao/materiais/agrupar";
 import { contarAguardandoPorUrgencia } from "@/core/comunicacao/pendencias";
 import {
 	CAIXA_ROLES,
@@ -105,6 +107,10 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		.filter((turma) => turma.ativo)
 		.map((turma) => ({ id: turma.id, nome: turma.nome }))
 		.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+	// Um card por turma (ou "Geral") com pelo menos 1 item pendente — nunca um card vazio, nunca um
+	// único card reunindo várias turmas (docs/spec-checklist-materiais.md).
+	const gruposMateriaisPendentes = agruparMateriaisPendentesPorTurma(itensMateriais);
 
 	// Ritual + Fechamento + customizados da área, ordenados por pin+score e sem os arquivados
 	// (seção 3/5.1/6 de spec-checklist-motor.md) — motor genérico de checklist, não cobre Materiais.
@@ -199,12 +205,26 @@ export default async function HomePage(): Promise<React.ReactElement> {
 									</Link>
 								</div>
 
-								{/* Materiais não implementa o contrato ChecklistResumo (spec-checklist-materiais.md), mas
-								agora compartilha a mesma página de gestão `/checklists` (aba Comunicação, seção própria) —
-								item 4 do feedback de revisão. */}
+								{/* Materiais não implementa o contrato ChecklistResumo — um card por turma (ou "Geral")
+								com pendência, na mesma faixa reutilizável do motor (docs/spec-checklist-materiais.md). A
+								gestão completa (criar avulso, excluir, ver comprados recentes, copiar link do formulário
+								público) mora em `/checklists` (aba Comunicação) — aqui é só o glance do dia a dia. */}
 								<div className="flex flex-col gap-3">
-									<h3 className="text-sm font-medium text-muted-foreground">Materiais</h3>
-									<ChecklistMateriais itens={itensMateriais} turmasAtivas={turmasAtivas} />
+									<div className="flex items-center justify-between gap-2">
+										<h3 className="text-sm font-medium text-muted-foreground">Materiais</h3>
+										<AdicionarMaterialDialog turmasAtivas={turmasAtivas} />
+									</div>
+									{gruposMateriaisPendentes.length > 0 ? (
+										<div className={FAIXA_CHECKLISTS}>
+											{gruposMateriaisPendentes.map((grupo) => (
+												<div key={grupo.turmaId ?? "geral"} className={ITEM_FAIXA_CHECKLISTS}>
+													<ChecklistMateriaisTurma grupo={grupo} />
+												</div>
+											))}
+										</div>
+									) : (
+										<p className="text-sm text-muted-foreground">Nenhum material pendente.</p>
+									)}
 								</div>
 
 								<div className="flex flex-col gap-3">
