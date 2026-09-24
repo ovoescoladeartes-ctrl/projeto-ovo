@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
-import { COLUNAS_GRADE_CHECKLISTS } from "@/components/checklist/gradeChecklists";
+import { FAIXA_CHECKLISTS, ITEM_FAIXA_CHECKLISTS } from "@/components/checklist/gradeChecklists";
 import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
@@ -209,10 +209,10 @@ export default async function HomePage(): Promise<React.ReactElement> {
 
 								<div className="flex flex-col gap-3">
 									<h3 className="text-sm font-medium text-muted-foreground">Comunicação</h3>
-									{/* Faixa rolável (mobile) / grade (desktop) de checklists — seção 5.1 da spec-checklist-motor.md. */}
-									<div className={`mr-[-1.5rem] flex snap-x snap-mandatory gap-4 overflow-x-auto pr-6 pb-2 sm:mr-0 sm:grid sm:snap-none sm:overflow-visible sm:pr-0 ${COLUNAS_GRADE_CHECKLISTS}`}>
+									{/* Faixa de checklists (seção 5.1 da spec-checklist-motor.md): lado a lado quando cabe, rolagem horizontal quando não — nunca empilhada. Ver `FAIXA_CHECKLISTS`. */}
+									<div className={FAIXA_CHECKLISTS}>
 										{checklistsComunicacao.map((resumo) => (
-											<div key={resumo.id} className="w-[85vw] shrink-0 snap-start sm:w-auto">
+											<div key={resumo.id} className={ITEM_FAIXA_CHECKLISTS}>
 												{resumo.id === "comunicacao-dia" ? (
 													<VagoesChecklist resumo={resumo} aguardando={aguardandoResposta} />
 												) : (

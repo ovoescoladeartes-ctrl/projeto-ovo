@@ -97,7 +97,7 @@ export function ChecklistCard({ resumo, totalItens, itensPendentes, onAbrir, chi
 					)}
 				</div>
 				{/* `flex-wrap`: o botão é `whitespace-nowrap` e, em card mais estreito que o mínimo da grade
-				(`COLUNAS_GRADE_CHECKLISTS`, ex.: faixa rolável do mobile), badge + botão não cabem lado a lado —
+				(22rem, ver `gradeChecklists.ts` — ex.: faixa rolável do mobile), badge + botão não cabem lado a lado —
 				sem quebra, o botão vazava pra fora da borda do card. Quebrando, o botão desce e fica à
 				esquerda, no mesmo eixo do badge (nunca em diagonal: badge à esquerda, botão à direita). */}
 				<div className="flex flex-wrap items-center justify-between gap-2">
