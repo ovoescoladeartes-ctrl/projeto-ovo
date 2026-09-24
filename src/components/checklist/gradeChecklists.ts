@@ -20,10 +20,17 @@ export const COLUNAS_GRADE_CHECKLISTS = "sm:grid-cols-[repeat(auto-fill,minmax(m
 export const FAIXA_CHECKLISTS = "mr-[-1.5rem] flex snap-x snap-mandatory gap-4 overflow-x-auto pr-6 pb-2 sm:mr-0 sm:pr-0";
 
 /**
- * Item da `FAIXA_CHECKLISTS`. Mobile: 85% da tela, como já era. A partir de `sm`: cresce igualmente
- * pra preencher a fileira (`flex-1`), nunca abaixo de 22rem (mesmo mínimo de `COLUNAS_GRADE_CHECKLISTS`
- * — quando não cabe, a faixa rola em vez de encolher) e nunca acima de 1/3 da faixa (largura de uma
- * coluna da grade de 3 de antes, pra um card sozinho não esticar a 100%). Quando o teto de 1/3 fica
- * menor que 22rem, `min-width` vence o `max-width` (regra do CSS) — o card fica com o mínimo.
+ * Item da `FAIXA_CHECKLISTS`. Largura fixa no modo rolagem, nunca relativa à tela — é o espaço que
+ * sobra que decide quanto do próximo card aparece na borda (efeito de carrossel).
+ *
+ * - Abaixo de `sm`: 22rem (352px) fixos, o mesmo mínimo da grade — exceto em celular estreito
+ *   (< 432px), onde 352px não deixaria o próximo card aparecer: aí vira `100vw - 5rem`, que sempre
+ *   deixa ~40px do próximo à mostra (5rem = 24px de padding + 16px de gap + 40px de "espiada").
+ *   Antes era `85vw`, que numa tela de ~600px virava um card de 510px com uma tira de ~26px do próximo.
+ * - A partir de `sm`: cresce igualmente pra preencher a fileira (`flex-1`), nunca abaixo de 22rem e
+ *   nunca acima de 1/3 da faixa (card sozinho não estica a 100%). No modo rolagem não sobra espaço
+ *   pra crescer, então fica fixo em 22rem; quando o teto de 1/3 é menor que 22rem, `min-width` vence
+ *   o `max-width` (regra do CSS).
  */
-export const ITEM_FAIXA_CHECKLISTS = "w-[85vw] shrink-0 snap-start sm:w-auto sm:min-w-[22rem] sm:max-w-[calc((100%_-_2rem)/3)] sm:flex-1";
+export const ITEM_FAIXA_CHECKLISTS =
+	"w-[min(22rem,calc(100vw_-_5rem))] shrink-0 snap-start sm:w-auto sm:min-w-[22rem] sm:max-w-[calc((100%_-_2rem)/3)] sm:flex-1";
