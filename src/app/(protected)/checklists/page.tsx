@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation";
 
+import { alternarItemMaterial, excluirItemMaterial } from "@/app/(protected)/vagoes/materiais/actions";
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
-import { COLUNAS_GRADE_CHECKLISTS } from "@/components/checklist/gradeChecklists";
+import { COLUNAS_GRADE_CHECKLISTS, FAIXA_CHECKLISTS, ITEM_FAIXA_CHECKLISTS } from "@/components/checklist/gradeChecklists";
+import { ChecklistItemToggle } from "@/components/checklist/ChecklistItemToggle";
 import { LinkVerArquivadas } from "@/components/checklist/LinkVerArquivadas";
 import { NovoChecklistDialog } from "@/components/checklist/NovoChecklistDialog";
+import { AdicionarMaterialDialog } from "@/components/dashboard/AdicionarMaterialDialog";
 import { ChecklistFechamento } from "@/components/dashboard/ChecklistFechamento";
 import { ChecklistFinanceiro } from "@/components/dashboard/ChecklistFinanceiro";
-import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
+import { ChecklistMateriaisTurma } from "@/components/dashboard/ChecklistMateriaisTurma";
+import { CopiarLinkMateriaisProfessor } from "@/components/dashboard/CopiarLinkMateriaisProfessor";
 import { VagoesChecklist } from "@/components/dashboard/VagoesChecklist";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +18,7 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
 import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
+import { agruparMateriaisPendentesPorTurma, materiaisCompradosRecentes } from "@/core/comunicacao/materiais/agrupar";
 import { contarAguardandoPorUrgencia } from "@/core/comunicacao/pendencias";
 import { CAIXA_ROLES, VAGOES_ROLES } from "@/core/dashboard/consultas";
 import { lerChecklistsCustomizados } from "@/core/db/checklistsCustomizados";
@@ -130,6 +135,12 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 
 	const mensagemVazia = mostrarArquivados ? "Nenhum checklist arquivado." : "Nenhum checklist ativo.";
 
+	// Um card por turma (ou "Geral") com pendência + os últimos comprados (pra corrigir engano de
+	// clique) — nunca faz parte do array `checklistsComunicacao` acima (Materiais não implementa
+	// ChecklistResumo, docs/spec-checklist-materiais.md).
+	const gruposMateriaisPendentes = agruparMateriaisPendentesPorTurma(itensMateriais);
+	const compradosRecentes = materiaisCompradosRecentes(itensMateriais);
+
 	return (
 		<div>
 			<PageHeader breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Checklists" }]} title="Checklists" />
@@ -195,11 +206,46 @@ export default async function ChecklistsPage({ searchParams }: ChecklistsPagePro
 				{podeVerComunicacao && aguardandoResposta !== null && itensMateriais !== null ? (
 					<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 						{/* Materiais não implementa o contrato ChecklistResumo, mas mora nesta mesma página de
-						gestão agora — item 4 do feedback de revisão: substitui a ideia de uma URL própria
-						(`/vagoes/materiais`), as ações específicas (criar/excluir item) continuam aqui dentro. */}
+						gestão — substitui a ideia de uma URL própria (`/vagoes/materiais`); as ações específicas
+						(criar/excluir item, copiar o link do formulário público) ficam aqui dentro
+						(docs/spec-checklist-materiais.md). */}
 						<div className="flex flex-col gap-3">
 							<h2 className="text-lg font-semibold text-foreground">Materiais</h2>
-							<ChecklistMateriais itens={itensMateriais} turmasAtivas={turmasAtivas} />
+
+							<div className="flex flex-wrap items-center gap-3">
+								<AdicionarMaterialDialog turmasAtivas={turmasAtivas} />
+								<CopiarLinkMateriaisProfessor />
+							</div>
+
+							{gruposMateriaisPendentes.length > 0 ? (
+								<div className={FAIXA_CHECKLISTS}>
+									{gruposMateriaisPendentes.map((grupo) => (
+										<div key={grupo.turmaId ?? "geral"} className={ITEM_FAIXA_CHECKLISTS}>
+											<ChecklistMateriaisTurma grupo={grupo} />
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="text-sm text-muted-foreground">Nenhum material pendente.</p>
+							)}
+
+							{compradosRecentes.length > 0 ? (
+								<div className="flex flex-col gap-2">
+									<h3 className="text-sm font-medium text-muted-foreground">Comprados recentemente</h3>
+									<div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+										{compradosRecentes.map((item) => (
+											<ChecklistItemToggle
+												key={item.id}
+												label={item.titulo}
+												meta={item.turmaNome ?? "Geral"}
+												concluido={item.comprado}
+												onToggle={(comprado) => alternarItemMaterial({ id: item.id, comprado })}
+												onExcluir={() => excluirItemMaterial({ id: item.id })}
+											/>
+										))}
+									</div>
+								</div>
+							) : null}
 						</div>
 
 						<div className="flex flex-col gap-3">

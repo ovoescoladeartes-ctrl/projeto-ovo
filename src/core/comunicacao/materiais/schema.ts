@@ -9,6 +9,20 @@ export const criarItemMaterialSchema = z.object({
 
 export type CriarItemMaterialInput = z.infer<typeof criarItemMaterialSchema>;
 
+/**
+ * Versão do formulário público (`/materiais-professor`, sem login) — não recebe `turmaNome` do
+ * cliente: a action resolve o nome a partir do `turmaId` no servidor (`lerTurmas()`), pra não
+ * confiar em texto livre vindo de quem não está autenticado. Limite de tamanho no título como
+ * proteção básica contra abuso (ver `docs/spec-checklist-materiais.md`, seção "Segurança").
+ */
+export const criarItemMaterialPublicoSchema = z.object({
+	titulo: z.string().trim().min(1, "Descreva o material em falta.").max(200, "Máximo de 200 caracteres."),
+	/** `null` = "Geral". */
+	turmaId: z.string().nullable(),
+});
+
+export type CriarItemMaterialPublicoInput = z.infer<typeof criarItemMaterialPublicoSchema>;
+
 export const alternarItemMaterialSchema = z.object({
 	id: z.string().min(1, "Item inválido."),
 	comprado: z.boolean(),
