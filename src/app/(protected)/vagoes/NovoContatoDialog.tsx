@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -33,10 +34,37 @@ const ESTADO_INICIAL = { nome: "", canal: "whatsapp" as Canal, interesseInicial:
 
 interface NovoContatoDialogProps {
 	opcoesInteresse: string[];
+	/** `true` quando a página veio com `?novo=1` (atalho "Cadastrar novos contatos" do Checklist do Dia) — abre o formulário direto. */
+	abertoInicial?: boolean;
+	/**
+	 * `false` = sem o botão "Novo contato" (instância só pra abertura via `?novo=1`). Nunca passar
+	 * `abertoInicial` pra instância do CTA do `PageHeader`: o CTA é renderizado duas vezes (desktop
+	 * + header mobile via `PageBreadcrumb`/`SidebarShell`, este só escondido por CSS), e o conteúdo
+	 * do Dialog vai pra um portal no `<body>` — as duas abririam juntas, com dois overlays e dois
+	 * travamentos de scroll empilhados.
+	 */
+	mostrarGatilho?: boolean;
 }
 
-export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): React.ReactElement {
-	const [open, setOpen] = useState(false);
+export function NovoContatoDialog({ opcoesInteresse, abertoInicial = false, mostrarGatilho = true }: NovoContatoDialogProps): React.ReactElement {
+	const [open, setOpenState] = useState(abertoInicial);
+	const router = useRouter();
+	const pathname = usePathname();
+
+	// Ao fechar, tira o `?novo=1` da URL (mantendo os demais filtros) — senão um refresh reabriria o formulário.
+	function setOpen(proximo: boolean): void {
+		setOpenState(proximo);
+		if (proximo || typeof window === "undefined") {
+			return;
+		}
+		const params = new URLSearchParams(window.location.search);
+		if (!params.has("novo")) {
+			return;
+		}
+		params.delete("novo");
+		const query = params.toString();
+		router.replace(query.length > 0 ? `${pathname}?${query}` : pathname);
+	}
 	const [form, setForm] = useState(ESTADO_INICIAL);
 	const [interesses, setInteresses] = useState<string[]>([]);
 	const [pessoaId, setPessoaId] = useState<string | null>(null);
@@ -60,9 +88,11 @@ export function NovoContatoDialog({ opcoesInteresse }: NovoContatoDialogProps): 
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button type="button">Novo contato</Button>
-			</DialogTrigger>
+			{mostrarGatilho ? (
+				<DialogTrigger asChild>
+					<Button type="button">Novo contato</Button>
+				</DialogTrigger>
+			) : null}
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Novo contato</DialogTitle>

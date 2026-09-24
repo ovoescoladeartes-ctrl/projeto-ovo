@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 
 import { ChecklistCustomizadoCard } from "@/components/checklist/ChecklistCustomizadoCard";
+import { FAIXA_CHECKLISTS, ITEM_FAIXA_CHECKLISTS } from "@/components/checklist/gradeChecklists";
 import { ChecklistMateriais } from "@/components/dashboard/ChecklistMateriais";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceiroContent } from "@/components/dashboard/FinanceiroContent";
@@ -15,8 +15,7 @@ import { getServerSession } from "@/core/auth/getServerSession";
 import { IDS_CHECKLISTS_SISTEMA, resumoChecklistComunicacao, resumoFechamentoMensal, resumoRitualFinanceiro } from "@/core/checklist/adaptadores";
 import { ordenarChecklists, resumoChecklistCustomizado } from "@/core/checklist/consultas";
 import type { ChecklistItem, ChecklistResumo } from "@/core/checklist/schema";
-import { buscarChecklistComunicacaoDoDia, chaveDia, diasAnterioresParaHistorico, listarContatosPendentes } from "@/core/comunicacao/checklist/consultas";
-import { materializarChecklistDoDia } from "@/core/comunicacao/checklist/materializar";
+import { contarAguardandoPorUrgencia } from "@/core/comunicacao/pendencias";
 import {
 	CAIXA_ROLES,
 	GERAL_ROLES,
@@ -25,7 +24,6 @@ import {
 	VAGOES_ROLES,
 } from "@/core/dashboard/consultas";
 import { montarVisaoGeral } from "@/core/dashboard/visaoGeral";
-import { lerChecklistDia } from "@/core/db/checklistComunicacao";
 import { lerChecklistsCustomizados } from "@/core/db/checklistsCustomizados";
 import { lerPreferenciasSistema } from "@/core/db/checklistsPreferencias";
 import { lerContatosAtivos } from "@/core/db/contatos";
@@ -36,11 +34,9 @@ import { lerPessoas } from "@/core/db/pessoas";
 import { lerRecebimentos } from "@/core/db/recebimentos";
 import { lerRepasses } from "@/core/db/repasses";
 import { lerTurmas } from "@/core/db/turmas";
-import { revalidarColecoes } from "@/core/db/revalidar";
 import { buscarFechamentoDoMes, chavePeriodoDoMes } from "@/core/financeiro/fechamento/consultas";
 import { montarPendenciasAcionaveis } from "@/core/financeiro/pendencias/consultas";
 import { buscarPendenciasRitualHerdadas, buscarRitualDaSemana, chaveSemana, segundaFeiraDaSemana } from "@/core/financeiro/ritual/consultas";
-import { getFirebaseAdminFirestore } from "@/core/firebase/firebaseAdmin";
 import { cn } from "@/lib/utils";
 
 export default async function HomePage(): Promise<React.ReactElement> {
@@ -53,7 +49,6 @@ export default async function HomePage(): Promise<React.ReactElement> {
 	const podeVerFinanceiro = CAIXA_ROLES.includes(session.role);
 	const podeVerComunicacao = VAGOES_ROLES.includes(session.role);
 	const agora = new Date();
-	const dia = chaveDia(agora);
 
 	// Leituras cacheadas (src/core/db/) — uma por coleção, ainda gated por role, com cache quente
 	// valendo ~0 leitura no Firestore. `pessoas`/`turmas` servem tanto a aba Geral quanto a
@@ -93,35 +88,16 @@ export default async function HomePage(): Promise<React.ReactElement> {
 		? montarPendenciasAcionaveis({ repasses, recebimentos, pessoas, pendenciasManuais: pendenciasManuaisAbertas }, agora)
 		: null;
 
-	// Fase 2 do plano de redução de leituras: doc-gets por chave (dia/semana/mês) do Ritual,
-	// Checklist e Fechamento, agora todos via repositório cacheado (`src/core/db/`). A
-	// materialização (escrita) do Checklist do Dia saiu do caminho de leitura — roda em `after()`,
-	// depois da resposta ser enviada, só quando há algo novo a semear.
-	const diasHistoricoChecklist = podeVerComunicacao ? diasAnterioresParaHistorico(dia) : [];
-	const [checklistDocHoje, checklistDiasAnteriores, ritualDaSemana, pendenciasHerdadas, fechamento] = await Promise.all([
-		podeVerComunicacao ? lerChecklistDia(dia) : null,
-		podeVerComunicacao ? Promise.all(diasHistoricoChecklist.map((diaAnterior) => lerChecklistDia(diaAnterior))) : null,
+	// Fase 2 do plano de redução de leituras: doc-gets por chave (semana/mês) do Ritual e
+	// Fechamento, via repositório cacheado (`src/core/db/`). O Checklist do Dia não lê doc próprio —
+	// é só a contagem agregada dos contatos já lidos acima.
+	const [ritualDaSemana, pendenciasHerdadas, fechamento] = await Promise.all([
 		podeVerFinanceiro ? buscarRitualDaSemana(chaveSemana(segundaFeiraDaSemana(agora))) : null,
 		podeVerFinanceiro ? buscarPendenciasRitualHerdadas(agora) : null,
 		podeVerFinanceiro ? buscarFechamentoDoMes(chavePeriodoDoMes(agora)) : null,
 	]);
 
-	const checklistComunicacao =
-		podeVerComunicacao && checklistDocHoje !== null && checklistDiasAnteriores !== null
-			? buscarChecklistComunicacaoDoDia(contatosAtivos, dia, agora, checklistDocHoje, checklistDiasAnteriores)
-			: null;
-
-	if (podeVerComunicacao) {
-		const idsParaMaterializar = listarContatosPendentes(contatosAtivos, agora).map((contato) => contato.id);
-		if (idsParaMaterializar.length > 0) {
-			after(async () => {
-				const semeados = await materializarChecklistDoDia(getFirebaseAdminFirestore(), dia, idsParaMaterializar);
-				if (semeados > 0) {
-					revalidarColecoes(["checklistComunicacaoDias"]);
-				}
-			});
-		}
-	}
+	const aguardandoResposta = podeVerComunicacao ? contarAguardandoPorUrgencia(contatosAtivos, agora) : null;
 
 	// Turmas ativas pro seletor de "Adicionar material" (item 3 da 8ª rodada de feedback) — mesmo
 	// array já lido pra `montarVisaoGeral`/`montarKpisEPendenciasFinanceiro`, só filtrado em memória.
@@ -146,8 +122,8 @@ export default async function HomePage(): Promise<React.ReactElement> {
 
 	let checklistsComunicacao: ChecklistResumo[] = [];
 	const itensChecklistsCustomizadosComunicacao: Record<string, ChecklistItem[]> = {};
-	if (checklistComunicacao !== null && customizadosComunicacao !== null) {
-		const resumoDia = resumoChecklistComunicacao(checklistComunicacao, preferenciasSistema?.["comunicacao-dia"]);
+	if (aguardandoResposta !== null && customizadosComunicacao !== null) {
+		const resumoDia = resumoChecklistComunicacao(aguardandoResposta, preferenciasSistema?.["comunicacao-dia"]);
 		const resumosCustomizados = customizadosComunicacao.map(resumoChecklistCustomizado);
 		checklistsComunicacao = ordenarChecklists([resumoDia, ...resumosCustomizados].filter((resumo) => !resumo.arquivado));
 		customizadosComunicacao.forEach((checklist) => {
@@ -204,7 +180,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
 						</TabsContent>
 					) : null}
 
-					{comunicacao !== null && checklistComunicacao !== null && itensMateriais !== null ? (
+					{comunicacao !== null && aguardandoResposta !== null && itensMateriais !== null ? (
 						<TabsContent value="comunicacao" className="mt-6 flex flex-col gap-6">
 							<KpiCardsGrid items={comunicacao.kpis} />
 
@@ -233,12 +209,12 @@ export default async function HomePage(): Promise<React.ReactElement> {
 
 								<div className="flex flex-col gap-3">
 									<h3 className="text-sm font-medium text-muted-foreground">Comunicação</h3>
-									{/* Faixa rolável (mobile) / grade (desktop) de checklists — seção 5.1 da spec-checklist-motor.md. */}
-									<div className="mr-[-1.5rem] flex snap-x snap-mandatory gap-4 overflow-x-auto pr-6 pb-2 sm:mr-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
+									{/* Faixa de checklists (seção 5.1 da spec-checklist-motor.md): lado a lado quando cabe, rolagem horizontal quando não — nunca empilhada. Ver `FAIXA_CHECKLISTS`. */}
+									<div className={FAIXA_CHECKLISTS}>
 										{checklistsComunicacao.map((resumo) => (
-											<div key={resumo.id} className="w-[85vw] shrink-0 snap-start sm:w-auto">
+											<div key={resumo.id} className={ITEM_FAIXA_CHECKLISTS}>
 												{resumo.id === "comunicacao-dia" ? (
-													<VagoesChecklist resumo={resumo} dia={chaveDia(agora)} checklist={checklistComunicacao} />
+													<VagoesChecklist resumo={resumo} aguardando={aguardandoResposta} />
 												) : (
 													<ChecklistCustomizadoCard
 														resumo={resumo}
