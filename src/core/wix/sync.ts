@@ -191,7 +191,7 @@ export function planejarTurmas(products: WixProduct[], turmaIdExistentePorWixPro
 	const atualizar: TurmaPlanoAtualizar[] = [];
 
 	for (const product of products) {
-		const mensalidadeCentavos = Math.round((product.price?.price ?? 0) * 100);
+		const mensalidadeCentavos = Math.round(Number(product.actualPriceRange?.minValue?.amount ?? 0) * 100);
 		const turmaIdExistente = turmaIdExistentePorWixProductId.get(product.id);
 		if (turmaIdExistente !== undefined) {
 			atualizar.push({ turmaId: turmaIdExistente, wixProductId: product.id, mensalidadeCentavos });

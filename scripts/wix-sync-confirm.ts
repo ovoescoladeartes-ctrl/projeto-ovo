@@ -70,16 +70,16 @@ async function searchApprovedOrders(): Promise<WixOrder[]> {
 
 async function queryAllProducts(): Promise<WixProduct[]> {
 	const results: WixProduct[] = [];
-	let offset = 0;
+	let cursor: string | undefined;
 	for (let page = 0; page < 20; page += 1) {
-		const raw = await wixPost<unknown>("/stores/v1/products/query", { query: { paging: { limit: 100, offset } } });
+		const raw = await wixPost<unknown>("/stores/v3/products/query", { query: { cursorPaging: { limit: 100, cursor } } });
 		const parsed = wixProductsQueryResponseSchema.parse(raw);
 		results.push(...parsed.products);
-		const total = parsed.totalResults ?? results.length;
-		offset += parsed.products.length;
-		if (parsed.products.length === 0 || offset >= total) {
+		const nextCursor = parsed.pagingMetadata?.cursors?.next ?? undefined;
+		if (parsed.pagingMetadata?.hasNext !== true || nextCursor === undefined || parsed.products.length === 0) {
 			break;
 		}
+		cursor = nextCursor;
 	}
 	return results;
 }

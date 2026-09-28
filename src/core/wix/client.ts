@@ -12,7 +12,7 @@ interface WixErrorBody {
 
 /**
  * POST autenticado num endpoint da Wix (todas as APIs usadas aqui — Contacts,
- * Stores Catalog V1, eCommerce Orders — expõem query/search via POST).
+ * Stores Catalog V3, eCommerce Orders — expõem query/search via POST).
  * Somente leitura por convenção do módulo: nenhuma função deste core chama
  * métodos de escrita da Wix (regra de produto: "Trilho registra e reflete;
  * nunca executa a ação externa").

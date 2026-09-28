@@ -31,18 +31,28 @@ export const wixContactsQueryResponseSchema = z.object({
 		.optional(),
 });
 
+// Stores Catalog V3 — a Wix migrou o site da Ovo de V1 pra V3 (set/2026; V1 passou
+// a responder 501 "This Catalog V1 operation is not supported for sites using
+// Catalog V3"). IDs de produto foram preservados na migração. Preço vem como
+// string decimal em actualPriceRange (min = max quando não há variantes).
 export const wixProductSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	productType: z.string().optional(),
-	price: z.object({ price: z.number(), currency: z.string().optional() }).optional(),
+	actualPriceRange: z
+		.object({ minValue: z.object({ amount: z.string() }).nullish() })
+		.nullish(),
 });
 export type WixProduct = z.infer<typeof wixProductSchema>;
 
 export const wixProductsQueryResponseSchema = z.object({
 	products: z.array(wixProductSchema).default([]),
-	totalResults: z.number().optional(),
-	metadata: z.object({ items: z.number().optional(), offset: z.number().optional() }).optional(),
+	pagingMetadata: z
+		.object({
+			cursors: z.object({ next: z.string().nullish() }).optional(),
+			hasNext: z.boolean().optional(),
+		})
+		.optional(),
 });
 
 export const wixOrderLineItemSchema = z.object({
